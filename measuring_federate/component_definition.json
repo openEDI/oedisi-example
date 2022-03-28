@@ -1,0 +1,21 @@
+{
+    "directory": "measuring_federate",
+    "execute_function": "python measuring_federate.py",
+    "static_inputs": [
+        {"type": "", "port_id": "gaussian_variance"},
+        {"type": "", "port_id": "voltage_ids"},
+        {"type": "", "port_id": "real_power_ids"},
+        {"type": "", "port_id": "reactive_power_ids"}
+    ],
+    "dynamic_inputs": [
+        {"type": "", "port_id": "voltage_real"},
+        {"type": "", "port_id": "voltage_imag"},
+        {"type": "", "port_id": "power_real"},
+        {"type": "", "port_id": "power_imag"}
+    ],
+    "dynamic_outputs": [
+        {"type": "", "port_id": "voltages"},
+        {"type": "", "port_id": "power_real"},
+        {"type": "", "port_id": "power_imag"}
+    ]
+}
