@@ -45,7 +45,7 @@ def get_indices(labelled_array, indices):
 def reindex(labelled_array, indices):
     inv_map = {v: i for i, v in enumerate(labelled_array.unique_ids)}
     return LabelledArray(array=[
-        labelled_array[inv_map[i]] for i in indices
+        labelled_array.array[inv_map[i]] for i in indices
     ], unique_ids=indices)
 
 
@@ -99,7 +99,7 @@ class MeasurementRelay:
             "power_imag", h.HELICS_DATA_TYPE_STRING, "W"
         )
 
-        self.gaussian_variances = config.gaussian_variance
+        self.gaussian_variance = config.gaussian_variance
         self.voltage_ids = config.voltage_ids
         self.real_power_ids = config.real_power_ids
         self.reactive_power_ids = config.reactive_power_ids
@@ -107,7 +107,7 @@ class MeasurementRelay:
     def transform(self, array: LabelledArray, unique_ids):
         new_array = reindex(array, unique_ids)
         return apply(
-            lambda x: x + self.rng.standard_normal(scale=np.sqrt(self.gaussian_variance)),
+            lambda x: x + self.rng.normal(scale=np.sqrt(self.gaussian_variance)),
             new_array
         )
 
@@ -128,8 +128,8 @@ class MeasurementRelay:
             assert voltage_real.unique_ids == power_real.unique_ids
             assert voltage_real.unique_ids == power_imag.unique_ids
             voltage_abs = LabelledArray(
-                np.abs(np.array(voltage_real.array) + 1j*np.array(voltage_imag.array)),
-                voltage_real.unique_ids
+                array=list(np.abs(np.array(voltage_real.array) + 1j*np.array(voltage_imag.array))),
+                unique_ids=voltage_real.unique_ids
             )
             measured_voltages = self.transform(voltage_abs, self.voltage_ids)
             measured_power_real = self.transform(power_real, self.real_power_ids)

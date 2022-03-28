@@ -177,7 +177,7 @@ class StateEstimatorFederate:
 
         granted_time = -1
 
-        for request_time in range(1, 3, 1):
+        for request_time in range(1, 100, 1):
             request_time += 0.5
             while granted_time < request_time:
                 granted_time = h.helicsFederateRequestTime(self.vfed, request_time)

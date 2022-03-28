@@ -88,25 +88,25 @@
     "links": [
         {
             "source": "feeder",
-            "source_port": "voltage_real",
+            "source_port": "voltages_real",
             "target": "sensors",
             "target_port": "voltage_real"
         },
         {
             "source": "feeder",
-            "source_port": "voltage_imag",
+            "source_port": "voltages_imag",
             "target": "sensors",
             "target_port": "voltage_imag"
         },
         {
             "source": "feeder",
-            "source_port": "power_real",
+            "source_port": "powers_real",
             "target": "sensors",
             "target_port": "power_real"
         },
         {
             "source": "feeder",
-            "source_port": "power_imag",
+            "source_port": "powers_imag",
             "target": "sensors",
             "target_port": "power_imag"
         },

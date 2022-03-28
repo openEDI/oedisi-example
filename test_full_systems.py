@@ -23,7 +23,7 @@ StateEstimatorComponent = component_from_json(
 
 # Dictionary used to interprety test_system.json:w
 component_types = {
-    "BasicFeeeder": BasicFeeder,
+    "BasicFeeder": BasicFeeder,
     "MeasurementComponent": MeasurementComponent,
     "StateEstimatorComponent": StateEstimatorComponent,
 }
