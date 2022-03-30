@@ -90,7 +90,7 @@ def get_indices(topology, labelled_array):
     return [inv_map[v] for v in labelled_array.unique_ids]
 
 
-def state_estimator(topology, P, Q, V):
+def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1):
     """Estimates voltage magnitude and angle from topology, partial power injections
     P + Q i, and lossy partial voltage magnitude.
 
@@ -113,7 +113,17 @@ def state_estimator(topology, P, Q, V):
     knownV = get_indices(topology, V)
     z = np.concatenate((V.array, P.array, Q.array), axis=0)
 
-    delta, Vabs = np.zeros(num_node), np.ones(num_node)  # initialize targets
+    if type(initial_ang) != np.ndarray:
+        delta = np.full(num_node, initial_ang)
+    else:
+        delta = initial_ang
+    assert delta.shape == (num_node,)
+
+    if type(initial_V) != np.ndarray:
+        Vabs = np.full(num_node, initial_V)
+    else:
+        Vabs = initial_V
+    assert Vabs.shape == (num_node,)
     X0 = np.concatenate((delta, Vabs))
     tol = 1e-5
     # Weights are ignored since errors are sampled from Gaussian
@@ -169,6 +179,9 @@ class StateEstimatorFederate:
             "voltages", h.HELICS_DATA_TYPE_STRING, ""
         )
 
+        self.initial_ang = 0
+        self.initial_V = 1
+
     def run(self):
         "Enter execution and exchange data"
         # Enter execution mode #
@@ -193,8 +206,11 @@ class StateEstimatorFederate:
             power_Q = LabelledArray.parse_obj(self.sub_power_Q.json)
 
             voltage_magnitudes, voltage_angles = state_estimator(
-                topology, power_P, power_Q, voltages
+                topology, power_P, power_Q, voltages, initial_V=self.initial_V,
+                initial_ang=self.initial_ang
             )
+            self.initial_V = voltage_magnitudes
+            self.initial_ang = voltage_angles
             voltage_results = PolarLabelledArray(
                 magnitudes=list(voltage_magnitudes),
                 angles=list(voltage_angles),
