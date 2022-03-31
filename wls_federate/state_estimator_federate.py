@@ -117,6 +117,7 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1):
         delta = np.full(num_node, initial_ang)
     else:
         delta = initial_ang
+        delta -= phase_res
     assert delta.shape == (num_node,)
 
     if type(initial_V) != np.ndarray:
@@ -147,7 +148,7 @@ class StateEstimatorFederate:
     "State estimator federate. Wraps state_estimation with pubs and subs"
     def __init__(self, federate_name, input_mapping):
         "Initializes federate with name and remaps input into subscriptions"
-        deltat = 0.01
+        deltat = 0.1
 
         # Create Federate Info object that describes the federate properties #
         fedinfo = h.helicsCreateFederateInfo()
@@ -175,8 +176,11 @@ class StateEstimatorFederate:
         self.sub_topology = self.vfed.register_subscription(
             input_mapping["topology"], ""
         )
-        self.pub_voltages = self.vfed.register_publication(
-            "voltages", h.HELICS_DATA_TYPE_STRING, ""
+        self.pub_voltage_mag = self.vfed.register_publication(
+            "voltage_mag", h.HELICS_DATA_TYPE_STRING, ""
+        )
+        self.pub_voltage_angle = self.vfed.register_publication(
+            "voltage_angle", h.HELICS_DATA_TYPE_STRING, ""
         )
 
         self.initial_ang = 0
@@ -188,13 +192,9 @@ class StateEstimatorFederate:
         self.vfed.enter_executing_mode()
         print("Entering execution mode")
 
-        granted_time = -1
-
-        for request_time in range(1, 100, 1):
-            request_time += 0.5
-            while granted_time < request_time:
-                granted_time = h.helicsFederateRequestTime(self.vfed, request_time)
-
+        granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
+        while granted_time < h.HELICS_TIME_MAXTIME:
+            print(granted_time)
             print("Topology")
             topology = Topology.parse_obj(self.sub_topology.json)
 
@@ -207,17 +207,19 @@ class StateEstimatorFederate:
 
             voltage_magnitudes, voltage_angles = state_estimator(
                 topology, power_P, power_Q, voltages, initial_V=self.initial_V,
-                initial_ang=self.initial_ang
+                initial_ang=self.initial_ang,
             )
             self.initial_V = voltage_magnitudes
             self.initial_ang = voltage_angles
-            voltage_results = PolarLabelledArray(
-                magnitudes=list(voltage_magnitudes),
-                angles=list(voltage_angles),
-                unique_ids=topology.unique_ids,
-            )
-
-            self.pub_voltages.publish(voltage_results.json())
+            self.pub_voltage_mag.publish(LabelledArray(
+                array=list(voltage_magnitudes),
+                unique_ids=topology.unique_ids
+            ).json())
+            self.pub_voltage_angle.publish(LabelledArray(
+                array=list(voltage_magnitudes),
+                unique_ids=topology.unique_ids
+            ).json())
+            granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
 
         self.destroy()
 

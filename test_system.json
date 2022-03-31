@@ -2,6 +2,26 @@
     "name": "test_state_estimator",
     "components": [
         {
+            "name": "recorder_voltage_real",
+            "type": "Recorder",
+            "parameters": {"filename": "data.feather"}
+        },
+        {
+            "name": "recorder_voltage_imag",
+            "type": "Recorder",
+            "parameters": {"filename": "data.feather"}
+        },
+        {
+            "name": "recorder_voltage_mag",
+            "type": "Recorder",
+            "parameters": {"filename": "data.feather"}
+        },
+        {
+            "name": "recorder_voltage_angle",
+            "type": "Recorder",
+            "parameters": {"filename": "data.feather"}
+        },
+        {
             "name": "state_estimator",
             "type": "StateEstimatorComponent",
             "parameters": {}
@@ -133,6 +153,30 @@
             "source_port": "power_imag",
             "target": "state_estimator",
             "target_port": "power_Q"
+        },
+        {
+            "source": "feeder",
+            "source_port": "voltages_real",
+            "target": "recorder_voltage_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "feeder",
+            "source_port": "voltages_imag",
+            "target": "recorder_voltage_imag",
+            "target_port": "subscription"
+        },
+        {
+            "source": "state_estimator",
+            "source_port": "voltage_angle",
+            "target": "recorder_voltage_angle",
+            "target_port": "subscription"
+        },
+        {
+            "source": "state_estimator",
+            "source_port": "voltage_mag",
+            "target": "recorder_voltage_mag",
+            "target_port": "subscription"
         }
     ]
 }

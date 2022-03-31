@@ -116,8 +116,8 @@ class MeasurementRelay:
         self.vfed.enter_executing_mode()
         print("Entering execution mode")
 
-        granted_time = h.helicsFederateRequestTime(self.vfed, 100)
-        while granted_time < 100:
+        granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
+        while granted_time < h.HELICS_TIME_MAXTIME:
             print(granted_time)
             voltage_real = LabelledArray.parse_obj(self.sub_voltage_real.json)
             voltage_imag = LabelledArray.parse_obj(self.sub_voltage_imag.json)
@@ -139,7 +139,7 @@ class MeasurementRelay:
             self.pub_power_real.publish(measured_power_real.json())
             self.pub_power_imag.publish(measured_power_imag.json())
 
-            granted_time = h.helicsFederateRequestTime(self.vfed, 100)
+            granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
 
         self.destroy()
 

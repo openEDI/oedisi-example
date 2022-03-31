@@ -9,6 +9,7 @@
         {"type": "", "port_id": "topology"}
     ],
     "dynamic_outputs": [
-        {"type": "", "port_id": "voltages"}
+        {"type": "", "port_id": "voltage_mag"},
+        {"type": "", "port_id": "voltage_angle"}
     ]
 }

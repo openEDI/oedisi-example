@@ -1,0 +1,11 @@
+{
+    "directory": "recorder",
+    "execute_function": "python record_subscription.py",
+    "static_inputs": [
+        {"type": "", "port_id": "filename"}
+    ],
+    "dynamic_inputs": [
+        {"type": "", "port_id": "subscription"}
+    ],
+    "dynamic_outputs": []
+}

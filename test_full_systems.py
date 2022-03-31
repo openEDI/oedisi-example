@@ -20,12 +20,16 @@ MeasurementComponent = component_from_json(
 StateEstimatorComponent = component_from_json(
     "wls_federate/component_definition.json", bad_type_checker
 )
+Recorder = component_from_json(
+    "recorder/component_definition.json", bad_type_checker
+)
 
 # Dictionary used to interprety test_system.json:w
 component_types = {
     "BasicFeeder": BasicFeeder,
     "MeasurementComponent": MeasurementComponent,
     "StateEstimatorComponent": StateEstimatorComponent,
+    "Recorder": Recorder
 }
 
 # Read wiring diagram (lists components, links, and parameters)
