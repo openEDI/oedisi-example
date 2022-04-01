@@ -140,6 +140,10 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1):
     )
     result = res_1.x
     vmagestDecen, vangestDecen = result[num_node:], result[:num_node]
+    print("phase_res")
+    print(phase_res)
+    print("vangestDecen")
+    print(vangestDecen)
     vangestDecen = vangestDecen - vangestDecen[0] + phase_res
     return vmagestDecen, vangestDecen
 
@@ -216,7 +220,7 @@ class StateEstimatorFederate:
                 unique_ids=topology.unique_ids
             ).json())
             self.pub_voltage_angle.publish(LabelledArray(
-                array=list(voltage_magnitudes),
+                array=list(voltage_angles),
                 unique_ids=topology.unique_ids
             ).json())
             granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)

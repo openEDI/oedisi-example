@@ -42,7 +42,7 @@
             "name": "sensors",
             "type": "MeasurementComponent",
             "parameters": {
-                "gaussian_variance": 0.1,
+                "gaussian_variance": 0.01,
                 "voltage_ids": [
                     "P1ULV4154.2", "P1UDT892.2", "P1ULV4109.1", "P1ULV7546.1", "P1UDT942.2", "P1UDM3889.2", "P1ULV4196.2", "P1UDT883.1",
                     "P1UDT908.1", "P1UDM3885.2", "P1UDT942.3", "P1UDT894LV.2", "P1UDT907.3", "P1UDT943LV.1", "P1UDT1425.3", "P1UDT895.2",

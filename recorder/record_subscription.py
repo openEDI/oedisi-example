@@ -70,7 +70,8 @@ class Recorder:
 
                 granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
 
-            writer.close()
+            if writer is not None:
+                writer.close()
         self.destroy()
 
     def destroy(self):
