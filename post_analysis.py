@@ -20,7 +20,7 @@ def plots(true_voltages, estimated_voltages):
     x_axis = np.arange(n_nodes)
     plt.bar(x_axis, np.angle(estimated_voltages)[0,:])
 
-    plt.bar(x_axis, np.angle(true_angles)[0,:], width=0.5)
+    plt.bar(x_axis, np.angle(true_voltages)[0,:], width=0.5)
 
     plt.xticks(x_axis, true_voltages.columns, rotation=-90)
     plt.ylabel('Voltage Angles')
@@ -50,3 +50,4 @@ def errors(true_voltages, estimated_voltages):
 
 
 errors(true_voltages, estimated_voltages)
+plots(true_voltages, estimated_voltages)
