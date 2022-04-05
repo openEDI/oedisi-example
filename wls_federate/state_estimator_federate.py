@@ -51,6 +51,12 @@ def cal_H(X0, z, num_node, knownP, knownQ, knownV, Y):
 def residual(X0, z, num_node, knownP, knownQ, knownV, Y):
     delta, Vabs = X0[:num_node], X0[num_node:]
     h = cal_h(knownP, knownQ, knownV, Y, delta, Vabs, num_node)
+    print("X0")
+    print(X0)
+    print("z")
+    print(z)
+    print("h")
+    print(h)
     return z-h
 
 class Complex(BaseModel):
@@ -63,6 +69,7 @@ class Topology(BaseModel):
     "All necessary data for state estimator run"
     y_matrix: List[List[Complex]]
     phases: List[float]
+    base_voltages: List[float]
     unique_ids: List[str]
 
 
@@ -126,6 +133,7 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1):
         Vabs = initial_V
     assert Vabs.shape == (num_node,)
     X0 = np.concatenate((delta, Vabs))
+    print(X0)
     tol = 1e-5
     # Weights are ignored since errors are sampled from Gaussian
     res_1 = least_squares(
@@ -144,6 +152,8 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1):
     print(phase_res)
     print("vangestDecen")
     print(vangestDecen)
+    print("vmagestDecen")
+    print(vmagestDecen)
     vangestDecen = vangestDecen - vangestDecen[0] + phase_res
     return vmagestDecen, vangestDecen
 
@@ -187,9 +197,6 @@ class StateEstimatorFederate:
             "voltage_angle", h.HELICS_DATA_TYPE_STRING, ""
         )
 
-        self.initial_ang = 0
-        self.initial_V = 1
-
     def run(self):
         "Enter execution and exchange data"
         # Enter execution mode #
@@ -197,10 +204,16 @@ class StateEstimatorFederate:
         print("Entering execution mode")
 
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
+
+        self.initial_ang = 0
+        self.initial_V = None
         while granted_time < h.HELICS_TIME_MAXTIME:
             print(granted_time)
             print("Topology")
             topology = Topology.parse_obj(self.sub_topology.json)
+
+            if self.initial_V is None:
+                self.initial_V = np.array(topology.base_voltages)
 
             print("Voltages")
             voltages = LabelledArray.parse_obj(self.sub_voltages.json)
@@ -208,6 +221,7 @@ class StateEstimatorFederate:
             print("P and Q")
             power_P = LabelledArray.parse_obj(self.sub_power_P.json)
             power_Q = LabelledArray.parse_obj(self.sub_power_Q.json)
+
 
             voltage_magnitudes, voltage_angles = state_estimator(
                 topology, power_P, power_Q, voltages, initial_V=self.initial_V,

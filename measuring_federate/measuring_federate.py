@@ -131,7 +131,11 @@ class MeasurementRelay:
                 array=list(np.abs(np.array(voltage_real.array) + 1j*np.array(voltage_imag.array))),
                 unique_ids=voltage_real.unique_ids
             )
+            print("true voltages")
+            print(voltage_abs)
             measured_voltages = self.transform(voltage_abs, self.voltage_ids)
+            print("measured voltages")
+            print(measured_voltages)
             measured_power_real = self.transform(power_real, self.real_power_ids)
             measured_power_imag = self.transform(power_imag, self.reactive_power_ids)
 

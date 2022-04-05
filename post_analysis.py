@@ -15,13 +15,38 @@ voltage_angle = feather.read_feather("recorder_voltage_angle/data.feather").drop
 
 estimated_voltages = voltage_mag * np.exp(1j * voltage_angle)
 
-n_nodes = true_voltages.shape[1]
-x_axis = np.arange(n_nodes)
-plt.bar(x_axis, np.array(voltage_angle.iloc[0,:]))
+def plots(true_voltages, estimated_voltages):
+    n_nodes = true_voltages.shape[1]
+    x_axis = np.arange(n_nodes)
+    plt.bar(x_axis, np.angle(estimated_voltages)[0,:])
 
-true_angles = np.angle(true_voltages)
-plt.bar(x_axis, true_angles[0,:], width=0.5)
+    plt.bar(x_axis, np.angle(true_angles)[0,:], width=0.5)
 
-plt.xticks(x_axis, true_voltages.columns, rotation=-90)
-plt.legend(['Estimated', 'True'])
-plt.show()
+    plt.xticks(x_axis, true_voltages.columns, rotation=-90)
+    plt.ylabel('Voltage Angles')
+    plt.legend(['Estimated', 'True'])
+    plt.show()
+
+    plt.bar(x_axis, np.abs(estimated_voltages).iloc[0,:])
+    plt.bar(x_axis, np.abs(true_voltages).iloc[0,:], width=0.5)
+    plt.xticks(x_axis, true_voltages.columns, rotation=-90)
+    plt.ylabel('Voltage Magnitudes')
+    plt.legend(['Estimated', 'True'])
+    plt.show()
+
+def errors(true_voltages, estimated_voltages):
+    true_mag = np.abs(true_voltages)
+    MAPE = np.mean(
+        np.array(np.abs(true_mag - np.abs(estimated_voltages))
+                / true_mag)
+        * 100
+    )
+    MAE = np.mean(
+        np.array(np.abs(
+            np.angle(true_voltages) - np.angle(estimated_voltages)
+        )) % (2*np.pi) * 180 / np.pi
+    )
+    print(f"MAPE = {MAPE}, MAE={MAE}")
+
+
+errors(true_voltages, estimated_voltages)
