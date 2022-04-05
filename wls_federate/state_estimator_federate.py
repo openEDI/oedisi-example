@@ -154,7 +154,7 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1):
     print(vangestDecen)
     print("vmagestDecen")
     print(vmagestDecen)
-    vangestDecen = vangestDecen - vangestDecen[0] + phase_res
+    vangestDecen = vangestDecen - vangestDecen[0] #+ phase_res
     return vmagestDecen, vangestDecen
 
 
@@ -205,7 +205,7 @@ class StateEstimatorFederate:
 
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
 
-        self.initial_ang = 0
+        self.initial_ang = None
         self.initial_V = None
         while granted_time < h.HELICS_TIME_MAXTIME:
             print(granted_time)
@@ -214,6 +214,8 @@ class StateEstimatorFederate:
 
             if self.initial_V is None:
                 self.initial_V = np.array(topology.base_voltages)
+            if self.initial_ang is None:
+                self.initial_ang = np.array(topology.phases)
 
             print("Voltages")
             voltages = LabelledArray.parse_obj(self.sub_voltages.json)
