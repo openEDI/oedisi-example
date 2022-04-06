@@ -70,6 +70,7 @@ class Topology(BaseModel):
     y_matrix: List[List[Complex]]
     phases: List[float]
     base_voltages: List[float]
+    slack_bus: List[str]
     unique_ids: List[str]
 
 
@@ -97,7 +98,7 @@ def get_indices(topology, labelled_array):
     return [inv_map[v] for v in labelled_array.unique_ids]
 
 
-def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1):
+def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0):
     """Estimates voltage magnitude and angle from topology, partial power injections
     P + Q i, and lossy partial voltage magnitude.
 
@@ -112,19 +113,19 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1):
     V : LabelledArray
         Voltage magnitude with unique ids
     """
-    phase_res = np.array(topology.phases)
     num_node = len(topology.unique_ids)
     print(num_node)
     knownP = get_indices(topology, P)
     knownQ = get_indices(topology, Q)
     knownV = get_indices(topology, V)
-    z = np.concatenate((V.array, P.array, Q.array), axis=0)
+    z = np.concatenate((
+        V.array, -1000*np.array(P.array), -1000*np.array(Q.array)
+    ), axis=0)
 
     if type(initial_ang) != np.ndarray:
         delta = np.full(num_node, initial_ang)
     else:
         delta = initial_ang
-        delta -= phase_res
     assert delta.shape == (num_node,)
 
     if type(initial_V) != np.ndarray:
@@ -132,6 +133,8 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1):
     else:
         Vabs = initial_V
     assert Vabs.shape == (num_node,)
+    print("delta")
+    print(delta)
     X0 = np.concatenate((delta, Vabs))
     print(X0)
     tol = 1e-5
@@ -148,13 +151,11 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1):
     )
     result = res_1.x
     vmagestDecen, vangestDecen = result[num_node:], result[:num_node]
-    print("phase_res")
-    print(phase_res)
     print("vangestDecen")
     print(vangestDecen)
     print("vmagestDecen")
     print(vmagestDecen)
-    vangestDecen = vangestDecen - vangestDecen[0] #+ phase_res
+    vangestDecen = vangestDecen - vangestDecen[slack_index]
     return vmagestDecen, vangestDecen
 
 
@@ -212,6 +213,8 @@ class StateEstimatorFederate:
             print("Topology")
             topology = Topology.parse_obj(self.sub_topology.json)
 
+            slack_index = topology.unique_ids.index(topology.slack_bus[0])
+
             if self.initial_V is None:
                 self.initial_V = np.array(topology.base_voltages)
             if self.initial_ang is None:
@@ -225,9 +228,10 @@ class StateEstimatorFederate:
             power_Q = LabelledArray.parse_obj(self.sub_power_Q.json)
 
 
+
             voltage_magnitudes, voltage_angles = state_estimator(
                 topology, power_P, power_Q, voltages, initial_V=self.initial_V,
-                initial_ang=self.initial_ang,
+                initial_ang=self.initial_ang, slack_index=slack_index
             )
             self.initial_V = voltage_magnitudes
             self.initial_ang = voltage_angles
