@@ -43,11 +43,7 @@ def errors(true_voltages, estimated_voltages):
     )
     angle_difference = np.abs(np.angle(true_voltages) - np.angle(estimated_voltages))
     angle_difference[angle_difference >= np.pi] = 2*np.pi - angle_difference[angle_difference >= np.pi]
-    MAE = np.mean(
-        np.array(np.abs(
-            np.angle(true_voltages) - np.angle(estimated_voltages)
-        )) % np.pi * 180 / np.pi
-    )
+    MAE = np.mean(np.array(angle_difference) * 180 / np.pi)
     print(f"MAPE = {MAPE}, MAE={MAE}")
 
 
