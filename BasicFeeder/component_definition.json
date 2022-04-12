@@ -1,0 +1,22 @@
+{
+    "directory": "BasicFeeder",
+    "execute_function": "python sender_cosim.py",
+    "static_inputs": [
+        {"type": "", "port_id": "feeder_file"},
+        {"type": "", "port_id": "load_file"},
+        {"type": "", "port_id": "pv_file"},
+        {"type": "", "port_id": "start_date"},
+	{"type": "", "port_id": "run_freq_sec"},
+        {"type": "", "port_id": "start_time_index"}
+    ],
+    "dynamic_inputs": [
+        {"type": "", "port_id": "voltages"}
+    ],
+    "dynamic_outputs": [
+        {"type": "", "port_id": "voltages_real"},
+        {"type": "", "port_id": "voltages_imag"},
+        {"type": "", "port_id": "powers_real"},
+        {"type": "", "port_id": "powers_imag"},
+        {"type": "", "port_id": "topology"}
+    ]
+}
