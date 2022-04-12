@@ -1,6 +1,11 @@
 # SGIDAL-example
 
-1. Install the SGIDAL componentframework using `python setup.py develop`
+
+1. Install the SGIDAL `componentframework` using `python setup.py develop` along with its dependencies. You'll also need the HELICS CLI and pyarrow in addition to `matplotlib`.
+```
+pip install git+https://github.com/GMLC-TDC/helics-cli.git@main
+pip install pyarrow
+```
 2. Run `python test_full_systems.py` to initialize the system
 3. Run `helics run --path=test_system_runner.json`
 4. Analyze the results using `python post_analysis.py`
