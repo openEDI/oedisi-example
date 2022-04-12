@@ -6,7 +6,7 @@ from componentframework.system_configuration import (
     WiringDiagram,
 )
 
-def bad_type_checker(x):
+def bad_type_checker(type, x):
     "Doesn't do any type checking on the exchange types"
     return True
 
