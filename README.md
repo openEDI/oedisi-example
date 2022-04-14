@@ -1,7 +1,7 @@
 # SGIDAL-example
 
 
-1. Install the SGIDAL `componentframework` using `python setup.py develop` along with its dependencies. You'll also need the HELICS CLI and pyarrow in addition to `matplotlib`.
+1. Install the SGIDAL `componentframework` using `python setup.py develop` along with its dependencies. You'll also need the HELICS CLI and pyarrow in addition to `matplotlib`, `numpy`, and `pandas`.
 ```
 pip install git+https://github.com/GMLC-TDC/helics-cli.git@main
 pip install pyarrow
@@ -14,6 +14,8 @@ pip install pyarrow
 
 All the required components are in this repo as well. Each component
 also defines its own pydantic models at present.
+
+![Block diagram of simulation](sgidal-example.png)
 
 ## BasicFeeder
 
@@ -51,3 +53,13 @@ In `test_full_systems.py`, we load in the various `components_description`s and
 the wiring diagram `test_system.json`. The system is initialized and then the
 `test_system_runner.json` is saved. During this process, directories are created
 for each component with the right configuration.
+
+# Results
+
+![Error plot](errors.png)
+
+![Voltage angles at time 0](voltage_angles_0.png)
+![Voltage magnitudes at time 0](voltage_mangitudes_0.png)
+
+![Voltage angles at time 95](voltage_angles_95.png)
+![Voltage magnitudes at time 95](voltage_mangitudes_95.png)

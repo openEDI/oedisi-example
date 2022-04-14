@@ -15,24 +15,29 @@ voltage_angle = feather.read_feather("recorder_voltage_angle/data.feather").drop
 
 estimated_voltages = voltage_mag * np.exp(1j * voltage_angle)
 
-def plots(true_voltages, estimated_voltages):
-    n_nodes = true_voltages.shape[1]
+def plots(true_voltages, estimated_voltages, time=0):
+    n_nodes = true_voltages.shape[0]
     x_axis = np.arange(n_nodes)
-    plt.bar(x_axis, np.angle(estimated_voltages)[0,:])
+    fig1, ax = plt.subplots(figsize=(10,10))
 
-    plt.bar(x_axis, np.angle(true_voltages)[0,:], width=0.5)
+    ax.bar(x_axis, np.angle(estimated_voltages))
+    ax.bar(x_axis, np.angle(true_voltages), width=0.5)
 
-    plt.xticks(x_axis, true_voltages.columns, rotation=-90)
-    plt.ylabel('Voltage Angles')
-    plt.legend(['Estimated', 'True'])
-    plt.show()
+    ax.set_xticks(x_axis, true_voltages.index, rotation=-90, fontsize=5)
+    #ax.set_tick_params(axis='x', labelsize=5, rotation=-90)
+    ax.set_ylabel('Voltage Angles')
+    ax.legend(['Estimated', 'True'])
+    ax.set_title(f"Voltage Angles at t={time}")
 
-    plt.bar(x_axis, np.abs(estimated_voltages).iloc[0,:])
-    plt.bar(x_axis, np.abs(true_voltages).iloc[0,:], width=0.5)
-    plt.xticks(x_axis, true_voltages.columns, rotation=-90)
-    plt.ylabel('Voltage Magnitudes')
-    plt.legend(['Estimated', 'True'])
-    plt.show()
+    fig2, ax = plt.subplots(figsize=(10,10))
+    ax.bar(x_axis, np.abs(estimated_voltages))
+    ax.bar(x_axis, np.abs(true_voltages), width=0.5)
+    ax.set_xticks(x_axis, true_voltages.index, rotation=-90, fontsize=5)
+    ax.set_ylabel('Voltage Magnitudes')
+    ax.legend(['Estimated', 'True'])
+    ax.set_title(f"Voltage Magnitudes at t={time}")
+    return fig1, fig2
+
 
 def errors(true_voltages, estimated_voltages):
     true_mag = np.abs(true_voltages)
@@ -44,8 +49,35 @@ def errors(true_voltages, estimated_voltages):
     angle_difference = np.abs(np.angle(true_voltages) - np.angle(estimated_voltages))
     angle_difference[angle_difference >= np.pi] = 2*np.pi - angle_difference[angle_difference >= np.pi]
     MAE = np.mean(np.array(angle_difference) * 180 / np.pi)
-    print(f"MAPE = {MAPE}, MAE={MAE}")
+    return MAPE, MAE
 
 
-errors(true_voltages, estimated_voltages)
-plots(true_voltages, estimated_voltages)
+def error_table(true_voltages, estimated_voltage):
+    error_table = []
+    for i, t in enumerate(time):
+        MAPE, MAE = errors(true_voltages.iloc[i,:], estimated_voltages.iloc[i,:])
+        error_table.append({"t": t, "MAPE": MAPE, "MAE": MAE})
+    return pd.DataFrame(error_table)
+
+
+def plot_errors(err_table):
+    fig, ax = plt.subplots()
+    ax.plot(err_table["t"], err_table["MAPE"])
+    ax.plot(err_table["t"], err_table["MAE"])
+    ax.legend(["MAPE", "MAE"])
+    ax.set_ylabel("error")
+    ax.set_xlabel("t")
+    ax.set_title("Errors over time")
+    return fig
+
+err_table = error_table(true_voltages, estimated_voltages)
+plot_errors(err_table).savefig("errors.png")
+MAPE, MAE = errors(true_voltages, estimated_voltages)
+print(f"MAPE = {MAPE}, MAE={MAE}")
+fig1, fig2 = plots(true_voltages.iloc[0,:], estimated_voltages.iloc[0,:])
+fig1.savefig("voltage_angles_0.png")
+fig2.savefig("voltage_mangitudes_0.png")
+fig1, fig2 = plots(true_voltages.iloc[95,:], estimated_voltages.iloc[95,:], 95)
+fig1.savefig("voltage_angles_95.png")
+fig2.savefig("voltage_mangitudes_95.png")
+
