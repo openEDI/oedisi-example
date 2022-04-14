@@ -64,10 +64,10 @@ def plot_errors(err_table):
     fig, ax = plt.subplots()
     ax.plot(err_table["t"], err_table["MAPE"])
     ax.plot(err_table["t"], err_table["MAE"])
-    ax.legend(["MAPE", "MAE"])
+    ax.legend(["MAPE (magnitudes)", "MAE (angles)"])
     ax.set_ylabel("error")
     ax.set_xlabel("t")
-    ax.set_title("Errors over time")
+    ax.set_title("Voltage Errors")
     return fig
 
 err_table = error_table(true_voltages, estimated_voltages)
