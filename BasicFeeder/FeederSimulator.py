@@ -7,6 +7,7 @@ import csv
 import time
 from time import strptime
 import os
+import logging
 
 from pydantic import BaseModel
 
@@ -16,6 +17,9 @@ from dss_functions import (
 )
 import dss_functions
 
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.INFO)
 
 def check_node_order(l1, l2):
     print('check order ' + str(l1 == l2))
@@ -137,7 +141,8 @@ class FeederSimulator(object):
             Bus = dss.CktElement.BusNames()[0].upper()
             for phase in range(1, dss.CktElement.NumPhases() + 1):
                 self._source_indexes.append(self._AllNodeNames.index(Bus.upper() + '.' + str(phase)))
-        print(self._source_indexes)
+        logger.debug("Voltage Sources")
+        logger.debug(self._source_indexes)
 
         Ymatrix = parse_Ymatrix('base_ysparse.csv', self._node_number)
 
@@ -228,22 +233,7 @@ class FeederSimulator(object):
                 index = self._name_index_dict[cap["busname"].upper() + '.' + cap["busphase"][ii]]
                 Qcap[index] = -cap["power"][2 * ii - 1]
 
-        PQ_source = np.zeros((num_nodes), dtype=np.complex_)
-        for vsource in self._vsources:
-            print("Vsource")
-            print(vsource)
-            bus = vsource["bus"]
-            self._circuit.SetActiveElement('Vsource.'+vsource["name"])
-            power = dss.CktElement.Powers()
-            print("powers")
-            print(power)
-            for ii in range(len(bus) - 1):
-                index = self._name_index_dict[(bus[0] + '.' + bus[ii + 1]).upper()]
-                #PQ_source[index] += np.complex(power[2 * ii], power[2 * ii + 1])
-
-        print(PQ_source)
-
-        return PQ_load + PQ_PV + PQ_source + PQ_gen + 1j * np.array(Qcap)  # power injection
+        return PQ_load + PQ_PV + PQ_gen + 1j * np.array(Qcap)  # power injection
 
 
     def get_loads(self):

@@ -94,7 +94,6 @@ def get_vnom(dss):
     Vnom = circuit.AllBusVolts()
     bases = dss.Settings.VoltageBases()
     base = bases[-1] / math.sqrt(3)
-    print(base)
     V = np.ones(len(Vnom) // 2, dtype=np.complex_)
     for i in range(len(V)):
         V[i] = np.complex(Vnom[2 * i], Vnom[2 * i + 1]) / (base * 1000)

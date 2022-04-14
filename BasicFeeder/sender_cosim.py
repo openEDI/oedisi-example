@@ -1,3 +1,4 @@
+import logging
 import helics as h
 import opendssdirect as dss
 import pandas as pd
@@ -7,6 +8,10 @@ from FeederSimulator import FeederSimulator, FeederConfig
 from pydantic import BaseModel
 from typing import List
 import numpy as np
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.INFO)
 
 test_se = False
 
@@ -94,8 +99,8 @@ def go_cosim(sim, config: FeederConfig):
     h.helicsFederateEnterExecutingMode(vfed)
 
     Y = sim.get_y_matrix()
-    print("Eigenvalues and vectors")
-    print(np.linalg.eig(Y.toarray()))
+    logger.debug("Eigenvalues and vectors")
+    logger.debug(np.linalg.eig(Y.toarray()))
     y_matrix = numpy_to_y_matrix(Y.toarray())
     def get_phase(name):
         _, end = name.split('.')
@@ -109,8 +114,8 @@ def go_cosim(sim, config: FeederConfig):
             raise Exception("Cannot parse name")
 
     phases = list(map(get_phase, sim._AllNodeNames))
-    print("_Vbase_allnode")
-    print(sim._Vbase_allnode)
+    logger.debug("_Vbase_allnode")
+    logger.debug(sim._Vbase_allnode)
     base_voltages = list(sim._Vbase_allnode)
 
     slack_bus = [
@@ -134,11 +139,11 @@ def go_cosim(sim, config: FeederConfig):
 
     granted_time = -1
     current_index = config.start_time_index
-    for request_time in range(0, 1):
+    for request_time in range(0, 100):
         while granted_time < request_time:
             granted_time = h.helicsFederateRequestTime(vfed, request_time)
         current_index+=1
-        print(f'Get Voltages and PQs at {current_index} {granted_time} {request_time}')
+        logger.info(f'Get Voltages and PQs at {current_index} {granted_time} {request_time}')
 
 
         pv_ = pv_df.loc[sim._simulation_step][0]
@@ -150,21 +155,20 @@ def go_cosim(sim, config: FeederConfig):
 
         feeder_voltages = sim.get_voltages_actual()
         PQ_node = sim.get_PQs()
-        print(PQ_node)
-        print(feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000)
+        logger.debug("PQ")
+        logger.debug(PQ_node)
+        logger.debug("Calculated Power")
         errors = PQ_node + feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
-        index = errors.argmax()
-        print(index)
-        print(errors[index])
         power_balance = (feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000)
-        print(power_balance[index])
-        print(PQ_node[index])
+        logger.debug(power_balance)
         indices, = np.nonzero(np.abs(errors) > 1)
-        print(indices)
-        print([sim._AllNodeNames[i] for i in indices])
-        print(PQ_node[indices])
-        print(feeder_voltages[indices])
-        print(power_balance[indices])
+        logger.debug("Indices with error > 1")
+        logger.debug(indices)
+        logger.debug([sim._AllNodeNames[i] for i in indices])
+        logger.debug("Power, Voltages, and Calculated Power at Indices")
+        logger.debug(PQ_node[indices])
+        logger.debug(feeder_voltages[indices])
+        logger.debug(power_balance[indices])
 
 
         phases = list(map(get_true_phases, np.angle(feeder_voltages)))

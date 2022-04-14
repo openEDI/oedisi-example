@@ -7,12 +7,17 @@ First `call_h` calculates the residual from the voltage magnitude and angle,
 and `call_H` calculates a jacobian. Then `scipy.optimize.least_squares`
 is used to solve.
 """
+import logging
 import helics as h
 import json
 import numpy as np
 from pydantic import BaseModel
 from typing import List
 from scipy.optimize import least_squares
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.INFO)
 
 def cal_h(knownP, knownQ, knownV, Y, deltaK, VabsK, num_node):
     h1 = (VabsK[knownV]).reshape(-1,1)
@@ -51,12 +56,12 @@ def cal_H(X0, z, num_node, knownP, knownQ, knownV, Y):
 def residual(X0, z, num_node, knownP, knownQ, knownV, Y):
     delta, Vabs = X0[:num_node], X0[num_node:]
     h = cal_h(knownP, knownQ, knownV, Y, delta, Vabs, num_node)
-    print("X0")
-    print(X0)
-    print("z")
-    print(z)
-    print("h")
-    print(h)
+    logger.debug("X0")
+    logger.debug(X0)
+    logger.debug("z")
+    logger.debug(z)
+    logger.debug("h")
+    logger.debug(h)
     return z-h
 
 class Complex(BaseModel):
@@ -114,7 +119,8 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0
         Voltage magnitude with unique ids
     """
     num_node = len(topology.unique_ids)
-    print(num_node)
+    logging.debug("Number of Nodes")
+    logging.debug(num_node)
     knownP = get_indices(topology, P)
     knownQ = get_indices(topology, Q)
     knownV = get_indices(topology, V)
@@ -133,11 +139,11 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0
     else:
         Vabs = initial_V
     assert Vabs.shape == (num_node,)
-    print("delta")
-    print(delta)
+    logging.debug("delta")
+    logging.debug(delta)
     X0 = np.concatenate((delta, Vabs))
-    print(X0)
-    tol = 1e-5
+    logging.debug(X0)
+    tol = 1e-6
     # Weights are ignored since errors are sampled from Gaussian
     res_1 = least_squares(
         residual,
@@ -151,10 +157,10 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0
     )
     result = res_1.x
     vmagestDecen, vangestDecen = result[num_node:], result[:num_node]
-    print("vangestDecen")
-    print(vangestDecen)
-    print("vmagestDecen")
-    print(vmagestDecen)
+    logging.debug("vangestDecen")
+    logging.debug(vangestDecen)
+    logging.debug("vmagestDecen")
+    logging.debug(vmagestDecen)
     vangestDecen = vangestDecen - vangestDecen[slack_index]
     return vmagestDecen, vangestDecen
 
@@ -210,7 +216,6 @@ class StateEstimatorFederate:
         self.initial_V = None
         while granted_time < h.HELICS_TIME_MAXTIME:
             print(granted_time)
-            print("Topology")
             topology = Topology.parse_obj(self.sub_topology.json)
 
             slack_index = topology.unique_ids.index(topology.slack_bus[0])
@@ -220,21 +225,17 @@ class StateEstimatorFederate:
             if self.initial_ang is None:
                 self.initial_ang = np.array(topology.phases)
 
-            print("Voltages")
             voltages = LabelledArray.parse_obj(self.sub_voltages.json)
 
-            print("P and Q")
             power_P = LabelledArray.parse_obj(self.sub_power_P.json)
             power_Q = LabelledArray.parse_obj(self.sub_power_Q.json)
-
-
 
             voltage_magnitudes, voltage_angles = state_estimator(
                 topology, power_P, power_Q, voltages, initial_V=self.initial_V,
                 initial_ang=self.initial_ang, slack_index=slack_index
             )
-            self.initial_V = voltage_magnitudes
-            self.initial_ang = voltage_angles
+            #self.initial_V = voltage_magnitudes
+            #self.initial_ang = voltage_angles
             self.pub_voltage_mag.publish(LabelledArray(
                 array=list(voltage_magnitudes),
                 unique_ids=topology.unique_ids
