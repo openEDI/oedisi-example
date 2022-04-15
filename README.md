@@ -1,11 +1,12 @@
 # SGIDAL-example
 
 
-1. Install the SGIDAL `componentframework` using `python setup.py develop` along with its dependencies. You'll also need the HELICS CLI, `opendssdirect`, `pyarrow` in addition to the usual `matplotlib`, `numpy`, and `pandas`.
+1. Install the SGIDAL `componentframework` using `python setup.py develop` along with its dependencies. You'll also need the HELICS CLI, `opendssdirect`, `pyarrow` in addition to the usual `scipy`, `matplotlib`, `numpy`, and `pandas`.
 ```
 pip install 'OpenDSSDirect.py[extras]'
 pip install git+https://github.com/GMLC-TDC/helics-cli.git@main
 pip install pyarrow
+pip install scipy matplotlib numpy pandas
 ```
 2. Run `python test_full_systems.py` to initialize the system
 3. Run `helics run --path=test_system_runner.json`
