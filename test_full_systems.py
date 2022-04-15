@@ -24,7 +24,7 @@ Recorder = component_from_json(
     "recorder/component_definition.json", bad_type_checker
 )
 
-# Dictionary used to interprety test_system.json:w
+# Dictionary used to interpret test_system.json
 component_types = {
     "BasicFeeder": BasicFeeder,
     "MeasurementComponent": MeasurementComponent,
