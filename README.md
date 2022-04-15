@@ -1,7 +1,7 @@
 # SGIDAL-example
 
 
-1. Install the SGIDAL `componentframework` using `python setup.py develop` along with its dependencies. You'll also need the HELICS CLI and pyarrow in addition to `matplotlib`, `numpy`, and `pandas`.
+1. Install the SGIDAL `componentframework` using `python setup.py develop` along with its dependencies. You'll also need the HELICS CLI and `pyarrow` in addition to the usual `matplotlib`, `numpy`, and `pandas`.
 ```
 pip install git+https://github.com/GMLC-TDC/helics-cli.git@main
 pip install pyarrow
