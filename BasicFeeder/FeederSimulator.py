@@ -5,9 +5,13 @@ import opendssdirect as dss
 import numpy as np
 import csv
 import time
+import sys
 from time import strptime
 import os
 import logging
+import boto3
+from botocore import UNSIGNED
+from botocore.config import Config
 
 from pydantic import BaseModel
 
@@ -26,13 +30,13 @@ def check_node_order(l1, l2):
 
 
 class FeederConfig(BaseModel):
-    name: str
-    feeder_file: str
+    smartds_region: str
+    smartds_feeder: str
+    smartds_scenario: str
+    smartds_year: str
     start_date: str
-    run_freq_sec: float
-    start_time_index: int = 0
-    load_file: str
-    pv_file: str
+    end_date: str
+    increment_value: int # increment in seconds
 
 
 class FeederSimulator(object):
@@ -43,7 +47,13 @@ class FeederSimulator(object):
         """ Create a ``FeederSimulator`` object
 
         """
-        self._feeder_file = config.feeder_file
+        self._smartds_region = config.smartds_region
+        self._smartds_feeder = config.smartds_feeder
+        self._smartds_scenario = config.smartds_scenario
+        self._smartds_year = config.smartds_year
+        self._start_date = config.start_date
+        self._end_date = config.end_date
+        self._feeder_file = None
 
         self._circuit=None
         self._AllNodeNames=None
@@ -54,18 +64,44 @@ class FeederSimulator(object):
 
         # timegm(strptime('2019-07-23 14:50:00 GMT', '%Y-%m-%d %H:%M:%S %Z'))
         self._start_time = int(time.mktime(strptime(config.start_date, '%Y-%m-%d %H:%M:%S')))
-        self._run_freq_sec = config.run_freq_sec
-        self._simulation_step = config.start_time_index
-        self._simulation_time_step = self._start_time
+        #self._run_freq_sec = config.run_freq_sec
+        #self._simulation_step = config.start_time_index
+        #self._simulation_time_step = self._start_time
         self._vmult = 0.001
 
         self._nodes_index = []
         self._name_index_dict = {}
 
+        self.download_data()
         self.load_feeder()
 
+
+    def download_data(self):
+
+        bucket_name = 'oedi-data-lake'
+        #Equivalent to --no-sign-request
+        s3_resource = boto3.resource('s3',config=Config(signature_version=UNSIGNED))
+        bucket = s3_resource.Bucket(bucket_name)
+        opendss_location = f'SMART-DS/v1.0/{self._smartds_year}/SFO/{self._smartds_region}/scenarios/{self._smartds_scenario}/opendss/{self._smartds_feeder}'
+        profile_location =f'SMART-DS/v1.0/{self._smartds_year}/SFO/{self._smartds_region}/profiles' 
+
+        self._feeder_file = os.path.join('opendss','Master.dss')
+        self._simulation_time_step = '15m'
+        for obj in bucket.objects.filter(Prefix=opendss_location):
+            output_location = os.path.join('opendss',obj.key.replace(opendss_location,''))
+            if not os.path.exists(os.path.dirname(output_location)):
+                os.makedirs(os.path.dirname(output_location))
+            bucket.download_file(obj.key,output_location)
+
+
+#        for obj in bucket.objects.filter(Prefix=profile_location):
+#            output_location = os.path.join('profiles',obj.key.replace(opendss_location,''))
+#            if not os.path.exists(os.path.dirname(output_location)):
+#                os.makedirs(os.path.dirname(output_location))
+#            bucket.download_file(obj.key,output_location)
+
     def setup_player(self):
-        dss.run_command('set mode=yearly loadmult=1 number=1 stepsize=1m ')
+        dss.run_command(f'set mode=yearly loadmult=1 number=1 stepsize={self._simulation_time_step} ')
 
     def snapshot_run(self):
         snapshot_run(dss)
@@ -81,33 +117,6 @@ class FeederSimulator(object):
 
     def load_feeder(self):
         dss.run_command("redirect " + self._feeder_file)
-        # dss.run_command("show voltages LN nodes")
-        self._circuit = dss.Circuit
-        print(self._circuit.Name())
-        # dss.run_command("Solve")
-        self._load_names = dss.Loads.AllNames()
-        self._pv_names = dss.PVsystems.AllNames()
-        self._gen_names = dss.Generators.AllNames()
-        self._cap_names = dss.Capacitors.AllNames()
-        self._regNames = dss.RegControls.AllNames()
-        self._loads = get_loads(dss, self._circuit)
-        self._vsources = []
-        for Source in dss.Vsources.AllNames():
-            self._circuit.SetActiveElement('Vsource.' + Source)
-            bus = dss.CktElement.BusNames()[0].upper()
-            print(dss.CktElement.Name())
-            bus = bus.split('.')
-            if len(bus) == 1:
-                bus = bus + ['1', '2', '3']
-            self._vsources.append({
-                "name": dss.CktElement.Name(),
-                "busname": dss.CktElement.BusNames()[0].upper(),
-                "bus": bus,
-                "numPhases": dss.CktElement.NumPhases()
-            })
-        self._pvs = get_pvSystems(dss)
-        self._gens = get_Generator(dss)
-        self._caps = get_capacitors(dss)
 
 
     def get_y_matrix(self):
@@ -236,24 +245,6 @@ class FeederSimulator(object):
         return PQ_load + PQ_PV + PQ_gen + 1j * np.array(Qcap)  # power injection
 
 
-    def get_loads(self):
-        loads = get_loads(dss, self._circuit)
-        self._load_power = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
-        load_names = []
-        load_powers = []
-        load = loads[0]
-        for load in loads:
-            for phase in load['phases']:
-                self._load_power[
-                    self._name_index_dict[load['bus1'].upper() + '.' + phase]
-                ] = complex(load['power'][0], load['power'][1])
-                load_names.append(load['bus1'].upper() + '.' + phase)
-                load_powers.append(complex(load['power'][0], load['power'][1]))
-        return self._load_power, load_names, load_powers
-
-    def get_load_sizes(self):
-        return dss_functions.get_load_sizes(dss,self._loads)
-
     def get_voltages_actual(self):
         '''
 
@@ -279,15 +270,8 @@ class FeederSimulator(object):
 
         :return per unit voltages:
         '''
-        #voltages = np.array(self._circuit.AllBusVolts())
-        #voltages = voltages[::2] + 1j * voltages[1::2]
-        #assert len(voltages) == len(self._AllNodeNames)
-        #return voltages
 
         _, name_voltage_dict = get_voltages(self._circuit)
-        # print('Publish load ' + str(temp_feeder_voltages.real[0]))
-        # set_load(dss, data_df['load'], current_time, loads)
-        # feeder_voltages = [0j] * len(self._AllNodeNames)
         res_feeder_voltages = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
         # print([name_voltage_dict.keys()][:5])
         temp_array_pu = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
@@ -320,7 +304,6 @@ class FeederSimulator(object):
         :return:
         """
         for i, name in enumerate(self._load_names):
-            # print('edit Load.' + str(load["name"]) + ' kW=' + str(loadshape_p) + ' kVar=' + str(loadshape_q))
             dss.run_command('edit Load.' + name + ' kW=' + str(list_p[i]) + ' kVar=' + str(list_q[i]))
 
     def set_load_time_series(self, df):

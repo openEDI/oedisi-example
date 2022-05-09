@@ -1,6 +1,7 @@
 import logging
 import helics as h
 import opendssdirect as dss
+import sys
 import pandas as pd
 import json
 from dss_functions import snapshot_run
@@ -74,10 +75,6 @@ def get_true_phases(angle):
 
 
 def go_cosim(sim, config: FeederConfig):
-    load_df = pd.read_csv(config.load_file)
-    load_df.columns = ['time']+sim._load_names
-    pv_df = pd.read_csv(config.pv_file, header=None, names=['pv'])
-    pv_df['pv'] = pv_df['pv'] / pv_df['pv'].max()
 
     deltat = 0.01
     fedinitstring = "--federates=1"
