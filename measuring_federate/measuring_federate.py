@@ -31,9 +31,9 @@ class PolarLabelledArray(BaseModel):
 class MeasurementConfig(BaseModel):
     name: str
     gaussian_variance: float
-    voltage_ids: List[str]
-    real_power_ids: List[str]
-    reactive_power_ids: List[str]
+    voltage_id_file: str
+    real_power_id_file: str
+    reactive_power_id_file: str
 
 
 def get_indices(labelled_array, indices):
@@ -44,6 +44,8 @@ def get_indices(labelled_array, indices):
 
 def reindex(labelled_array, indices):
     inv_map = {v: i for i, v in enumerate(labelled_array.unique_ids)}
+    for i in inv_map:
+        print(i)
     return LabelledArray(array=[
         labelled_array.array[inv_map[i]] for i in indices
     ], unique_ids=indices)
@@ -100,9 +102,9 @@ class MeasurementRelay:
         )
 
         self.gaussian_variance = config.gaussian_variance
-        self.voltage_ids = config.voltage_ids
-        self.real_power_ids = config.real_power_ids
-        self.reactive_power_ids = config.reactive_power_ids
+        self.voltage_id_file = config.voltage_id_file
+        self.real_power_id_file = config.real_power_id_file
+        self.reactive_power_id_file = config.reactive_power_id_file
 
     def transform(self, array: LabelledArray, unique_ids):
         new_array = reindex(array, unique_ids)
@@ -131,6 +133,12 @@ class MeasurementRelay:
                 array=list(np.abs(np.array(voltage_real.array) + 1j*np.array(voltage_imag.array))),
                 unique_ids=voltage_real.unique_ids
             )
+            with open(self.voltage_id_file,'r') as fp:
+                self.voltage_ids = json.load(fp)
+            with open(self.real_power_id_file,'r') as fp:
+                self.real_power_ids = json.load(fp)
+            with open(self.reactive_power_id_file,'r') as fp:
+                self.reactive_power_ids = json.load(fp)
             print("true voltages")
             print(voltage_abs)
             measured_voltages = self.transform(voltage_abs, self.voltage_ids)
