@@ -110,9 +110,9 @@ def go_cosim(sim, config: FeederConfig):
         else:
             raise Exception("Cannot parse name")
 
+    initial_feeder_voltages = sim.get_voltages_actual()
+    #phases = np.angle(initial_feeder_voltages).tolist()
     phases = list(map(get_phase, sim._AllNodeNames))
-    logger.debug("_Vbase_allnode")
-    logger.debug(sim._Vbase_allnode)
     base_voltages = list(sim._Vbase_allnode)
 
     slack_bus = [
@@ -139,13 +139,19 @@ def go_cosim(sim, config: FeederConfig):
 
     granted_time = -1
     current_index = 0
+    current_hour = 0
+    current_second = 0
     for request_time in range(0, 100):
         while granted_time < request_time:
             granted_time = h.helicsFederateRequestTime(vfed, request_time)
         current_index+=1
+        current_second+=15*60
+        if current_second >=60*60:
+            current_second = 0
+            current_hour+=1
         logger.info(f'Get Voltages and PQs at {current_index} {granted_time} {request_time}')
 
-        sim.solve(current_index)
+        sim.solve(current_hour,current_second)
 
         feeder_voltages = sim.get_voltages_actual()
         PQ_node = sim.get_PQs()
