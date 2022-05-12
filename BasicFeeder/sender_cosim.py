@@ -138,20 +138,14 @@ def go_cosim(sim, config: FeederConfig):
     snapshot_run(sim)
 
     granted_time = -1
-    current_index = config.start_time_index
+    current_index = 0
     for request_time in range(0, 100):
         while granted_time < request_time:
             granted_time = h.helicsFederateRequestTime(vfed, request_time)
         current_index+=1
         logger.info(f'Get Voltages and PQs at {current_index} {granted_time} {request_time}')
 
-
-        pv_ = pv_df.loc[sim._simulation_step][0]
-
-        sim.set_load_pq_timeseries(load_df)
-        if granted_time <= 2:
-            sim.set_gen_pq(pv_, pv_)
-        sim.solve()
+        sim.solve(current_index)
 
         feeder_voltages = sim.get_voltages_actual()
         PQ_node = sim.get_PQs()
@@ -187,7 +181,6 @@ def go_cosim(sim, config: FeederConfig):
         pub_powers_real.publish(LabelledArray(array=list(PQ_node.real), unique_ids=sim._AllNodeNames).json())
         pub_powers_imag.publish(LabelledArray(array=list(PQ_node.imag), unique_ids=sim._AllNodeNames).json())
 
-        sim.run_next()
 
     h.helicsFederateDisconnect(vfed)
     h.helicsFederateFree(vfed)
