@@ -28,9 +28,6 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
 
-def check_node_order(l1, l2):
-    print('check order ' + str(l1 == l2))
-
 
 class FeederConfig(BaseModel):
     name: str
@@ -153,22 +150,9 @@ class FeederSimulator(object):
             raise ValueError("Feeder not loaded: "+result)
         self._circuit = dss.Circuit
         self._AllNodeNames = self._circuit.YNodeOrder()
-
-
-    def get_y_matrix(self):
-        get_y_matrix_file(dss)
         self._node_number = len(self._AllNodeNames)
-        AllNodeNames = []
-        with open(os.path.join('.', 'base_nodelist.csv')) as csvfile:
-            reader = csv.reader(csvfile, delimiter=',')
-            for row in reader:
-                AllNodeNames.append(row[0])
-        check_node_order(self._AllNodeNames,AllNodeNames)
         self._nodes_index = [self._AllNodeNames.index(ii) for ii in self._AllNodeNames]
         self._name_index_dict = {ii: self._AllNodeNames.index(ii) for ii in self._AllNodeNames}
-
-        ## For y-matrix pu
-        self.setup_vbase()
 
         self._source_indexes = []
         for Source in dss.Vsources.AllNames():
@@ -176,15 +160,13 @@ class FeederSimulator(object):
             Bus = dss.CktElement.BusNames()[0].upper()
             for phase in range(1, dss.CktElement.NumPhases() + 1):
                 self._source_indexes.append(self._AllNodeNames.index(Bus.upper() + '.' + str(phase)))
-        logger.debug("Voltage Sources")
-        logger.debug(self._source_indexes)
 
-        Ymatrix = parse_Ymatrix('base_ysparse.csv', self._node_number)
 
-        self.snapshot_run()
         self.setup_vbase()
-        temp_AllNodeNames = self._circuit.YNodeOrder()
-        check_node_order(temp_AllNodeNames, self._AllNodeNames)
+
+    def get_y_matrix(self):
+        get_y_matrix_file(dss)
+        Ymatrix = parse_Ymatrix('base_ysparse.csv', self._node_number)
 
         return Ymatrix
 
@@ -316,14 +298,7 @@ class FeederSimulator(object):
     def run_command(self, cmd):
         dss.run_command(cmd)
 
-    def solve(self,number):
-        # snapshot_run(dss)
-        dss.run_command(f'set mode=yearly loadmult=1 number={number} stepsize={self._simulation_time_step} ')
+    def solve(self,hour,second):
+        dss.run_command(f'set mode=yearly loadmult=1 number=1 hour={hour} sec={seconds} stepsize={self._simulation_time_step} ')
         dss.run_command('solve')
-
-    def run_next(self):
-        # snapshot_run(dss)
-        dss.run_command('solve')
-        self._simulation_step += 1
-        self._simulation_time_step += self._run_freq_sec
 
