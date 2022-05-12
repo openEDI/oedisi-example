@@ -299,6 +299,6 @@ class FeederSimulator(object):
         dss.run_command(cmd)
 
     def solve(self,hour,second):
-        dss.run_command(f'set mode=yearly loadmult=1 number=1 hour={hour} sec={seconds} stepsize={self._simulation_time_step} ')
+        dss.run_command(f'set mode=yearly loadmult=1 number=1 hour={hour} sec={second} stepsize={self._simulation_time_step} ')
         dss.run_command('solve')
 
