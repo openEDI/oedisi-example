@@ -67,7 +67,7 @@ for each component with the right configuration.
 ![Error plot](errors.png)
 
 ![Voltage angles at time 0](voltage_angles_0.png)
-![Voltage magnitudes at time 0](voltage_mangitudes_0.png)
+![Voltage magnitudes at time 0](voltage_magnitudes_0.png)
 
 ![Voltage angles at time 95](voltage_angles_95.png)
-![Voltage magnitudes at time 95](voltage_mangitudes_95.png)
+![Voltage magnitudes at time 95](voltage_magnitudes_95.png)

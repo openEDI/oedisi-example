@@ -72,8 +72,8 @@ def plot_errors(err_table):
     ax.plot(err_table["t"], err_table["MAPE"])
     ax.plot(err_table["t"], err_table["MAE"])
     ax.legend(["MAPE (magnitudes)", "MAE (angles)"])
-    ax.set_ylabel("error")
-    ax.set_xlabel("t")
+    ax.set_ylabel("Error")
+    ax.set_xlabel("Time (15 minute)")
     ax.set_title("Voltage Errors")
     return fig
 
