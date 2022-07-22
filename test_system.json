@@ -30,10 +30,10 @@
             "name": "feeder",
             "type": "BasicFeeder",
             "parameters": {
-                "name": "p1udt104_feeder",
+                "name": "p1udt942_feeder",
                 "smartds_region": "P1U",
-                "smartds_feeder": "p1uhs0_1247/p1uhs0_1247--p1udt104/",
-                "smartds_scenario": "solar_medium_batteries_none_timeseries",
+                "smartds_feeder": "p1uhs0_1247/p1uhs0_1247--p1udt942/",
+                "smartds_scenario": "base_timeseries",
                 "smartds_year": "2017",
                 "start_date": "2017-06-01 00:00:00",
                 "end_date": "2017-05-02 00:00:00",
