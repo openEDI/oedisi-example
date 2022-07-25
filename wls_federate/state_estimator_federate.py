@@ -215,8 +215,10 @@ class StateEstimatorFederate:
         self.initial_ang = None
         self.initial_V = None
         while granted_time < h.HELICS_TIME_MAXTIME:
-            print(granted_time)
             topology = Topology.parse_obj(self.sub_topology.json)
+            if not self.sub_voltages.is_updated():
+                continue
+            print(granted_time)
 
             slack_index = topology.unique_ids.index(topology.slack_bus[0])
 
