@@ -140,6 +140,7 @@ def go_cosim(sim, config: FeederConfig):
     current_hour = 0
     current_second = 0
     for request_time in range(0, 100):
+        request_time += 0.01
         while granted_time < request_time:
             granted_time = h.helicsFederateRequestTime(vfed, request_time)
         current_index+=1
@@ -157,6 +158,8 @@ def go_cosim(sim, config: FeederConfig):
         logger.debug(PQ_node)
         logger.debug("Calculated Power")
         errors = PQ_node + feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
+        logger.debug("errors")
+        logger.debug(errors)
         power_balance = (feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000)
         logger.debug(power_balance)
         indices, = np.nonzero(np.abs(errors) > 1)
