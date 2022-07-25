@@ -34,7 +34,7 @@ component_types = {
 
 # Read wiring diagram (lists components, links, and parameters)
 wiring_diagram = WiringDiagram.parse_file("test_system.json")
-wiring_diagram.clean_model()
+#wiring_diagram.clean_model()
 # Generate runner config using wiring diagram and component types
 runner_config = generate_runner_config(wiring_diagram, component_types)
 with open("test_system_runner.json", "w") as f:

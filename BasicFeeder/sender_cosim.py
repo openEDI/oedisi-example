@@ -110,8 +110,6 @@ def go_cosim(sim, config: FeederConfig):
         else:
             raise Exception("Cannot parse name")
 
-    initial_feeder_voltages = sim.get_voltages_actual()
-    #phases = np.angle(initial_feeder_voltages).tolist()
     phases = list(map(get_phase, sim._AllNodeNames))
     base_voltages = list(sim._Vbase_allnode)
 

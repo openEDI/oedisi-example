@@ -12,6 +12,7 @@ import logging
 import math
 import random
 import json
+from scipy.sparse import coo_matrix
 import boto3
 from botocore import UNSIGNED
 from botocore.config import Config
@@ -27,6 +28,23 @@ import dss_functions
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
+
+
+def permutation(from_list, to_list):
+    """
+    Create permutation representing change in from_list to to_list
+
+    Specifically, if `permute = permutation(from_list, to_list)`,
+    then `permute[i] = j` means that `from_list[i] = to_list[j]`.
+
+    This also means that `to_list[permute] == from_list`, so you
+    can convert from indices under to_list to indices under from_list.
+
+    You may view the permutation as a function from `from_list` to `to_list`.
+    """
+    #return [to_list.find(v) for v in enumerate(from_list)]
+    index_map = {v: i for i, v in enumerate(to_list)}
+    return [index_map[v] for v in from_list]
 
 
 class FeederConfig(BaseModel):
@@ -167,8 +185,10 @@ class FeederSimulator(object):
     def get_y_matrix(self):
         get_y_matrix_file(dss)
         Ymatrix = parse_Ymatrix('base_ysparse.csv', self._node_number)
-
-        return Ymatrix
+        new_order = self._circuit.YNodeOrder()
+        permute = np.array(permutation(new_order, self._AllNodeNames))
+        #inv_permute = np.array(permutation(self._AllNodeNames, new_order))
+        return coo_matrix((Ymatrix.data, (permute[Ymatrix.row], permute[Ymatrix.col])), shape=Ymatrix.shape)
 
     def setup_vbase(self):
         self._Vbase_allnode = np.zeros((self._node_number), dtype=np.complex_)

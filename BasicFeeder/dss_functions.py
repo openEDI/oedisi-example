@@ -144,7 +144,7 @@ def parse_Ymatrix(Ysparse, totalnode_number):
             Ymatrix[r, c] = complex(g, b)
             Ymatrix[c, r] = Ymatrix[r, c]
 
-    return Ymatrix
+    return Ymatrix.tocoo()
 
 
 def get_loads(dss, circuit):
