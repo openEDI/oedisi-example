@@ -39,3 +39,10 @@ jobs:
         python test_full_systems.py
         helics run --path=test_system_runner.json
         python post_analysis.py
+    - name: Archive plots
+      uses: actions/upload-artifact@v2
+      with:
+        name: test_logs
+        path: |
+          *.png
+          *.log
