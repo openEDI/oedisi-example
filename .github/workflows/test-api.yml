@@ -30,6 +30,7 @@ jobs:
         pip install pyarrow
         pip install scipy matplotlib numpy pandas
         pip install 'OpenDSSDirect.py[extras]'
+        pip install boto3
         eval `ssh-agent -s`
         ssh-add - <<< '${{ secrets.SGIDAL_CLONE_KEY }}'
         pip install git+ssh://git@github.com/openEDI/SGIDAL.git@main
