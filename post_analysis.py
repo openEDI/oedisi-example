@@ -48,14 +48,15 @@ def plots(true_voltages, estimated_voltages, time=0, unit="kV"):
 
 def errors(true_voltages, estimated_voltages):
     true_mag = np.abs(true_voltages)
+    nonzero_parts = true_mag != 0.0
     MAPE = np.mean(
         np.array(np.abs(true_mag - np.abs(estimated_voltages))
-                / true_mag)
+                / true_mag)[nonzero_parts]
         * 100
     )
     angle_difference = np.abs(np.angle(true_voltages) - np.angle(estimated_voltages))
     angle_difference[angle_difference >= np.pi] = 2*np.pi - angle_difference[angle_difference >= np.pi]
-    MAE = np.mean(np.array(angle_difference) * 180 / np.pi)
+    MAE = np.mean(np.array(angle_difference)[nonzero_parts] * 180 / np.pi)
     return MAPE, MAE
 
 

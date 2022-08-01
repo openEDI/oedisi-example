@@ -129,9 +129,9 @@ def go_cosim(sim, config: FeederConfig):
     )
 
     logger.info("Sending topology and saving to topology.json")
-    with open("topology.json", "w") as topology_file:
-        topology_file.write(topology.json())
     pub_topology.publish(topology.json())
+    with open("topology.json", "w") as f:
+        f.write(topology.json())
 
     snapshot_run(sim)
 
@@ -140,7 +140,6 @@ def go_cosim(sim, config: FeederConfig):
     current_hour = 0
     current_second = 0
     for request_time in range(0, 100):
-        request_time += 0.01
         while granted_time < request_time:
             granted_time = h.helicsFederateRequestTime(vfed, request_time)
         current_index+=1
