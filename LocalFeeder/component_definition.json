@@ -1,5 +1,5 @@
 {
-    "directory": "OriginalFeeder",
+    "directory": "LocalFeeder",
     "execute_function": "python sender_cosim.py",
     "static_inputs": [
         {"type": "", "port_id": "feeder_file"},
