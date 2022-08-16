@@ -1,0 +1,15 @@
+Clear
+
+New Circuit.feeder_p1udt942-p1uhs0_1247x bus1=p1udt942-p1uhs0_1247x pu=1.03 basekV=12.47 R1=1e-05 X1=1e-05 R0=1e-05 X0=1e-05
+
+Redirect LineCodes.dss
+Redirect Lines.dss
+Redirect Transformers.dss
+Redirect Loads.dss
+Redirect Genpv.dss
+
+Set Voltagebases=[0.12, 0.208, 0.48, 7.2, 12.47]
+
+Calcvoltagebases
+
+Solve 
