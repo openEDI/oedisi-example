@@ -1,0 +1,9 @@
+{
+  "pub_opf_flex_powers_real": "opf/pub_opf_flex_powers_real",
+  "pub_opf_cap_powers_imag": "opf/pub_opf_cap_powers_imag",
+  "pub_opf_pv_powers_real": "opf/pub_opf_pv_powers_real",
+  "pub_opf_pv_powers_imag": "opf/pub_opf_pv_powers_imag",
+  "pub_opf_tap_values": "opf/pub_opf_tap_values"
+}
+
+
