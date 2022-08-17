@@ -122,7 +122,7 @@ class FeederSimulator(object):
         with open(os.path.join('opendss','LoadShapes.dss'),'w') as fp_loadshapes:
             fp_loadshapes.write(modified_loadshapes)
         for profile in all_profiles:
-            s3_location = os.path.join(profile_location,profile)
+            s3_location = f'{profile_location}/{profile}'
             bucket.download_file(s3_location,os.path.join('opendss',profile))
 
     def create_measurement_lists(self,
