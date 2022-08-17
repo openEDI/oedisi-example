@@ -25,8 +25,8 @@
             "name": "state_estimator",
             "type": "StateEstimatorComponent",
             "parameters": {
-		"algorithm_parameters": {"tol": 1e-5}
-	    }
+                "algorithm_parameters": {"tol": 1e-5}
+            }
         },
         {
             "name": "feeder",
