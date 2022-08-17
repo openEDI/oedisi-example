@@ -257,7 +257,7 @@ class StateEstimatorFederate:
             slack_index = topology.unique_ids.index(topology.slack_bus[0])
 
             if self.initial_V is None:
-                self.initial_V = 1.025*np.array(topology.base_voltages)
+                self.initial_V = 1.025#*np.array(topology.base_voltages)
             if self.initial_ang is None:
                 self.initial_ang = np.array(topology.phases)
 
