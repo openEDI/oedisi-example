@@ -4,19 +4,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import json
+import os
 
-voltage_real = feather.read_feather("recorder_voltage_real/data.feather")
-voltage_imag = feather.read_feather("recorder_voltage_imag/data.feather")
+voltage_real = feather.read_feather(os.path.join("recorder_voltage_real","data.feather"))
+voltage_imag = feather.read_feather(os.path.join("recorder_voltage_imag","data.feather"))
 
-with open("feeder/topology.json") as f:
+with open(os.path.join("feeder","topology.json") as f:
     topology = json.load(f)
     base_voltages = np.array(topology["base_voltages"])
 
 true_voltages = voltage_real.drop('time', axis=1) + 1j * voltage_imag.drop('time', axis=1)
 time = voltage_real["time"]
 
-voltage_mag = feather.read_feather("recorder_voltage_mag/data.feather").drop('time', axis=1)
-voltage_angle = feather.read_feather("recorder_voltage_angle/data.feather").drop('time', axis=1)
+voltage_mag = feather.read_feather(os.path.join("recorder_voltage_mag","data.feather")).drop('time', axis=1)
+voltage_angle = feather.read_feather(os.path.join("recorder_voltage_angle","data.feather")).drop('time', axis=1)
 
 estimated_voltages = voltage_mag * np.exp(1j * voltage_angle)
 
