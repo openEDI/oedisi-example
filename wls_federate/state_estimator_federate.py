@@ -157,9 +157,9 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0
     # Weights are ignored since errors are sampled from Gaussian
     if len(knownP) + len(knownV) + len(knownQ) < num_node * 2:
         #If not observable 
-        low_limit = np.concatenate((np.ones(num_node)* (- 2 * np.pi + np.pi/6),
+        low_limit = np.concatenate((np.ones(num_node)* (- np.pi + np.pi/6),
                                     np.ones(num_node)*0.95))
-        up_limit = np.concatenate((np.ones(num_node)* (2 * np.pi + np.pi/6),
+        up_limit = np.concatenate((np.ones(num_node)* (np.pi + np.pi/6),
                                     np.ones(num_node)*1.05))
         res_1 = least_squares(
             residual,
