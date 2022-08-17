@@ -119,15 +119,22 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0
         Voltage magnitude with unique ids
     """
     num_node = len(topology.unique_ids)
+    base_power = 100
+    base_voltages = np.array(topology.base_voltages)
     logging.debug("Number of Nodes")
     logging.debug(num_node)
     knownP = get_indices(topology, P)
     knownQ = get_indices(topology, Q)
     knownV = get_indices(topology, V)
+#    z = np.concatenate((
+#        V.array, -1000*np.array(P.array), -1000*np.array(Q.array)
+#    ), axis=0)
     z = np.concatenate((
-        V.array, -1000*np.array(P.array), -1000*np.array(Q.array)
+        V.array / base_voltages[knownV],
+        -np.array(P.array) / base_power,
+        -np.array(Q.array) / base_power
     ), axis=0)
-
+    
     if type(initial_ang) != np.ndarray:
         delta = np.full(num_node, initial_ang)
     else:
@@ -143,18 +150,43 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0
     logging.debug(delta)
     X0 = np.concatenate((delta, Vabs))
     logging.debug(X0)
-    tol = 1e-6
+    Y = matrix_to_numpy(topology.y_matrix)
+    Y = base_voltages.reshape(1, -1) * Y * \
+        base_voltages.reshape(-1, 1) / (base_power * 1000)
+    tol = 5e-7
     # Weights are ignored since errors are sampled from Gaussian
-    res_1 = least_squares(
-        residual,
-        X0,
-        jac=cal_H,
-        verbose=2,
-        ftol=tol,
-        xtol=tol,
-        gtol=tol,
-        args=(z, num_node, knownP, knownQ, knownV, matrix_to_numpy(topology.y_matrix)),
-    )
+    if len(knownP) + len(knownV) + len(knownQ) < num_node * 2:
+        #If not observable 
+        low_limit = np.concatenate((np.ones(num_node)* (- 2 * np.pi + np.pi/6),
+                                    np.ones(num_node)*0.95))
+        up_limit = np.concatenate((np.ones(num_node)* (2 * np.pi + np.pi/6),
+                                    np.ones(num_node)*1.05))
+        res_1 = least_squares(
+            residual,
+            X0,
+            jac=cal_H,
+            bounds = (low_limit, up_limit),
+            # method = 'lm',
+            verbose=2,
+            ftol=tol,
+            xtol=tol,
+            gtol=tol,
+            args=(z, num_node, knownP, knownQ, knownV, Y),
+        )
+    # Weights are ignored since errors are sampled from Gaussian
+    else:
+        res_1 = least_squares(
+            residual,
+            X0,
+            jac=cal_H,
+            # bounds = (low_limit, up_limit),
+            method = 'lm',
+            verbose=2,
+            ftol=tol,
+            xtol=tol,
+            gtol=tol,
+            args=(z, num_node, knownP, knownQ, knownV, Y),
+        )
     result = res_1.x
     vmagestDecen, vangestDecen = result[num_node:], result[:num_node]
     logging.debug("vangestDecen")
@@ -162,7 +194,7 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0
     logging.debug("vmagestDecen")
     logging.debug(vmagestDecen)
     vangestDecen = vangestDecen - vangestDecen[slack_index]
-    return vmagestDecen, vangestDecen
+    return vmagestDecen*(base_voltages), vangestDecen
 
 
 class StateEstimatorFederate:
