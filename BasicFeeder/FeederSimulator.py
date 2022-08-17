@@ -126,9 +126,9 @@ class FeederSimulator(object):
             bucket.download_file(s3_location,os.path.join('opendss',profile))
 
     def create_measurement_lists(self,
-            percent_voltage=50,
-            percent_real=50,
-            percent_reactive=50,
+            percent_voltage=75,
+            percent_real=75,
+            percent_reactive=75,
             voltage_seed=1,
             real_seed=2,
             reactive_seed=3
