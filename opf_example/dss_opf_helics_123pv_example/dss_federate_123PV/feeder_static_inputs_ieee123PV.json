@@ -1,0 +1,11 @@
+{
+  "feeder_file": "IEEE123PV/IEEE123Master_fixedVR.dss",
+  "load_file": "IEEE123PV/aug11slow.csv",
+  "pv_file": "IEEE123PV/aug11slow.csv",
+  "start_date": "2013-08-10 00:00:00",
+  "run_freq_sec": 60,
+  "start_time_index": 1,
+  "deltat": 0.5,
+  "name": "feeder",
+  "flex_load_input_file": "flex_load_info.json"
+}

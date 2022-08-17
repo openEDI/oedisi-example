@@ -1,0 +1,11 @@
+{
+  "name": "test_feeder_simulator",
+  "federates": [
+    {
+      "directory": ".",
+      "exec": "helics_broker -f 1 --loglevel=DEBUG",
+      "host": "localhost",
+      "name": "broker"
+    }
+  ]
+}

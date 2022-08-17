@@ -1,0 +1,23 @@
+{
+  "name": "test_feeder_opf_simulator",
+  "federates": [
+    {
+      "directory": ".",
+      "exec": "helics_broker -f 2 --loglevel=DEBUG",
+      "host": "localhost",
+      "name": "broker"
+    },
+    {
+      "directory": "dss_federate_123PV",
+      "exec": "python -u sender_cosim.py",
+      "host": "localhost",
+      "name": "DSS_Federate"
+    },
+    {
+      "directory": "opf_federate_123PV",
+      "exec": "python -u opf_federate_123PV.py",
+      "host": "localhost",
+      "name": "OPF_Federate"
+    }
+  ]
+}
