@@ -12,7 +12,8 @@ import helics as h
 import json
 import numpy as np
 from pydantic import BaseModel
-from typing import List
+from enum import Enum
+from typing import List, Optional
 from scipy.optimize import least_squares
 
 logger = logging.getLogger(__name__)
@@ -102,13 +103,26 @@ def get_indices(topology, labelled_array):
     inv_map = {v: i for i, v in enumerate(topology.unique_ids)}
     return [inv_map[v] for v in labelled_array.unique_ids]
 
+class UnitSystem(str, Enum):
+    SI = 'SI'
+    PER_UNIT = 'PER_UNIT'
 
-def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0):
+class AlgorithmParameters(BaseModel):
+    tol: float = 5e-7
+    units: UnitSystem = UnitSystem.PER_UNIT
+    base_power: Optional[float] = 100.0
+
+    class Config:
+        use_enum_values = True
+
+def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0):
     """Estimates voltage magnitude and angle from topology, partial power injections
     P + Q i, and lossy partial voltage magnitude.
 
     Parameters
     ----------
+    parameters : AlgorithmParameters
+        Miscellaneous parameters for algorithm: tolerance, unit-system, etc.
     topology : Topology
         topology includes: Y-matrix, some initial phases, and unique ids
     P : LabelledArray
@@ -119,21 +133,34 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0
         Voltage magnitude with unique ids
     """
     num_node = len(topology.unique_ids)
-    base_power = 100
     base_voltages = np.array(topology.base_voltages)
     logging.debug("Number of Nodes")
     logging.debug(num_node)
     knownP = get_indices(topology, P)
     knownQ = get_indices(topology, Q)
     knownV = get_indices(topology, V)
-#    z = np.concatenate((
-#        V.array, -1000*np.array(P.array), -1000*np.array(Q.array)
-#    ), axis=0)
-    z = np.concatenate((
-        V.array / base_voltages[knownV],
-        -np.array(P.array) / base_power,
-        -np.array(Q.array) / base_power
-    ), axis=0)
+
+    if parameters.units == UnitSystem.SI:
+        z = np.concatenate((
+            V.array, -1000*np.array(P.array), -1000*np.array(Q.array)
+        ), axis=0)
+        Y = matrix_to_numpy(topology.y_matrix)
+    elif parameters.units == UnitSystem.PER_UNIT:
+        base_power = 100
+        if parameters.base_power != None:
+            base_power = parameters.base_power
+        z = np.concatenate((
+            V.array / base_voltages[knownV],
+            -np.array(P.array) / base_power,
+            -np.array(Q.array) / base_power
+        ), axis=0)
+        Y = matrix_to_numpy(topology.y_matrix)
+        # Hand-crafted unit conversion (check it, it works)
+        Y = base_voltages.reshape(1, -1) * Y * \
+            base_voltages.reshape(-1, 1) / (base_power * 1000)
+    else:
+        raise Exception(f"Unit system {parameters.units} not supported")
+    tol = parameters.tol
     
     if type(initial_ang) != np.ndarray:
         delta = np.full(num_node, initial_ang)
@@ -150,14 +177,12 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0
     logging.debug(delta)
     X0 = np.concatenate((delta, Vabs))
     logging.debug(X0)
-    Y = matrix_to_numpy(topology.y_matrix)
-    Y = base_voltages.reshape(1, -1) * Y * \
-        base_voltages.reshape(-1, 1) / (base_power * 1000)
-    tol = 5e-7
     # Weights are ignored since errors are sampled from Gaussian
+    # Real dimension of solutions is
+    # 2 * num_node - len(knownP) - len(knownV) - len(knownQ)
     if len(knownP) + len(knownV) + len(knownQ) < num_node * 2:
         #If not observable 
-        low_limit = np.concatenate((np.ones(num_node)* (- np.pi + np.pi/6),
+        low_limit = np.concatenate((np.ones(num_node)* (- np.pi - np.pi/6),
                                     np.ones(num_node)*0.95))
         up_limit = np.concatenate((np.ones(num_node)* (np.pi + np.pi/6),
                                     np.ones(num_node)*1.05))
@@ -173,7 +198,6 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0
             gtol=tol,
             args=(z, num_node, knownP, knownQ, knownV, Y),
         )
-    # Weights are ignored since errors are sampled from Gaussian
     else:
         res_1 = least_squares(
             residual,
@@ -194,14 +218,20 @@ def state_estimator(topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0
     logging.debug("vmagestDecen")
     logging.debug(vmagestDecen)
     vangestDecen = vangestDecen - vangestDecen[slack_index]
-    return vmagestDecen*(base_voltages), vangestDecen
+    if parameters.units == UnitSystem.SI:
+        return vmagestDecen, vangestDecen
+    elif parameters.units == UnitSystem.PER_UNIT:
+        return vmagestDecen*(base_voltages), vangestDecen
+
 
 
 class StateEstimatorFederate:
     "State estimator federate. Wraps state_estimation with pubs and subs"
-    def __init__(self, federate_name, input_mapping):
+    def __init__(self, federate_name, algorithm_parameters: AlgorithmParameters, input_mapping):
         "Initializes federate with name and remaps input into subscriptions"
         deltat = 0.1
+
+        self.algorithm_parameters = algorithm_parameters
 
         # Create Federate Info object that describes the federate properties #
         fedinfo = h.helicsCreateFederateInfo()
@@ -257,7 +287,7 @@ class StateEstimatorFederate:
             slack_index = topology.unique_ids.index(topology.slack_bus[0])
 
             if self.initial_V is None:
-                self.initial_V = 1.025#*np.array(topology.base_voltages)
+                self.initial_V = 1.025 #*np.array(topology.base_voltages)
             if self.initial_ang is None:
                 self.initial_ang = np.array(topology.phases)
 
@@ -267,6 +297,7 @@ class StateEstimatorFederate:
             power_Q = LabelledArray.parse_obj(self.sub_power_Q.json)
 
             voltage_magnitudes, voltage_angles = state_estimator(
+                self.algorithm_parameters,
                 topology, power_P, power_Q, voltages, initial_V=self.initial_V,
                 initial_ang=self.initial_ang, slack_index=slack_index
             )
@@ -296,9 +327,18 @@ if __name__ == "__main__":
     with open("static_inputs.json") as f:
         config = json.load(f)
         federate_name = config["name"]
+        if "algorithm_parameters" in config:
+            parameters = AlgorithmParameters.parse_obj(config["algorithm_parameters"])
+        else:
+            parameters = AlgorithmParameters.parse_obj({})
+
 
     with open("input_mapping.json") as f:
         input_mapping = json.load(f)
 
-    sfed = StateEstimatorFederate(federate_name, input_mapping)
+    sfed = StateEstimatorFederate(
+        federate_name,
+        parameters,
+        input_mapping
+    )
     sfed.run()
