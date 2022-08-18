@@ -46,7 +46,10 @@ def get_y_matrix_file(dss):
     dss.run_command('export y triplet base_ysparse.csv')
     dss.run_command('export ynodelist base_nodelist.csv')
     dss.run_command('export summary base_summary.csv')
-
+    from scipy.sparse import csc_matrix
+    from scipy.sparse import save_npz
+    Ysparse = csc_matrix(dss.YMatrix.getYsparse())
+    save_npz('base_ysparse.npz', Ysparse)
     # dss.run_command('show Y')
     # dss.run_command('solve mode=snap')
 
@@ -143,8 +146,10 @@ def parse_Ymatrix(Ysparse, totalnode_number):
             b = float(row[3])
             Ymatrix[r, c] = complex(g, b)
             Ymatrix[c, r] = Ymatrix[r, c]
-
-    return Ymatrix.tocoo()
+            
+    from scipy.sparse import load_npz
+    Ymatrix_new = load_npz('base_ysparse.npz')
+    return Ymatrix.tocoo(), Ymatrix_new.tocoo()
 
 
 def get_loads(dss, circuit):
