@@ -184,7 +184,7 @@ class FeederSimulator(object):
 
     def get_y_matrix(self):
         get_y_matrix_file(dss)
-        Ymatrix = parse_Ymatrix('base_ysparse.csv', self._node_number)
+        Ymatrix_old, Ymatrix = parse_Ymatrix('base_ysparse.csv', self._node_number)
         new_order = self._circuit.YNodeOrder()
         permute = np.array(permutation(new_order, self._AllNodeNames))
         #inv_permute = np.array(permutation(self._AllNodeNames, new_order))
