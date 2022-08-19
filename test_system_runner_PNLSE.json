@@ -1,0 +1,65 @@
+{
+  "name": "test_state_estimator",
+  "federates": [
+    {
+      "directory": "recorder_voltage_real",
+      "name": "recorder_voltage_real",
+      "exec": "python record_subscription.py",
+      "hostname": "localhost"
+    },
+    {
+      "directory": "recorder_voltage_imag",
+      "name": "recorder_voltage_imag",
+      "exec": "python record_subscription.py",
+      "hostname": "localhost"
+    },
+    {
+      "directory": "recorder_voltage_mag",
+      "name": "recorder_voltage_mag",
+      "exec": "python record_subscription.py",
+      "hostname": "localhost"
+    },
+    {
+      "directory": "recorder_voltage_angle",
+      "name": "recorder_voltage_angle",
+      "exec": "python record_subscription.py",
+      "hostname": "localhost"
+    },
+    {
+      "directory": "state_estimator",
+      "name": "state_estimator",
+      "exec": "python state_estimator_federate.py",
+      "hostname": "localhost"
+    },
+    {
+      "directory": "feeder",
+      "name": "feeder",
+      "exec": "python sender_cosim.py",
+      "hostname": "localhost"
+    },
+    {
+      "directory": "local_feeder",
+      "name": "local_feeder",
+      "exec": "python sender_cosim.py",
+      "hostname": "localhost"
+    },
+    {
+      "directory": "sensors",
+      "name": "sensors",
+      "exec": "python measuring_federate.py",
+      "hostname": "localhost"
+    },
+	{
+      "directory": ".",
+      "name": "pnnl_state_estimator",
+      "exec": "/home/bilal/Desktop/gridappsd-state-estimator/state-estimator/bin/state-estimator-sgidal",
+      "hostname": "localhost"
+    },
+    {
+      "directory": ".",
+      "name": "broker",
+      "exec": "helics_broker -f 9 --loglevel=trace",
+      "hostname": "localhost"
+    }
+  ]
+}
