@@ -133,6 +133,9 @@ def go_cosim(sim, config: FeederConfig):
         unique_ids=unique_ids
     )
 
+    logger.info("Sending topology and saving to topology.json")
+    with open("topology.json", "w") as topology_file:
+        topology_file.write(topology.json())
     pub_topology.publish(topology.json())
 
     snapshot_run(sim)
@@ -155,10 +158,14 @@ def go_cosim(sim, config: FeederConfig):
 
         feeder_voltages = sim.get_voltages_actual()
         PQ_node = sim.get_PQs()
+        logger.debug("Feeder Voltages")
+        logger.debug(feeder_voltages)
         logger.debug("PQ")
         logger.debug(PQ_node)
         logger.debug("Calculated Power")
         errors = PQ_node + feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
+        logger.debug("errors")
+        logger.debug(errors)
         power_balance = (feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000)
         logger.debug(power_balance)
         indices, = np.nonzero(np.abs(errors) > 1)

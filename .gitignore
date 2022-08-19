@@ -4,3 +4,4 @@ sensors
 *.log
 test_system_runner.json
 recorder_*
+local_feeder

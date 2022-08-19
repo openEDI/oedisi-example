@@ -11,8 +11,11 @@ def bad_type_checker(type, x):
     return True
 
 # We make classes for each component using a type checker
-BasicFeeder = component_from_json(
-    "BasicFeeder/component_definition.json", bad_type_checker
+AWSFeeder = component_from_json(
+    "AWSFeeder/component_definition.json", bad_type_checker
+)
+LocalFeeder = component_from_json(
+    "LocalFeeder/component_definition.json", bad_type_checker
 )
 MeasurementComponent = component_from_json(
     "measuring_federate/component_definition.json", bad_type_checker
@@ -26,7 +29,8 @@ Recorder = component_from_json(
 
 # Dictionary used to interpret test_system.json
 component_types = {
-    "BasicFeeder": BasicFeeder,
+    "LocalFeeder": LocalFeeder,
+    "AWSFeeder": AWSFeeder,
     "MeasurementComponent": MeasurementComponent,
     "StateEstimatorComponent": StateEstimatorComponent,
     "Recorder": Recorder
@@ -34,6 +38,7 @@ component_types = {
 
 # Read wiring diagram (lists components, links, and parameters)
 wiring_diagram = WiringDiagram.parse_file("test_system.json")
+#wiring_diagram.clean_model()
 # Generate runner config using wiring diagram and component types
 runner_config = generate_runner_config(wiring_diagram, component_types)
 with open("test_system_runner.json", "w") as f:
