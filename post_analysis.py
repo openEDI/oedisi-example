@@ -9,7 +9,7 @@ import os
 voltage_real = feather.read_feather(os.path.join("recorder_voltage_real","data.feather"))
 voltage_imag = feather.read_feather(os.path.join("recorder_voltage_imag","data.feather"))
 
-with open(os.path.join("feeder","topology.json") as f:
+with open(os.path.join("feeder","topology.json")) as f:
     topology = json.load(f)
     base_voltages = np.array(topology["base_voltages"])
 
