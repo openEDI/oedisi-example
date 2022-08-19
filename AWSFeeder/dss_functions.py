@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from scipy import sparse as sparse
 import cmath
+from scipy.sparse import csc_matrix, save_npz
 
 # from simulator.simulator import node_number
 
@@ -46,8 +47,6 @@ def get_y_matrix_file(dss):
     dss.run_command('export y triplet base_ysparse.csv')
     dss.run_command('export ynodelist base_nodelist.csv')
     dss.run_command('export summary base_summary.csv')
-    from scipy.sparse import csc_matrix
-    from scipy.sparse import save_npz
     Ysparse = csc_matrix(dss.YMatrix.getYsparse())
     save_npz('base_ysparse.npz', Ysparse)
     # dss.run_command('show Y')

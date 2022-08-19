@@ -11,7 +11,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 test_se = False
 
@@ -167,9 +167,6 @@ def go_cosim(sim, config: FeederConfig):
         logger.debug("errors")
         logger.debug(errors)
         power_balance = (feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000)
-        np.save("errors.npy", errors)
-        np.save("y_matrix.npy", y_matrix)
-        np.save("feeder_voltages.npy", feeder_voltages)
         logger.debug(power_balance)
         indices, = np.nonzero(np.abs(errors) > 1)
         logger.debug("Indices with error > 1")
