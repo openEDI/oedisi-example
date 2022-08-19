@@ -1,0 +1,157 @@
+{
+  "name": "pnnl_opf",
+  "components": [
+    {
+      "name": "feeder",
+      "type": "OPFFeeder",
+      "parameters": {
+        "feeder_file": "IEEE123PV/IEEE123Master_fixedVR.dss",
+        "load_file": "IEEE123PV/aug11slow.csv",
+        "pv_file": "IEEE123PV/aug11slow.csv",
+        "start_date": "2013-08-10 00:00:00",
+        "run_freq_sec": 60,
+        "start_time_index": 1,
+        "deltat": 0.5,
+        "flex_load_input_file": "flex_load_info.json"
+      }
+    },
+    {
+      "name": "opf",
+      "type": "OPFComponent",
+      "parameters": {
+        "start_date": "2021-01-01 00:00:00",
+        "run_freq_sec": 60,
+        "start_time_index": 1,
+        "name": "opf",
+        "deltat": 1,
+        "algorithm_settings": {
+          "gradient_descent_setting": {
+            "iter_lim": 1050,
+            "tolerance": 0.1,
+            "step_size": 1
+          }
+        },
+        "method": "central",
+        "metadata": {
+          "method": "name of the OPF method: available are 'gradient_descent,'central"
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "source": "opf",
+      "source_port": "opf_flex_powers_real",
+      "target": "feeder",
+      "target_port": "opf_flex_powers_real"
+    },
+    {
+      "source": "opf",
+      "source_port": "opf_cap_powers_imag",
+      "target": "feeder",
+      "target_port": "opf_cap_powers_imag"
+    },
+    {
+      "source": "opf",
+      "source_port": "opf_pv_powers_real",
+      "target": "feeder",
+      "target_port": "opf_pv_powers_real"
+    },
+    {
+      "source": "opf",
+      "source_port": "opf_pv_powers_imag",
+      "target": "feeder",
+      "target_port": "opf_pv_powers_imag"
+    },
+    {
+      "source": "opf",
+      "source_port": "opf_tap_values",
+      "target": "feeder",
+      "target_port": "opf_tap_values"
+    },
+    {
+      "source": "feeder",
+      "source_port": "topology",
+      "target": "opf",
+      "target_port": "topology"
+    },
+    {
+      "source": "feeder",
+      "source_port": "topology_flow",
+      "target": "opf",
+      "target_port": "topology_flow"
+    },
+    {
+      "source": "feeder",
+      "source_port": "tap_info",
+      "target": "opf",
+      "target_port": "tap_info"
+    },
+    {
+      "source": "feeder",
+      "source_port": "cap_info",
+      "target": "opf",
+      "target_port": "cap_info"
+    },
+    {
+      "source": "feeder",
+      "source_port": "pv_info",
+      "target": "opf",
+      "target_port": "pv_info"
+    },
+    {
+      "source": "feeder",
+      "source_port": "flex_info",
+      "target": "opf",
+      "target_port": "flex_info"
+    },
+    {
+      "source": "feeder",
+      "source_port": "voltages_real",
+      "target": "opf",
+      "target_port": "voltages_real"
+    },
+    {
+      "source": "feeder",
+      "source_port": "voltages_imag",
+      "target": "opf",
+      "target_port": "voltages_imag"
+    },
+    {
+      "source": "feeder",
+      "source_port": "powers_real",
+      "target": "opf",
+      "target_port": "powers_real"
+    },
+    {
+      "source": "feeder",
+      "source_port": "powers_imag",
+      "target": "opf",
+      "target_port": "powers_imag"
+    },
+    {
+      "source": "feeder",
+      "source_port": "cap_powers_imag",
+      "target": "opf",
+      "target_port": "cap_powers_imag"
+    },
+    {
+      "source": "feeder",
+      "source_port": "pv_powers_real",
+      "target": "opf",
+      "target_port": "pv_powers_real"
+    },
+    {
+      "source": "feeder",
+      "source_port": "pv_powers_imag",
+      "target": "opf",
+      "target_port": "pv_powers_imag"
+    },
+    {
+      "source": "feeder",
+      "source_port": "tap_values",
+      "target": "opf",
+      "target_port": "tap_values"
+    }
+  ]
+}

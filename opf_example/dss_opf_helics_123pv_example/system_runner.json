@@ -1,0 +1,23 @@
+{
+  "name": "pnnl_opf",
+  "federates": [
+    {
+      "directory": "feeder",
+      "name": "feeder",
+      "exec": "python sender_cosim.py",
+      "hostname": "localhost"
+    },
+    {
+      "directory": "opf",
+      "name": "opf",
+      "exec": "python opf_federate_123PV.py",
+      "hostname": "localhost"
+    },
+    {
+      "directory": ".",
+      "name": "broker",
+      "exec": "helics_broker -f 2 --loglevel=warning",
+      "hostname": "localhost"
+    }
+  ]
+}
