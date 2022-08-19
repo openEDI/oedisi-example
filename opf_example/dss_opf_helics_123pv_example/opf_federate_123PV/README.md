@@ -7,3 +7,8 @@ Files Structure:
 - opf_input_mapping.json: subscribed messages from feeder federate
 - opf_static_inputs.json: configuration files 
 - /base_vals: safe-fail variables if OPF fails
+
+
+TODO:
+
+1. Flex load info is hard-coded json

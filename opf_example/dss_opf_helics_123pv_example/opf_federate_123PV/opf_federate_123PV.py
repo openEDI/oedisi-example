@@ -175,24 +175,24 @@ class OptimalPowerFlowFederate:
         logger.info(f"sub_tap_values subscribed")
 
         # publishing to feeder
-        self.pub_opf_flex_powers_real = h.helicsFederateRegisterPublication(self.opf_fed, "pub_opf_flex_powers_real",
+        self.opf_flex_powers_real = h.helicsFederateRegisterPublication(self.opf_fed, "opf_flex_powers_real",
                                                                             h.HELICS_DATA_TYPE_STRING, "")
         logger.info(f'real power to be published by OPF back to Feeder created')
 
-        self.pub_opf_cap_powers_imag = h.helicsFederateRegisterPublication(self.opf_fed, "pub_opf_cap_powers_imag",
+        self.opf_cap_powers_imag = h.helicsFederateRegisterPublication(self.opf_fed, "opf_cap_powers_imag",
                                                                       h.HELICS_DATA_TYPE_STRING,
                                                                       "")
         logger.info(f'capacitor to be published by OPF back to Feeder created')
 
-        self.pub_opf_pv_powers_real = h.helicsFederateRegisterPublication(self.opf_fed, "pub_opf_pv_powers_real",
+        self.opf_pv_powers_real = h.helicsFederateRegisterPublication(self.opf_fed, "opf_pv_powers_real",
                                                                      h.HELICS_DATA_TYPE_STRING, "")
         logger.info(f'real pv real power to be published by OPF back to Feeder created')
 
-        self.pub_opf_pv_powers_imag = h.helicsFederateRegisterPublication(self.opf_fed, "pub_opf_pv_powers_imag",
+        self.opf_pv_powers_imag = h.helicsFederateRegisterPublication(self.opf_fed, "opf_pv_powers_imag",
                                                                      h.HELICS_DATA_TYPE_STRING, "")
         logger.info(f'imag pv power to be published by OPF back to Feeder created')
 
-        self.pub_opf_tap_values = h.helicsFederateRegisterPublication(self.opf_fed, "pub_opf_tap_values",
+        self.opf_tap_values = h.helicsFederateRegisterPublication(self.opf_fed, "opf_tap_values",
                                                                  h.HELICS_DATA_TYPE_STRING, "")
         logger.info(f'tap values to be published by OPF back to Feeder created')
 
@@ -286,29 +286,29 @@ class OptimalPowerFlowFederate:
                     logger.info("optimization complete passing the optimized variable setpoints to grid federate")
 
 
-                    self.pub_opf_flex_powers_real.publish(
+                    self.opf_flex_powers_real.publish(
                         LabelledArray(array=list(self.p_flex_load_var_opti), unique_ids=self.flex_info.names).json())
-                    logger.info(f'pub_powers_real published to feeder')
+                    logger.info(f'powers_real published to feeder')
 
-                    self.pub_opf_cap_powers_imag.publish(
+                    self.opf_cap_powers_imag.publish(
                         LabelledArray(array=list(self.cap_value_opti), unique_ids=self.cap_info.names).json())
-                    logger.info(f'pub_cap_powers_imag published published to feeder')
+                    logger.info(f'cap_powers_imag published published to feeder')
 
-                    self.pub_opf_pv_powers_real.publish(
+                    self.opf_pv_powers_real.publish(
                         LabelledArray(array=list(self.p_pv_opti), unique_ids=self.pv_info.names).json())
-                    logger.info(f'pub_pv_powers_real published to feeder')
+                    logger.info(f'pv_powers_real published to feeder')
 
-                    self.pub_opf_pv_powers_imag.publish(
+                    self.opf_pv_powers_imag.publish(
                         LabelledArray(array=list(self.q_pv_opti), unique_ids=self.pv_info.names).json())
-                    logger.info(f'pub_pv_powers_imag published to feeder')
+                    logger.info(f'pv_powers_imag published to feeder')
 
                     logger.info(f"pv names {self.pv_info.names}")
                     logger.info(f"pv p vals {self.p_pv_opti}")
                     logger.info(f"pv q vals {self.q_pv_opti}")
 
-                    self.pub_opf_tap_values.publish(
+                    self.opf_tap_values.publish(
                         LabelledArray(array=list(self.xmer_value_opti), unique_ids=self.tap_info.names).json())
-                    logger.info(f'pub_tap_values published to feeder')
+                    logger.info(f'tap_values published to feeder')
 
                 else: # dynamic
                     # dynamic states, coming every 60 seconds or some predefined intervals
@@ -341,29 +341,29 @@ class OptimalPowerFlowFederate:
                     opf_grid_utility_scripts.get_sens_matrices(self)
                     opf_grid_utility_scripts.solve_central_optimization(self)
 
-                    self.pub_opf_flex_powers_real.publish(
+                    self.opf_flex_powers_real.publish(
                         LabelledArray(array=list(self.p_flex_load_var_opti), unique_ids=self.flex_info.names).json())
-                    logger.info(f'pub_powers_real published to feeder')
+                    logger.info(f'powers_real published to feeder')
 
-                    self.pub_opf_cap_powers_imag.publish(
+                    self.opf_cap_powers_imag.publish(
                         LabelledArray(array=list(self.cap_value_opti), unique_ids=self.cap_info.names).json())
-                    logger.info(f'pub_cap_powers_imag published published to feeder')
+                    logger.info(f'cap_powers_imag published published to feeder')
 
-                    self.pub_opf_pv_powers_real.publish(
+                    self.opf_pv_powers_real.publish(
                         LabelledArray(array=list(self.p_pv_opti), unique_ids=self.pv_info.names).json())
-                    logger.info(f'pub_pv_powers_real published to feeder')
+                    logger.info(f'pv_powers_real published to feeder')
 
-                    self.pub_opf_pv_powers_imag.publish(
+                    self.opf_pv_powers_imag.publish(
                         LabelledArray(array=list(self.q_pv_opti), unique_ids=self.pv_info.names).json())
-                    logger.info(f'pub_pv_powers_imag published to feeder')
+                    logger.info(f'pv_powers_imag published to feeder')
 
                     logger.info(f"pv names {self.pv_info.names}")
                     logger.info(f"pv p vals {self.p_pv_opti}")
                     logger.info(f"pv q vals {self.q_pv_opti}")
 
-                    self.pub_opf_tap_values.publish(
+                    self.opf_tap_values.publish(
                         LabelledArray(array=list(self.xmer_value_opti), unique_ids=self.tap_info.names).json())
-                    logger.info(f'pub_tap_values published to feeder')
+                    logger.info(f'tap_values published to feeder')
 
 
             granted_time = h.helicsFederateRequestTime(self.opf_fed, h.HELICS_TIME_MAXTIME)
@@ -384,11 +384,11 @@ class OptimalPowerFlowFederate:
 if __name__ == '__main__':
     logger.info(f'in opf federate.py')
 
-    with open("opf_static_inputs.json") as f:
+    with open("static_inputs.json") as f:
         config = json.load(f)
         # federate_name = config["name"]
 
-    with open("opf_input_mapping.json") as f:
+    with open("input_mapping.json") as f:
         input_mapping = json.load(f)
 
     opf_fed = OptimalPowerFlowFederate(config, input_mapping)
