@@ -180,23 +180,23 @@ def go_cosim(sim, config: FeederConfig, input_mapping):
 
 
     sub_powers_flex = vfed.register_subscription(
-        input_mapping["pub_opf_flex_powers_real"], "W")
+        input_mapping["opf_flex_powers_real"], "W")
     logger.info(f'sub_powers_flex subscription created')
 
     sub_cap_powers_imag = vfed.register_subscription(
-        input_mapping["pub_opf_cap_powers_imag"], "Var")
+        input_mapping["opf_cap_powers_imag"], "Var")
     logger.info(f'sub_cap_powers_imag subscription created')
 
     sub_pv_powers_real = vfed.register_subscription(
-        input_mapping["pub_opf_pv_powers_real"], "W")
+        input_mapping["opf_pv_powers_real"], "W")
     logger.info(f'sub_pv_powers_real pv active power value subscription created')
 
     sub_pv_powers_imag = vfed.register_subscription(
-        input_mapping["pub_opf_pv_powers_imag"], "Var")
+        input_mapping["opf_pv_powers_imag"], "Var")
     logger.info(f'sub_pv_powers_imag pv reactive var subscription created')
 
     sub_tap_values = vfed.register_subscription(
-        input_mapping["pub_opf_tap_values"], "-")
+        input_mapping["opf_tap_values"], "-")
     logger.info(f'sub_tap_values tap values subscription created')
 
     h.helicsFederateEnterExecutingMode(vfed)
@@ -353,29 +353,29 @@ def go_cosim(sim, config: FeederConfig, input_mapping):
 
             pub_voltages_imag.publish(
                 LabelledArray(array=list(feeder_voltages.imag), unique_ids=sim._opf_node_order).json())
-            logger.info(f'pub_voltages_imag published')
+            logger.info(f'voltages_imag published')
 
             pub_powers_real.publish(
                 LabelledArray(array=list(active_power_loads), unique_ids=sim._opf_node_order).json())
-            logger.info(f'pub_powers_real published')
+            logger.info(f'powers_real published')
 
             pub_powers_imag.publish(
                 LabelledArray(array=list(reactive_power_loads), unique_ids=sim._opf_node_order).json())
-            logger.info(f'pub_powers_imag published')
+            logger.info(f'powers_imag published')
 
             pub_cap_powers_imag.publish(
                 LabelledArray(array=list(cap_reactive_power), unique_ids=sim._AllNodeNames).json())
-            logger.info(f'pub_cap_powers_imag published published')
+            logger.info(f'cap_powers_imag published published')
 
             pub_pv_powers_real.publish(LabelledArray(array=list(active_power_pv), unique_ids=sim._AllNodeNames).json())
-            logger.info(f'pub_pv_powers_real published')
+            logger.info(f'pv_powers_real published')
 
             pub_pv_powers_imag.publish(
                 LabelledArray(array=list(reactive_power_pv), unique_ids=sim._AllNodeNames).json())
-            logger.info(f'pub_pv_powers_imag published')
+            logger.info(f'pv_powers_imag published')
 
             pub_tap_values.publish(LabelledArray(array=list(taps), unique_ids=sim._opf_reg_order_names).json())
-            logger.info(f'pub_tap_values published')
+            logger.info(f'tap_values published')
 
             try:
                 feeder_voltages = sim.get_voltages_actual()
@@ -441,10 +441,10 @@ class FeederCosimConfig(BaseModel):
 if __name__ == '__main__':
     logger.debug(f'in run-->sender_cosim.py')
 
-    with open('feeder_static_inputs_ieee123PV.json') as f:
-        logger.debug(f'opening static_inputs feeder .json')
+    with open('static_inputs.json') as f:
+        logger.debug(f'opening static_inputs.json')
         parameters = json.load(f)
-    with open("feeder_input_mapping.json") as f:
+    with open("input_mapping.json") as f:
         input_mapping = json.load(f)
 
     config = FeederConfig(**parameters)
