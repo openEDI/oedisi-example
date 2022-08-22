@@ -54,24 +54,35 @@ def setup_sim(config: FeederConfig):
     snapshot_run(dss)
     return sim
 
-
 def get_true_phases(angle):
     if np.abs(angle-0)<0.2:
         return 0
-    elif np.abs(angle-np.pi/3)<0.2:
-        return np.pi/3
-    elif np.abs(angle-2*np.pi/3)<0.2:
-        return 2*np.pi/3
-    elif np.abs(angle-3*np.pi/3)<0.2:
-        return 3*np.pi/3
-    elif np.abs(angle-(-np.pi/3))<0.2:
-        return -np.pi/3
-    elif np.abs(angle-(-2*np.pi/3))<0.2:
-        return -2*np.pi/3
-    elif np.abs(angle-(-3*np.pi/3))<0.2:
-        return -3*np.pi/3
+    elif np.abs(angle-np.pi/6)<0.25:
+        return np.pi/6
+    elif np.abs(angle-2*np.pi/6)<0.25:
+        return 2*np.pi/6
+    elif np.abs(angle-3*np.pi/6)<0.25:
+        return 3*np.pi/6
+    elif np.abs(angle-4*np.pi/6)<0.25:
+        return 4*np.pi/6
+    elif np.abs(angle-5*np.pi/6)<0.25:
+        return 5*np.pi/6
+    elif np.abs(angle-6*np.pi/6)<0.25:
+        return 6*np.pi/6    
+    elif np.abs(angle-(-np.pi/6))<0.25:
+        return -np.pi/6
+    elif np.abs(angle-(-2*np.pi/6))<0.25:
+        return -2*np.pi/6
+    elif np.abs(angle-(-3*np.pi/6))<0.25:
+        return -3*np.pi/6
+    elif np.abs(angle-(-4*np.pi/6))<0.25:
+        return -4*np.pi/6
+    elif np.abs(angle-(-5*np.pi/6))<0.25:
+        return -5*np.pi/6
+    elif np.abs(angle-(-6*np.pi/6))<0.25:
+        return -6*np.pi/6
     else:
-        print("error")
+        print("Phase error")
 
 
 def go_cosim(sim, config: FeederConfig):
