@@ -7,43 +7,21 @@ import json
 from dss_functions import snapshot_run
 from FeederSimulator import FeederSimulator, FeederConfig
 from pydantic import BaseModel
-from typing import List
+from typing import List, Tuple
 import numpy as np
+from gadal.gadal_types.data_types import Complex,Topology,VoltagesReal,VoltagesImaginary,PowersReal,PowersImaginary, AdmittanceMatrix, VoltagesMagnitude, VoltagesAngle
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 test_se = False
-
-class Complex(BaseModel):
-    real: float
-    imag: float
-
-
-class Topology(BaseModel):
-    y_matrix: List[List[Complex]]
-    phases: List[float]
-    base_voltages: List[float]
-    slack_bus: List[str]
-    unique_ids: List[str]
-
-
-class LabelledArray(BaseModel):
-    array: List[float]
-    unique_ids: List[str]
-
-
-def make_labelled_array(array, binary_mask):
-    (integer_ids,) = np.nonzero(binary_mask)
-    return LabelledArray(
-        array=list(array[integer_ids]), unique_ids=list(map(str, integer_ids))
-    )
 
 
 def numpy_to_y_matrix(array):
     return [
-        [Complex(real=element.real, imag=element.imag) for element in row]
+        [(element.real, element.imag) for element in row]
         for row in array
     ]
 
@@ -120,13 +98,42 @@ def go_cosim(sim, config: FeederConfig):
     ]
 
     unique_ids = sim._AllNodeNames
-    topology = Topology(
-        y_matrix=y_matrix,
-        phases=phases,
-        base_voltages=base_voltages,
-        slack_bus=slack_bus,
-        unique_ids=unique_ids
+
+    logger.debug("y-matrix")
+    logger.debug(y_matrix)
+    logger.debug("phases")
+    logger.debug(phases)
+    logger.debug("base_voltages")
+    logger.debug(base_voltages)
+    logger.debug("slack_bus")
+    logger.debug(slack_bus)
+    logger.debug("unique_ids")
+    logger.debug(unique_ids)
+    
+    
+    admittancematrix = AdmittanceMatrix(
+        admittance_matrix = y_matrix,
+        ids = unique_ids
     )
+
+    base_voltagemagnitude = VoltagesMagnitude(
+           values = [abs(i) for i in base_voltages],
+           ids = unique_ids
+    )
+
+    base_voltageangle = VoltagesAngle(
+           values = phases,
+           ids = unique_ids
+    )
+
+    topology = Topology(
+        admittance=admittancematrix,
+        base_voltage_angles=base_voltageangle,
+        injections={},
+        base_voltage_magnitudes=base_voltagemagnitude,
+        slack_bus=slack_bus,
+    )
+
 
     logger.info("Sending topology and saving to topology.json")
     pub_topology.publish(topology.json())
@@ -174,20 +181,24 @@ def go_cosim(sim, config: FeederConfig):
 
 
         phases = list(map(get_true_phases, np.angle(feeder_voltages)))
+        base_voltageangle = VoltagesAngle(
+                values = phases,
+                ids = unique_ids
+        )
         topology = Topology(
-            y_matrix=y_matrix,
-            phases=phases,
-            base_voltages=base_voltages,
+            admittance=admittancematrix,
+            base_voltage_angles=base_voltageangle,
+            injections={},
+            base_voltage_magnitudes=base_voltagemagnitude,
             slack_bus=slack_bus,
-            unique_ids=unique_ids
         )
         pub_topology.publish(topology.json())
 
         print('Publish load ' + str(feeder_voltages.real[0]))
-        pub_voltages_real.publish(LabelledArray(array=list(feeder_voltages.real), unique_ids=sim._AllNodeNames).json())
-        pub_voltages_imag.publish(LabelledArray(array=list(feeder_voltages.imag), unique_ids=sim._AllNodeNames).json())
-        pub_powers_real.publish(LabelledArray(array=list(PQ_node.real), unique_ids=sim._AllNodeNames).json())
-        pub_powers_imag.publish(LabelledArray(array=list(PQ_node.imag), unique_ids=sim._AllNodeNames).json())
+        pub_voltages_real.publish(VoltagesReal(values=list(feeder_voltages.real), ids=sim._AllNodeNames).json())
+        pub_voltages_imag.publish(VoltagesImaginary(values=list(feeder_voltages.imag), ids=sim._AllNodeNames).json())
+        pub_powers_real.publish(PowersReal(values=list(PQ_node.real), ids=sim._AllNodeNames).json())
+        pub_powers_imag.publish(PowersImaginary(values=list(PQ_node.imag), ids=sim._AllNodeNames).json())
 
 
     h.helicsFederateDisconnect(vfed)
@@ -202,6 +213,7 @@ class FeederCosimConfig(BaseModel):
 def run():
     with open('static_inputs.json') as f:
         parameters = json.load(f)
+
     config = FeederConfig(**parameters)
     sim = setup_sim(config)
     go_cosim(sim, config)

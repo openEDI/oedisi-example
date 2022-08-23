@@ -11,10 +11,10 @@
     ],
     "dynamic_inputs": [],
     "dynamic_outputs": [
-        {"type": "", "port_id": "voltages_real"},
-        {"type": "", "port_id": "voltages_imag"},
-        {"type": "", "port_id": "powers_real"},
-        {"type": "", "port_id": "powers_imag"},
-        {"type": "", "port_id": "topology"}
+        {"type": "VoltagesReal", "port_id": "voltages_real"},
+        {"type": "VoltagesImaginary", "port_id": "voltages_imag"},
+        {"type": "PowersReal", "port_id": "powers_real"},
+        {"type": "PowersImaginary", "port_id": "powers_imag"},
+        {"type": "Topology", "port_id": "topology"}
     ]
 }
