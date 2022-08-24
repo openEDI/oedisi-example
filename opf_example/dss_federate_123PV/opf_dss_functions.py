@@ -116,6 +116,7 @@ def get_load_vector(self, dss_obj):
         load_kvar_val = dss_obj.CktElement.TotalPowers()[1]
         for i in range(0, len(phase_order) - 1):
             current_node = [connected_bus + '.' + str(phase_order[i])]
+            # TODO: This makes it O(n^2)
             node_idx.append([self._opf_node_order.index(i) for i in current_node][0])
             load_nodes.append(current_node)
             load_kW.append(load_kw_val/(len(phase_order)-1))

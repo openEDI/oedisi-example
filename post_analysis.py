@@ -13,13 +13,31 @@ with open(os.path.join("feeder","topology.json")) as f:
     topology = json.load(f)
     base_voltages = np.array(topology["base_voltages"])
 
+voltage_mag = feather.read_feather(os.path.join("recorder_voltage_mag","data.feather"))
+voltage_angle = feather.read_feather(os.path.join("recorder_voltage_angle","data.feather"))
+
+estimated_voltages = voltage_mag.drop('time', axis=1) * np.exp(1j * voltage_angle.drop('time', axis=1))
+time = voltage_mag["time"]
+
 true_voltages = voltage_real.drop('time', axis=1) + 1j * voltage_imag.drop('time', axis=1)
-time = voltage_real["time"]
+true_times = voltage_real["time"]
 
-voltage_mag = feather.read_feather(os.path.join("recorder_voltage_mag","data.feather")).drop('time', axis=1)
-voltage_angle = feather.read_feather(os.path.join("recorder_voltage_angle","data.feather")).drop('time', axis=1)
+def map_to_closest_time(time, true_times):
+    closest_estimated_time_i = []
+    prev_i = 0
+    for t in time:
+        i = prev_i
+        while i < len(true_times) and true_times[i] <= t:
+            i += 1
+        if i != prev_i:
+            closest_estimated_time_i.append(i - 1)
+        else:
+            break
+    return closest_estimated_time_i
 
-estimated_voltages = voltage_mag * np.exp(1j * voltage_angle)
+true_voltages = true_voltages.iloc[
+    map_to_closest_time(time, true_times),:
+]
 
 def plots(true_voltages, estimated_voltages, time=0, unit="kV"):
     n_nodes = true_voltages.shape[0]

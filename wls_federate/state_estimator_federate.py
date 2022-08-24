@@ -197,6 +197,7 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
             xtol=tol,
             gtol=tol,
             args=(z, num_node, knownP, knownQ, knownV, Y),
+            max_nfev=50
         )
     else:
         res_1 = least_squares(
@@ -210,6 +211,7 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
             xtol=tol,
             gtol=tol,
             args=(z, num_node, knownP, knownQ, knownV, Y),
+            max_nfev=50
         )
     result = res_1.x
     vmagestDecen, vangestDecen = result[num_node:], result[:num_node]
@@ -244,7 +246,7 @@ class StateEstimatorFederate:
         )
 
         self.vfed = h.helicsCreateValueFederate(federate_name, fedinfo)
-        print("Value federate created")
+        print("Value federate created", flush=True)
 
         # Register the publication #
         self.sub_voltages = self.vfed.register_subscription(
@@ -270,7 +272,7 @@ class StateEstimatorFederate:
         "Enter execution and exchange data"
         # Enter execution mode #
         self.vfed.enter_executing_mode()
-        print("Entering execution mode")
+        print("Entering execution mode", flush=True)
 
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
 
@@ -282,7 +284,7 @@ class StateEstimatorFederate:
                 granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
                 continue
 
-            print(granted_time)
+            print(granted_time, flush=True)
 
             slack_index = topology.unique_ids.index(topology.slack_bus[0])
 
@@ -317,7 +319,7 @@ class StateEstimatorFederate:
     def destroy(self):
         "Finalize and destroy the federates"
         h.helicsFederateDisconnect(self.vfed)
-        print("Federate disconnected")
+        print("Federate disconnected", flush=True)
 
         h.helicsFederateFree(self.vfed)
         h.helicsCloseLibrary()

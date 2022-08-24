@@ -4,8 +4,9 @@ from pydantic import BaseModel
 from typing import List
 import scipy.io
 import json
+from random import sample, seed
 
-
+seed(123)
 class Complex(BaseModel):
     real: float
     imag: float
@@ -21,6 +22,8 @@ class LabelledArray(BaseModel):
     array: List[float]
     unique_ids: List[str]
 
+    def validate(self):
+        assert len(self.array) == len(self.unique_ids)
 
 class PolarLabelledArray(BaseModel):
     magnitudes: List[float]
@@ -43,6 +46,8 @@ def get_indices(labelled_array, indices):
 
 
 def reindex(labelled_array, indices):
+    print("Reindexing")
+    print(len(labelled_array.array), len(labelled_array.unique_ids))
     inv_map = {v: i for i, v in enumerate(labelled_array.unique_ids)}
     for i in inv_map:
         print(i)
@@ -102,9 +107,10 @@ class MeasurementRelay:
         )
 
         self.gaussian_variance = config.gaussian_variance
-        self.voltage_id_file = config.voltage_id_file
-        self.real_power_id_file = config.real_power_id_file
-        self.reactive_power_id_file = config.reactive_power_id_file
+
+        self.voltage_ids = None
+        self.real_power_ids = None
+        self.reactive_power_ids = None
 
     def transform(self, array: LabelledArray, unique_ids):
         new_array = reindex(array, unique_ids)
@@ -133,12 +139,16 @@ class MeasurementRelay:
                 array=list(np.abs(np.array(voltage_real.array) + 1j*np.array(voltage_imag.array))),
                 unique_ids=voltage_real.unique_ids
             )
-            with open(self.voltage_id_file,'r') as fp:
-                self.voltage_ids = json.load(fp)
-            with open(self.real_power_id_file,'r') as fp:
-                self.real_power_ids = json.load(fp)
-            with open(self.reactive_power_id_file,'r') as fp:
-                self.reactive_power_ids = json.load(fp)
+            if self.voltage_ids is None:
+                ids = voltage_real.unique_ids
+                self.voltage_ids = sample(ids, 3*len(ids) // 4)
+            if self.real_power_ids is None:
+                ids = power_real.unique_ids
+                self.real_power_ids = sample(ids, 3*len(ids) // 4)
+            if self.reactive_power_ids is None:
+                ids = power_imag.unique_ids
+                self.reactive_power_ids = sample(ids, 3*len(ids) // 4)
+
             print("true voltages")
             print(voltage_abs)
             measured_voltages = self.transform(voltage_abs, self.voltage_ids)
