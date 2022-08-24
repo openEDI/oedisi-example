@@ -8,7 +8,13 @@ pip install git+https://github.com/GMLC-TDC/helics-cli.git@main
 pip install pyarrow
 pip install scipy matplotlib numpy pandas
 ```
-2. Run `python test_full_systems.py` to initialize the system
+2. Run `python test_full_systems.py test_system.json` to initialize the system
+3. Run `helics run --path=test_system_runner.json`
+4. Analyze the results using `python post_analysis.py`
+
+### Using IEEE123 test system
+
+2. Run `python test_full_systems.py test_ieee123.json` to initialize the system
 3. Run `helics run --path=test_system_runner.json`
 4. Analyze the results using `python post_analysis.py`
 
