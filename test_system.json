@@ -55,41 +55,63 @@
             }
         },
         {
-            "name": "sensors",
+            "name": "sensor_voltage_real",
             "type": "MeasurementComponent",
             "parameters": {
-                "name": "MeasurementFederate",
                 "gaussian_variance": 0.0,
-                "voltage_id_file": "../feeder/voltage_ids.json",
-                "real_power_id_file": "../feeder/real_ids.json",
-                "reactive_power_id_file": "../feeder/reactive_ids.json"
+                "measurement_file": "../feeder/voltage_ids.json"
+            }
+        },
+        {
+            "name": "sensor_voltage_imaginary",
+            "type": "MeasurementComponent",
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "measurement_file": "../feeder/voltage_ids.json"
+            }
+        },
+        {
+            "name": "sensor_power_real",
+            "type": "MeasurementComponent",
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "measurement_file": "../feeder/real_ids.json"
+            }
+        },
+        {
+            "name": "sensor_power_imaginary",
+            "type": "MeasurementComponent",
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "measurement_file": "../feeder/reactive_ids.json"
             }
         }
+
     ],
     "links": [
         {
             "source": "feeder",
             "source_port": "voltages_real",
-            "target": "sensors",
-            "target_port": "voltage_real"
+            "target": "sensor_voltage_real",
+            "target_port": "subscription"
         },
         {
             "source": "feeder",
             "source_port": "voltages_imag",
-            "target": "sensors",
-            "target_port": "voltage_imag"
+            "target": "sensor_voltage_imaginary",
+            "target_port": "subscription"
         },
         {
             "source": "feeder",
             "source_port": "powers_real",
-            "target": "sensors",
-            "target_port": "power_real"
+            "target": "sensor_power_real",
+            "target_port": "subscription"
         },
         {
             "source": "feeder",
             "source_port": "powers_imag",
-            "target": "sensors",
-            "target_port": "power_imag"
+            "target": "sensor_power_imaginary",
+            "target_port": "subscription"
         },
         {
             "source": "feeder",
@@ -98,22 +120,29 @@
             "target_port": "topology"
         },
         {
-            "source": "sensors",
-            "source_port": "voltages",
+            "source": "sensor_voltage_real",
+            "source_port": "publication",
             "target": "state_estimator",
-            "target_port": "voltages"
+            "target_port": "voltages_real"
         },
         {
-            "source": "sensors",
-            "source_port": "power_real",
+            "source": "sensor_voltage_imaginary",
+            "source_port": "publication",
             "target": "state_estimator",
-            "target_port": "power_P"
+            "target_port": "voltages_imaginary"
+        },
+
+        {
+            "source": "sensor_power_real",
+            "source_port": "publication",
+            "target": "state_estimator",
+            "target_port": "powers_real"
         },
         {
-            "source": "sensors",
-            "source_port": "power_imag",
+            "source": "sensor_power_imaginary",
+            "source_port": "publication",
             "target": "state_estimator",
-            "target_port": "power_Q"
+            "target_port": "powers_imaginary"
         },
         {
             "source": "feeder",
