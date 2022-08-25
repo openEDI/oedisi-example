@@ -3,13 +3,14 @@
     "execute_function": "python state_estimator_federate.py",
     "static_inputs": [],
     "dynamic_inputs": [
-        {"type": "", "port_id": "voltages"},
-        {"type": "", "port_id": "power_P"},
-        {"type": "", "port_id": "power_Q"},
-        {"type": "", "port_id": "topology"}
+        {"type": "VoltagesReal", "port_id": "voltages_real"},
+        {"type": "VoltagesImaginary", "port_id": "voltages_imaginary"},
+        {"type": "PowersReal", "port_id": "powers_real"},
+        {"type": "PowersImaginary", "port_id": "powers_imaginary"},
+        {"type": "Topology", "port_id": "topology"}
     ],
     "dynamic_outputs": [
-        {"type": "", "port_id": "voltage_mag"},
-        {"type": "", "port_id": "voltage_angle"}
+        {"type": "VoltagesMagnitude", "port_id": "voltage_mag"},
+        {"type": "VoltagesAngle", "port_id": "voltage_angle"}
     ]
 }

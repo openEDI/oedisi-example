@@ -9,7 +9,7 @@
     "dynamic_inputs": [
         {"type": "MeasurementArray", "port_id": "subscription"}
     ],
-    "dynamic_output": [
+    "dynamic_outputs": [
         {"type": "MeasurementArray", "port_id": "publication"}
     ]
 }
