@@ -7,16 +7,6 @@ import csv
 import pyarrow as pa
 from gadal.gadal_types.data_types import MeasurementArray
 
-
-class LabelledArray(BaseModel):
-    array: List[float]
-    unique_ids: List[str]
-
-
-def convert_to_dict(arr: LabelledArray):
-    return {id: value for id, value in zip(arr.unique_ids, arr.array)}
-
-
 class Recorder:
     def __init__(self, name, filename, input_mapping):
         self.rng = np.random.default_rng(12345)
