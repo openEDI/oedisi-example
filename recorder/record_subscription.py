@@ -5,6 +5,7 @@ from typing import List
 import json
 import csv
 import pyarrow as pa
+from gadal.gadal_types.data_types import MeasurementArray
 
 
 class LabelledArray(BaseModel):
@@ -55,17 +56,22 @@ class Recorder:
             writer = None
             while granted_time < h.HELICS_TIME_MAXTIME:
                 print(granted_time)
-                arr = LabelledArray.parse_obj(self.sub.json)
-                arr_dictionary = convert_to_dict(arr)
-                arr_dictionary["time"] = granted_time
+                # Check that the data is a MeasurementArray type
+                json_data = self.sub.json
+                json_data['time'] = granted_time
+                measurement = MeasurementArray(**self.sub.json)
+
+                measurement_dict = {key: value for key, value in zip(measurement.ids,measurement.values)}
+                measurement_dict['time'] = measurement.time
+
                 if start:
                     schema = pa.schema([
-                        (key, pa.float64()) for key in arr_dictionary
+                        (key, pa.float64()) for key in measurement.ids
                     ])
                     writer = pa.ipc.new_file(sink, schema)
                     start = False
                 writer.write_batch(pa.RecordBatch.from_pylist([
-                    arr_dictionary
+                    measurement_dict
                 ]))
 
                 granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
