@@ -3,19 +3,13 @@
     "execute_function": "python measuring_federate.py",
     "static_inputs": [
         {"type": "", "port_id": "gaussian_variance"},
-        {"type": "", "port_id": "voltage_id_file"},
-        {"type": "", "port_id": "real_power_id_file"},
-        {"type": "", "port_id": "reactive_power_id_file"}
+        {"type": "", "port_id": "measurement_file"},
+        {"type": "", "port_id": "random_percent"}
     ],
     "dynamic_inputs": [
-        {"type": "", "port_id": "voltage_real"},
-        {"type": "", "port_id": "voltage_imag"},
-        {"type": "", "port_id": "power_real"},
-        {"type": "", "port_id": "power_imag"}
+        {"type": "MeasurementArray", "port_id": "subscription"}
     ],
-    "dynamic_outputs": [
-        {"type": "", "port_id": "voltages"},
-        {"type": "", "port_id": "power_real"},
-        {"type": "", "port_id": "power_imag"}
+    "dynamic_output": [
+        {"type": "MeasurementArray", "port_id": "publication"}
     ]
 }
