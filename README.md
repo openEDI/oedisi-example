@@ -71,3 +71,22 @@ for each component with the right configuration.
 
 ![Voltage angles at time 95](voltage_angles_95.png)
 ![Voltage magnitudes at time 95](voltage_magnitudes_95.png)
+
+# Docker Container
+
+One of the downsides of having `gadal` as a private library at present is that we need an automated
+way to install it. We could do this by copying over a tar file, or we can use it by pip installing
+it with an SSH key. Currently, we use an ssh key.
+
+The integration tests have an appropriate ssh key to install GADAL from pip. There is another
+one specifically for docker builds as well, but for testing you may just download the one from `sgidal-example`.
+
+Assuming the github SSH key is `gadal_docker_key`, we can build the docker image with
+```
+docker build --secret id=gadal_github_key,src=gadal_docker_key -t gadal-example0.0.0 .
+```
+
+Then we can run the docker image:
+```
+docker run --rm gadal-example0.0.0
+```
