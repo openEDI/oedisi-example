@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Load component framework
-from componentframework.basic_component import component_from_json
-from componentframework.system_configuration import (
+from gadal.componentframework.basic_component import component_from_json
+from gadal.componentframework.system_configuration import (
     generate_runner_config,
     WiringDiagram,
 )
