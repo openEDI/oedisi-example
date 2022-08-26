@@ -1,0 +1,11 @@
+helics==3.1.2.post7
+helics-apps==3.1.0
+helics-cli @ git+https://github.com/GMLC-TDC/helics-cli.git@5c78eed155a437e065a04eebabdec7101d3cdd33
+pydantic
+pyarrow
+scipy
+matplotlib
+numpy
+pandas
+OpenDSSDirect.py[extras]
+boto3
