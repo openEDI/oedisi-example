@@ -102,7 +102,7 @@ def get_phase(name):
     else:
         raise Exception("Cannot parse name")
 
-@dataclass(kw_only=True)
+@dataclass
 class OPFControl:
     sub_powers_flex: Optional[h.HelicsInput]
     sub_cap_powers_imag: Optional[h.HelicsInput]
