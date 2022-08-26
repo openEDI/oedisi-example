@@ -33,7 +33,7 @@ jobs:
         pip install boto3
         eval `ssh-agent -s`
         ssh-add - <<< '${{ secrets.SGIDAL_CLONE_KEY }}'
-        pip install git+ssh://git@github.com/openEDI/GADAL.git@main
+        pip install git+ssh://git@github.com/openEDI/GADAL.git@eca4ea16417bfc5de55d518be776aad3db1ece35
     - name: Run example
       shell: bash -l {0}
       run: |
