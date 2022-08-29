@@ -5,7 +5,8 @@ RUN apt-get update && apt-get install -y git ssh
 RUN mkdir -p /root/.ssh
 ENV GIT_SSH_COMMAND="ssh -i /run/secrets/gadal_github_key"
 RUN ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
-RUN --mount=type=secret,id=gadal_github_key pip install git+ssh://git@github.com/openEDI/GADAL@v0.2.1
+RUN --mount=type=secret,id=gadal_github_key cat /run/secrets/gadal_github_key && sha256sum /run/secrets/gadal_github_key
+#pip install git+ssh://git@github.com/openEDI/GADAL@v0.2.1
 
 WORKDIR /simulation
 
