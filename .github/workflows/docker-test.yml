@@ -2,15 +2,7 @@ name: DockerTest
 
 on: [push]
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        #include:
-          #- os: ubuntu-latest
-            #python-version: 3.10
+  docker:
     steps:
     - uses: docker/build-push-action@v2
       with:
