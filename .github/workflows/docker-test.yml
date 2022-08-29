@@ -1,0 +1,24 @@
+name: DockerTest
+
+on: [push]
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        #include:
+          #- os: ubuntu-latest
+            #python-version: 3.10
+    steps:
+    - uses: docker/build-push-action@v2
+      with:
+        tags: gadal-example:latest
+        push: false
+        secrets: |
+          "gadal_github_key=${{ secrets.SGIDAL_CLONE_KEY }}"
+    - uses: addnab/docker-run-action@v3
+      with:
+        image: gadal-example:latest
+        run: echo "test"
