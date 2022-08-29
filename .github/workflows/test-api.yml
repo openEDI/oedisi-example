@@ -26,14 +26,7 @@ jobs:
     - name: Install python dependencies
       shell: bash -l {0}
       run: |
-        pip install helics==3.1.2.post7
-        pip install helics-apps==3.1.0
-        pip install git+https://github.com/GMLC-TDC/helics-cli.git@main
-        pip install pydantic
-        pip install pyarrow
-        pip install scipy matplotlib numpy pandas
-        pip install 'OpenDSSDirect.py[extras]'
-        pip install boto3
+        pip install -r requirements.txt
         eval `ssh-agent -s`
         ssh-add - <<< '${{ secrets.SGIDAL_CLONE_KEY }}'
         pip install git+ssh://git@github.com/openEDI/GADAL.git@v0.2.1
