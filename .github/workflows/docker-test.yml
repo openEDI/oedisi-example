@@ -18,3 +18,4 @@ jobs:
         docker run --rm gadal-example
       env:
         SSH_KEY: ${{secrets.SGIDAL_CLONE_KEY}}
+        DOCKER_BUILDKIT: '1'
