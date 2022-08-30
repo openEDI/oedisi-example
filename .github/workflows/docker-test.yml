@@ -10,12 +10,16 @@ jobs:
         os: [ubuntu-latest]
     steps:
     - uses: actions/checkout@v2
-    - name: test and build
+    - name: build docker container
       shell: bash
       run: |
         echo "$SSH_KEY" > gadal_docker_key
         docker build --secret id=gadal_github_key,src=gadal_docker_key --progress=plain --no-cache -t gadal-example .
-        docker run --rm gadal-example
       env:
         SSH_KEY: ${{secrets.SGIDAL_CLONE_KEY}}
         DOCKER_BUILDKIT: '1'
+    - name: run docker continaer
+      shell: bash
+      run: |
+        docker run --rm gadal-example
+
