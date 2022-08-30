@@ -9,13 +9,13 @@ jobs:
       matrix:
         os: [ubuntu-latest]
     steps:
-    - uses: docker/build-push-action@v2
-      with:
-        tags: gadal-example:latest
-        push: false
-        secrets: |
-          "gadal_github_key=${{ secrets.SGIDAL_CLONE_KEY_LINE }}"
-    - uses: addnab/docker-run-action@v3
-      with:
-        image: gadal-example:latest
-        run: echo "test"
+      steps:
+      - uses: actions/checkout@v2
+      - name: test and build
+        shell: bash
+        run: |
+          echo "$SSH_KEY" > gadal_docker_key
+          docker build --secret id=gadal_github_key,src=gadal_docker_key --progress=plain --no-cache -t gadal-example .
+          docker run --rm gadal-example
+        env:
+          SSH_KEY: ${{secrets.SGIDAL_CLONE_KEY}}
