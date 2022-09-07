@@ -55,14 +55,16 @@ class Recorder:
                 measurement_dict['time'] = measurement.time
 
                 if start:
-                    schema = pa.schema([
-                        (key, pa.float64()) for key in measurement.ids
-                    ])
+                    schema_elements = [(key, pa.float64()) for key in measurement.ids]
+                    schema_elements.append(('time',pa.float64()))
+                    schema = pa.schema(schema_elements)
                     writer = pa.ipc.new_file(sink, schema)
                     start = False
-                writer.write_batch(pa.RecordBatch.from_pylist([
-                    measurement_dict
-                ]))
+#                print(measurement_dict)
+#                print(schema_elements)
+#                writer.write_batch(pa.RecordBatch.from_pylist([
+#                    measurement_dict
+#                ]))
 
                 granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
 

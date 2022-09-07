@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import List
 import scipy.io
 import json
+from gadal.gadal_types.data_types import MeasurementArray
 
 
 class MeasurementConfig(BaseModel):
@@ -16,22 +17,24 @@ class MeasurementConfig(BaseModel):
 def get_indices(labelled_array, indices):
     "Get list of indices in the topology for each index of the labelled array"
     inv_map = {v: i for i, v in enumerate(indices)}
-    return [inv_map[v] for v in labelled_array.unique_ids]
+    return [inv_map[v] for v in labelled_array.ids]
 
 
-def reindex(labelled_array, indices):
-    inv_map = {v: i for i, v in enumerate(labelled_array.unique_ids)}
+def reindex(measurement_array, indices):
+    inv_map = {v: i for i, v in enumerate(measurement_array.ids)}
     for i in inv_map:
         print(i)
-    return LabelledArray(array=[
-        labelled_array.array[inv_map[i]] for i in indices
-    ], unique_ids=indices)
+    return MeasurementArray(values=[
+        measurement_array.values[inv_map[i]] for i in indices
+    ], ids=indices, units = measurement_array.units, equipment_type = measurement_array.equipment_type)
 
 
-def apply(f, labelled_array):
-    return LabelledArray(
-        array=list(map(f, labelled_array.array)),
-        unique_ids=labelled_array.unique_ids
+def apply(f, measurement_array):
+    return MeasurementArray(
+        values=list(map(f, measurement_array.values)),
+        ids=measurement_array.ids,
+        units = measurement_array.units,
+        equipment_type = measurement_array.equipment_type
     )
 
 
@@ -61,17 +64,16 @@ class MeasurementRelay:
         )
 
         #TODO: find better way to determine what the name of this federate instance is than looking at the subscription
-        publication = input_mapping["subscription"].split('/')[1]
         self.pub_measurement = self.vfed.register_publication(
-            publication, h.HELICS_DATA_TYPE_STRING, ""
+            "publication", h.HELICS_DATA_TYPE_STRING, ""
         )
 
         self.gaussian_variance = config.gaussian_variance
         self.measurement_file = config.measurement_file
         self.random_percent = config.random_percent
 
-    def transform(self, array: LabelledArray, unique_ids):
-        new_array = reindex(array, unique_ids)
+    def transform(self, measurement_array: MeasurementArray, unique_ids):
+        new_array = reindex(measurement_array, unique_ids)
         return apply(
             lambda x: x + self.rng.normal(scale=np.sqrt(self.gaussian_variance)),
             new_array
@@ -90,11 +92,11 @@ class MeasurementRelay:
 
             with open(self.measurement_file,'r') as fp:
                 self.measurement = json.load(fp)
-            measurement_transformed = self.transform(measurement)
+            measurement_transformed = self.transform(measurement, self.measurement)
             print("measured transformed")
             print(measurement_transformed)
 
-            self.pub_voltages.publish(measurement_transformed.json())
+            self.pub_measurement.publish(measurement_transformed.json())
 
             granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
 
