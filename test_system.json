@@ -46,12 +46,10 @@
             "name": "local_feeder",
             "type": "LocalFeeder",
             "parameters": {
-                "feeder_file": "p1hs0_1247/Master.dss",
-                "load_file": "p1hs0_1247/loads.csv",
-                "pv_file": "p1hs0_1247/SFO_37.7083_-122.4074_15_180.csv",
+                "feeder_file": "gadal-ieee123/qsts/master.dss",
                 "start_date": "2017-01-01 00:00:00",
-                "run_freq_sec": 15,
-                "start_time_index": 31
+                "run_freq_sec": 900,
+                "start_time_index": 0
             }
         },
         {
