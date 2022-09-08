@@ -29,10 +29,8 @@ class FeederConfig(BaseModel):
     name: str
     feeder_file: str
     start_date: str
-    run_freq_sec: float
+    run_freq_sec: float = 15*60
     start_time_index: int = 0
-    load_file: str
-    pv_file: str
 
 
 class FeederSimulator(object):
@@ -396,9 +394,10 @@ class FeederSimulator(object):
     def run_command(self, cmd):
         dss.run_command(cmd)
 
-    def solve(self):
-        # snapshot_run(dss)
+    def solve(self,hour,second):
+        dss.run_command(f'set mode=yearly loadmult=1 number=1 hour={hour} sec={second} stepsize={self._simulation_time_step} ')
         dss.run_command('solve')
+
 
     def run_next(self):
         # snapshot_run(dss)
