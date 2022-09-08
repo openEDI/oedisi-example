@@ -64,6 +64,15 @@
             }
         },
         {
+            "name": "sensor_voltage_magnitude",
+            "type": "MeasurementComponent",
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../feeder/voltage_ids.json"
+            }
+        },
+        {
             "name": "sensor_voltage_imaginary",
             "type": "MeasurementComponent",
             "parameters": {
@@ -95,6 +104,12 @@
     "links": [
         {
             "source": "feeder",
+            "source_port": "voltages_magnitude",
+            "target": "sensor_voltage_magnitude",
+            "target_port": "subscription"
+        },
+        {
+            "source": "feeder",
             "source_port": "voltages_real",
             "target": "sensor_voltage_real",
             "target_port": "subscription"
@@ -124,18 +139,11 @@
             "target_port": "topology"
         },
         {
-            "source": "sensor_voltage_real",
+            "source": "sensor_voltage_magnitude",
             "source_port": "publication",
             "target": "state_estimator",
-            "target_port": "voltages_real"
+            "target_port": "voltages_magnitude"
         },
-        {
-            "source": "sensor_voltage_imaginary",
-            "source_port": "publication",
-            "target": "state_estimator",
-            "target_port": "voltages_imaginary"
-        },
-
         {
             "source": "sensor_power_real",
             "source_port": "publication",

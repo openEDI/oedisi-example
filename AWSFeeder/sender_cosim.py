@@ -9,6 +9,7 @@ from FeederSimulator import FeederSimulator, FeederConfig
 from pydantic import BaseModel
 from typing import List, Tuple
 import numpy as np
+from datetime import datetime, timedelta
 from gadal.gadal_types.data_types import Complex,Topology,VoltagesReal,VoltagesImaginary,PowersReal,PowersImaginary, AdmittanceMatrix, VoltagesMagnitude, VoltagesAngle
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ def go_cosim(sim, config: FeederConfig):
     h.helicsFederateInfoSetTimeProperty(fedinfo, h.helics_property_time_delta, deltat)
     vfed = h.helicsCreateValueFederate(config.name, fedinfo)
 
+    pub_voltages_magnitude = h.helicsFederateRegisterPublication(vfed, "voltages_magnitude", h.HELICS_DATA_TYPE_STRING, "")
     pub_voltages_real = h.helicsFederateRegisterPublication(vfed, "voltages_real", h.HELICS_DATA_TYPE_STRING, "")
     pub_voltages_imag = h.helicsFederateRegisterPublication(vfed, "voltages_imag", h.HELICS_DATA_TYPE_STRING, "")
     pub_powers_real = h.helicsFederateRegisterPublication(vfed, "powers_real", h.HELICS_DATA_TYPE_STRING, "")
@@ -147,9 +149,11 @@ def go_cosim(sim, config: FeederConfig):
     current_hour = 0
     current_second = 0
     for request_time in range(0, 100):
+        print('start',datetime.now())
         while granted_time < request_time:
             granted_time = h.helicsFederateRequestTime(vfed, request_time)
         current_index+=1
+        current_timestamp = datetime.strptime(sim._start_date, '%Y-%m-%d %H:%M:%S') + timedelta(minutes = current_index*15)
         current_second+=15*60
         if current_second >=60*60:
             current_second = 0
@@ -195,10 +199,13 @@ def go_cosim(sim, config: FeederConfig):
         pub_topology.publish(topology.json())
 
         print('Publish load ' + str(feeder_voltages.real[0]))
-        pub_voltages_real.publish(VoltagesReal(values=list(feeder_voltages.real), ids=sim._AllNodeNames).json())
-        pub_voltages_imag.publish(VoltagesImaginary(values=list(feeder_voltages.imag), ids=sim._AllNodeNames).json())
-        pub_powers_real.publish(PowersReal(values=list(PQ_node.real), ids=sim._AllNodeNames).json())
-        pub_powers_imag.publish(PowersImaginary(values=list(PQ_node.imag), ids=sim._AllNodeNames).json())
+        voltage_magnitudes = np.abs(feeder_voltages.real + 1j* feeder_voltages.imag)
+        pub_voltages_magnitude.publish(VoltagesMagnitude(values=list(voltage_magnitudes), ids=sim._AllNodeNames, time = current_timestamp).json())
+        pub_voltages_real.publish(VoltagesReal(values=list(feeder_voltages.real), ids=sim._AllNodeNames, time = current_timestamp).json())
+        pub_voltages_imag.publish(VoltagesImaginary(values=list(feeder_voltages.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
+        pub_powers_real.publish(PowersReal(values=list(PQ_node.real), ids=sim._AllNodeNames, time = current_timestamp).json())
+        pub_powers_imag.publish(PowersImaginary(values=list(PQ_node.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
+        print('end',datetime.now())
 
 
     h.helicsFederateDisconnect(vfed)

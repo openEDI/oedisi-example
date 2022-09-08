@@ -3,8 +3,7 @@
     "execute_function": "python state_estimator_federate.py",
     "static_inputs": [],
     "dynamic_inputs": [
-        {"type": "VoltagesReal", "port_id": "voltages_real"},
-        {"type": "VoltagesImaginary", "port_id": "voltages_imaginary"},
+        {"type": "VoltagesMagnitude", "port_id": "voltages_magnitude"},
         {"type": "PowersReal", "port_id": "powers_real"},
         {"type": "PowersImaginary", "port_id": "powers_imaginary"},
         {"type": "Topology", "port_id": "topology"}

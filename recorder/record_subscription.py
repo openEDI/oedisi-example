@@ -5,6 +5,7 @@ from typing import List
 import json
 import csv
 import pyarrow as pa
+from datetime import datetime
 from gadal.gadal_types.data_types import MeasurementArray
 
 class Recorder:
@@ -45,6 +46,7 @@ class Recorder:
         with pa.OSFile(self.filename, 'wb') as sink:
             writer = None
             while granted_time < h.HELICS_TIME_MAXTIME:
+                print('start',datetime.now())
                 print(granted_time)
                 # Check that the data is a MeasurementArray type
                 json_data = self.sub.json
@@ -52,21 +54,23 @@ class Recorder:
                 measurement = MeasurementArray(**self.sub.json)
 
                 measurement_dict = {key: value for key, value in zip(measurement.ids,measurement.values)}
-                measurement_dict['time'] = measurement.time
+                measurement_dict['time'] = measurement.time.strftime("YY-%m-%d %H:%M:%S")
+                print(measurement.time)
 
                 if start:
                     schema_elements = [(key, pa.float64()) for key in measurement.ids]
-                    schema_elements.append(('time',pa.float64()))
+                    schema_elements.append(('time',pa.string()))
                     schema = pa.schema(schema_elements)
                     writer = pa.ipc.new_file(sink, schema)
                     start = False
-#                print(measurement_dict)
-#                print(schema_elements)
-#                writer.write_batch(pa.RecordBatch.from_pylist([
-#                    measurement_dict
-#                ]))
+                cnt = 0
+
+                writer.write_batch(pa.RecordBatch.from_pylist([
+                    measurement_dict
+                ]))
 
                 granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
+                print('end',datetime.now())
 
             if writer is not None:
                 writer.close()

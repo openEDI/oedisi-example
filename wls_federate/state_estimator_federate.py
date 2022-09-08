@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from enum import Enum
 from typing import List, Optional
 from scipy.optimize import least_squares
+from datetime import datetime
 from gadal.gadal_types.data_types import MeasurementArray, AdmittanceMatrix, Topology, Complex, VoltagesMagnitude, VoltagesAngle, VoltagesReal, VoltagesImaginary, PowersReal, PowersImaginary
 
 logger = logging.getLogger(__name__)
@@ -224,11 +225,8 @@ class StateEstimatorFederate:
         print("Value federate created")
 
         # Register the publication #
-        self.sub_voltages_real = self.vfed.register_subscription(
-            input_mapping["voltages_real"], "V"
-        )
-        self.sub_voltages_imaginary = self.vfed.register_subscription(
-            input_mapping["voltages_imaginary"], "V"
+        self.sub_voltages_magnitude = self.vfed.register_subscription(
+            input_mapping["voltages_magnitude"], "V"
         )
         self.sub_power_P = self.vfed.register_subscription(
             input_mapping["powers_real"], "W"
@@ -257,11 +255,14 @@ class StateEstimatorFederate:
         self.initial_ang = None
         self.initial_V = None
         while granted_time < h.HELICS_TIME_MAXTIME:
+
+            print('start1',datetime.now())
             topology = Topology.parse_obj(self.sub_topology.json)
-            if not self.sub_voltages_real.is_updated():
+            if not self.sub_voltages_magnitude.is_updated():
                 granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
                 continue
 
+            print('start2',datetime.now())
             print(granted_time)
 
             slack_index =  None
@@ -277,9 +278,7 @@ class StateEstimatorFederate:
             if self.initial_ang is None:
                 self.initial_ang = np.array(topology.base_voltage_angles.values)
 
-            voltages_real = VoltagesReal.parse_obj(self.sub_voltages_real.json)
-            voltages_imaginary = VoltagesImaginary.parse_obj(self.sub_voltages_imaginary.json)
-            voltages = voltages_real #TODO: compute voltage magnitudes instead
+            voltages = VoltagesMagnitude.parse_obj(self.sub_voltages_magnitude.json)
 
             power_P = PowersReal.parse_obj(self.sub_power_P.json)
             power_Q = PowersImaginary.parse_obj(self.sub_power_Q.json)
@@ -294,12 +293,15 @@ class StateEstimatorFederate:
             #self.initial_ang = voltage_angles
             self.pub_voltage_mag.publish(VoltagesMagnitude(
                 values=list(voltage_magnitudes),
-                ids=topology.admittance.ids
+                ids=topology.admittance.ids,
+                time = voltages.time
             ).json())
             self.pub_voltage_angle.publish(VoltagesAngle(
                 values=list(voltage_angles),
-                ids=topology.admittance.ids
+                ids=topology.admittance.ids,
+                time = voltages.time
             ).json())
+            print('end',datetime.now())
 
         self.destroy()
 
