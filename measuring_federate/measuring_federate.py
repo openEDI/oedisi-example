@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import List
 import scipy.io
 import json
+from datetime import datetime
 from gadal.gadal_types.data_types import MeasurementArray
 
 
@@ -26,7 +27,7 @@ def reindex(measurement_array, indices):
         print(i)
     return MeasurementArray(values=[
         measurement_array.values[inv_map[i]] for i in indices
-    ], ids=indices, units = measurement_array.units, equipment_type = measurement_array.equipment_type)
+    ], ids=indices, units = measurement_array.units, equipment_type = measurement_array.equipment_type, time = measurement_array.time)
 
 
 def apply(f, measurement_array):
@@ -34,7 +35,8 @@ def apply(f, measurement_array):
         values=list(map(f, measurement_array.values)),
         ids=measurement_array.ids,
         units = measurement_array.units,
-        equipment_type = measurement_array.equipment_type
+        equipment_type = measurement_array.equipment_type,
+        time = measurement_array.time
     )
 
 
@@ -86,6 +88,7 @@ class MeasurementRelay:
 
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
         while granted_time < h.HELICS_TIME_MAXTIME:
+            print('start',datetime.now(), flush=True)
             print(granted_time)
             json_data = self.sub_measurement.json
             measurement = MeasurementArray(**json_data)
@@ -99,6 +102,7 @@ class MeasurementRelay:
             self.pub_measurement.publish(measurement_transformed.json())
 
             granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
+            print('end',datetime.now(),flush=True)
 
         self.destroy()
 
