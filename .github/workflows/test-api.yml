@@ -34,7 +34,7 @@ jobs:
       shell: bash -l {0}
       run: |
         python test_full_systems.py
-        helics run --path=test_system_runner.json
+        helics run --path=build/test_system_runner.json
         python post_analysis.py
     - name: Archive logs
       uses: actions/upload-artifact@v2
@@ -43,4 +43,4 @@ jobs:
         name: test_logs
         path: |
           *.png
-          *.log
+          build/*.log
