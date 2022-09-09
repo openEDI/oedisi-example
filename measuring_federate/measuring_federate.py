@@ -153,7 +153,11 @@ class MeasurementRelay:
             print(voltage_abs)
             measured_voltages = self.transform(voltage_abs, self.voltage_ids)
             print("measured voltages")
-            print(measured_voltages)
+            # print(measured_voltages)
+            print(f"measured_power_real length {len(power_real.array)}")
+            print(f"measured_power_real ids length {len(self.real_power_ids)}")
+            print(f"measured_power_imag length {len(power_imag.array)}")
+            print(f"measured_power_imag ids length {len(self.reactive_power_ids)}")
             measured_power_real = self.transform(power_real, self.real_power_ids)
             measured_power_imag = self.transform(power_imag, self.reactive_power_ids)
 

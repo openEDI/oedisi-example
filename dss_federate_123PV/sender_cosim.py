@@ -115,12 +115,16 @@ def set_powers_flex(sim, opf_control):
     if opf_control.sub_powers_flex is not None:
         sim.opf_flex_loads_vars = LabelledArray.parse_obj(opf_control.sub_powers_flex.json)
         logger.info(f'Subscribed Flexible Power Curtailment Received from OPF')
+        logger.debug(f'Subscribed Flexible Power Curtailment Received from OPF')
+
         sim.set_feeder_flex_load()
 
 def set_caps(sim, opf_control):
     if opf_control.sub_cap_powers_imag is not None:
         sim.opf_caps_vars = LabelledArray.parse_obj(opf_control.sub_cap_powers_imag.json)
         logger.info(f'Subscribed Cap Powers Imag Received from OPF')
+        logger.debug(f'Subscribed Cap Powers Imag Received from OPF')
+
         sim.set_feeder_caps()
 
 def set_pv(sim, opf_control):
@@ -128,12 +132,16 @@ def set_pv(sim, opf_control):
         sim.opf_pv_p_vars = LabelledArray.parse_obj(opf_control.sub_pv_powers_real.json)
         sim.opf_pv_q_vars = LabelledArray.parse_obj(opf_control.sub_pv_powers_imag.json)
         logger.info(f'Subscribed feeder pv powers received from OPF')
+        logger.debug(f'Subscribed feeder pv powers received from OPF')
+
         sim.set_feeder_pvs()
 
 def set_feeder_taps(sim, opf_control):
     if opf_control.sub_tap_values is not None:
         sim.opf_tap_vars = LabelledArray.parse_obj(opf_control.sub_tap_values.json)
         logger.info(f'Subscribed tap values received from OPF')
+        logger.debug(f'Subscribed tap values received from OPF')
+
         sim.set_feeder_taps()
 
 
@@ -315,11 +323,12 @@ class SimulationFederate:
         )
 
         #TODO: decide time steps and time intervals
-        minutes = 2
+        minutes = 30
 
         total_interval = int(minutes*60 + 10)
         current_index = config.start_time_index
         sim._simulation_step = current_index
+        logger.info(f'total interval to simulate {total_interval}')
         logger.info(f'HELICS PROPERTY TIME PERIOD {h.HELICS_PROPERTY_TIME_PERIOD}')
         update_interval = int(h.helicsFederateGetTimeProperty(self.federate, h.HELICS_PROPERTY_TIME_PERIOD))
         logger.info(f'update interval DSS Fed at start {update_interval}')
@@ -396,7 +405,8 @@ class SimulationFederate:
                 self.pub_voltages_real.publish(
                     LabelledArray(array=list(feeder_voltages.real), unique_ids=sim._opf_node_order).json())
                 logger.info(f'real voltages published')
-
+                #logger.info(f'length: {len(feeder_voltages.real)}')
+                logger.debug(f'values: {feeder_voltages.real.tolist()}')
                 self.pub_voltages_imag.publish(
                     LabelledArray(array=list(feeder_voltages.imag), unique_ids=sim._opf_node_order).json())
                 logger.info(f'voltages_imag published')
@@ -415,10 +425,12 @@ class SimulationFederate:
 
                 self.pub_pv_powers_real.publish(LabelledArray(array=list(active_power_pv), unique_ids=sim._AllNodeNames).json())
                 logger.info(f'pv_powers_real published')
+                logger.debug(f"{list(active_power_pv)}")
 
                 self.pub_pv_powers_imag.publish(
                     LabelledArray(array=list(reactive_power_pv), unique_ids=sim._AllNodeNames).json())
                 logger.info(f'pv_powers_imag published')
+                logger.debug(f"{list(reactive_power_pv)}")
 
                 self.pub_tap_values.publish(LabelledArray(array=list(taps), unique_ids=sim._opf_reg_order_names).json())
                 logger.info(f'tap_values published')
@@ -454,9 +466,11 @@ class SimulationFederate:
 
             current_index+=1
             sim.run_next()
+        self.finalize_federate()
 
     def finalize_federate(self):
         h.helicsFederateDisconnect(self.federate)
+        print("Federate disconnected")
         h.helicsFederateFree(self.federate)
         h.helicsCloseLibrary()
 

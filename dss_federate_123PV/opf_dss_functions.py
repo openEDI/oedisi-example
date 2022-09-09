@@ -176,7 +176,7 @@ def get_pv_vector(self, dss_obj):
     q_pV_Y[node_idx] = np.array(pV_kVAR) * 1000
 
     p_pV_L = p_pV_Y[3:]
-    q_pV_L = q_pV_Y[3:] * 1000
+    q_pV_L = q_pV_Y[3:]
     logger.debug(f"====system pv vector acquired ====")
     return p_pV_Y, q_pV_Y, p_pV_L, q_pV_L
 
