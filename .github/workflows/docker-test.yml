@@ -24,13 +24,10 @@ jobs:
         mkdir outputs_build
         docker volume create --name gadal_output --opt type=none --opt device=$(pwd)/outputs_build --opt o=bind
         docker run --rm --mount source=gadal_output,target=/simulation/outputs gadal-example:0.0.0
-        cp -r outputs_build outputs
-        python post_analysis.py
     - name: Archive logs
       uses: actions/upload-artifact@v2
       if: always()
       with:
         name: docker_logs
         path: |
-          *.png
-          outputs/*.log
+          outputs_build/*.log
