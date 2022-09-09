@@ -11,7 +11,7 @@
         "start_date": "2013-08-10 00:00:00",
         "run_freq_sec": 60,
         "start_time_index": 1,
-        "deltat": 0.5,
+        "deltat": 1,
         "flex_load_input_file": "flex_load_info.json"
       }
     },
@@ -19,7 +19,7 @@
       "name": "opf",
       "type": "OPFComponent",
       "parameters": {
-        "start_date": "2021-01-01 00:00:00",
+        "start_date": "2013-08-10 00:00:00",
         "run_freq_sec": 60,
         "start_time_index": 1,
         "name": "opf",

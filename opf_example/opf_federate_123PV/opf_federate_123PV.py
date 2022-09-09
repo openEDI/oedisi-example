@@ -26,7 +26,7 @@ import json
 import opf_grid_utility_scripts
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 
@@ -230,10 +230,10 @@ class OptimalPowerFlowFederate:
 
             # logger.info(f'While loop with granted time: {granted_time} requested time: {requested_time}')
 
-            if int(granted_time-2) % (60*15) == 0:
+            if int(granted_time-5) % (60*15) == 0:
                 # 2 seconds delay
                 # initialization - this could be done before the loop starts too.
-                if granted_time == 2: # first time ever, we'd need to load up all vectors and matrices
+                if granted_time == 5: # first time ever, we'd need to load up all vectors and matrices
                     self.topology = Topology.parse_obj(self.sub_topology.json)
                     logger.info(f'Subscribed Topology Received')
 
@@ -251,6 +251,9 @@ class OptimalPowerFlowFederate:
 
                     self.pv_info = PVModelInfo.parse_obj(self.sub_pv_info.json)
                     logger.info(f"pv_info received")
+                    #TODO: check why the s values are not coming directly
+                    self.pv_s_init = np.array(np.sqrt(np.array(self.pv_info.p_values)**2 + np.array(self.pv_info.q_values)**2))
+                    logger.info(f'real voltages subscribed {self.sub_voltages_real.json}')
 
                     # dynamic states, which may change
                     self.voltages_real = LabelledArray.parse_obj(self.sub_voltages_real.json)
@@ -267,12 +270,14 @@ class OptimalPowerFlowFederate:
 
                     self.cap_Q = LabelledArray.parse_obj(self.sub_cap_powers_imag.json)
                     logger.info(f"cap_powers_imag received")
+                    logger.debug(f"{self.cap_Q}")
 
                     self.pv_P = LabelledArray.parse_obj(self.sub_pv_powers_real.json)
                     logger.info(f"sub_pv_powers_real power received")
-
+                    logger.debug(f"{self.pv_P}")
                     self.pv_Q = LabelledArray.parse_obj(self.sub_pv_powers_imag.json)
                     logger.info(f"sub_pv_powers_imag  imag received")
+                    logger.info(f"{self.pv_Q}")
 
                     self.tap_vals = LabelledArray.parse_obj(self.sub_tap_values.json)
                     logger.info(f"sub_tap_values received")
@@ -366,7 +371,7 @@ class OptimalPowerFlowFederate:
                     logger.info(f'tap_values published to feeder')
 
 
-            granted_time = h.helicsFederateRequestTime(self.opf_fed, h.HELICS_TIME_MAXTIME)
+            # granted_time = h.helicsFederateRequestTime(self.opf_fed, h.HELICS_TIME_MAXTIME)
             # logger.info(f'granted time in the for loop --> {granted_time}')
 
         self.destroy()

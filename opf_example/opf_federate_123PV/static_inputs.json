@@ -1,0 +1,1 @@
+{"start_date": "2013-08-10 00:00:00", "run_freq_sec": 60, "start_time_index": 1, "name": "opf", "deltat": 1, "algorithm_settings": {"gradient_descent_setting": {"iter_lim": 1050, "tolerance": 0.1, "step_size": 1}}, "method": "central", "metadata": {"method": "name of the OPF method: available are 'gradient_descent,'central"}}

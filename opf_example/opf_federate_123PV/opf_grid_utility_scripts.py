@@ -60,23 +60,6 @@ def unpack_fdrvals_vecs(opfobj):
     opfobj.v0 = opfobj.voltages[0:3]
     opfobj.vL_abs_dss = np.abs(opfobj.vL)
 
-    # opfobj.y_matrix = np.array(opfobj.topology.y_matrix)
-    #
-    # opfobj.y_matrix = y_matrix_to_complex_array(opfobj.y_matrix,
-    #                                             opfobj.y_matrix.shape[0],
-    #                                             opfobj.y_matrix.shape[1])
-    # opfobj.y_line = np.array(opfobj.topology_flow.y_matrix)
-    # opfobj.y_line = y_matrix_to_complex_array(opfobj.y_line,
-    #                                           opfobj.y_line.shape[0],
-    #                                           opfobj.y_line.shape[1])
-    #
-    # opfobj.Y_00 = csc_matrix(opfobj.y_matrix[0:3, 0:3])
-    # opfobj.Y_0L = csc_matrix(opfobj.y_matrix[0:3, 3:])
-    # opfobj.Y_L0 = csc_matrix(opfobj.y_matrix[3:, 0:3])
-    # opfobj.Y_LL = csc_matrix(opfobj.y_matrix[3:, 3:])
-    #
-    # opfobj.Yf_0 = csc_matrix(opfobj.y_line[:, 0:3])
-    # opfobj.Yf_L = csc_matrix(opfobj.y_line[:, 3:])
     opfobj.i_f = opfobj.Yf_0.dot(opfobj.v0) + opfobj.Yf_L.dot(opfobj.vL)  # line flow from complex
     opfobj.i_f_abs = np.abs(opfobj.i_f)
 
@@ -706,6 +689,7 @@ def solve_central_optimization(opfobj):
     cost_b = np.array(u_init) / 1000
     cost_p_gen_a = np.max(cost_a) * 100  # promote local production/loadshed
     cost_p_gen_b = np.mean(cost_b) * 0.1
+
     # cost_bank_a = np.array([200, 200, 200, 100])/100
     cost_bank_b = opfobj.cap_bank_init / 1000
     cost_q_gen_a = np.mean(cost_bank_b) * 100  # promote local production/capbank activation
@@ -847,11 +831,35 @@ def solve_central_optimization(opfobj):
                + p_pv_flow_expr[l] + q_pv_flow_expr[l]
 
     def obj_rule(m):
-        return sum((m.p_flex_load_var[i] - opfobj.p_flex_load_init[i] / 2) * cost_a[i]
-                   + 0.5 * (m.p_flex_load_var[i] - opfobj.p_flex_load_init[i] / 2) * cost_b[i] * (
-                               m.p_flex_load_var[i] - opfobj.p_flex_load_init[i] / 2) for i in flex_node_idx) \
-               + 0.5 * sum((m.xmer_tap_number[j] - opfobj.reg_taps_init[j] / 2) * cost_reg_b[j] * (
-                    m.xmer_tap_number[j] - opfobj.reg_taps_init[j] / 2) for j in num_xmers_idx) \
+        logger.debug(f'cost p gen a {cost_p_gen_a}')
+        logger.debug(f'cost p gen b {cost_p_gen_b}')
+        logger.debug(f'cost a {cost_a}')
+        logger.debug(f'cost b {cost_b}')
+        logger.debug(f'cost_bank_b {cost_bank_b}')
+        logger.debug(f'cost_q_gen_a {cost_q_gen_a}')
+        logger.debug(f'cost_q_gen_b {cost_q_gen_b}')
+        logger.debug(f'cost_reg_b {cost_reg_b}')
+        logger.debug(f'cost_pv_p_b {cost_pv_p_a}')
+        logger.debug(f'cost_pv_q_b {cost_pv_q_b}')
+
+        logger.debug(f'flex_node_idx {flex_node_idx}')
+        logger.debug(f'num_xmers_idx {num_xmers_idx}')
+        logger.debug(f'cap_node_idx {cap_node_idx}')
+        logger.debug(f'pv_node_idx {pv_node_idx}')
+
+        # logger.debug(f'pflexvar {type(m.p_flex_load_var)}')
+        # logger.debug(f'm.xmer_tap_number {type(m.xmer_tap_number)}')
+        # logger.debug(f'm.cap_active_number {type(m.cap_active_number)}')
+        # logger.debug(f'm.p_pv {type(m.p_pv)}')
+        # logger.debug(f'm.p_net_import {type(m.p_net_import)}')
+        # logger.debug(f'm.q_net_import {type(m.q_net_import)}')
+
+
+        return sum((m.p_flex_load_var[i] - opfobj.p_flex_load_init[i] ) * cost_a[i]
+                   + 0.5 * (m.p_flex_load_var[i] - opfobj.p_flex_load_init[i] ) * cost_b[i] * (
+                               m.p_flex_load_var[i] - opfobj.p_flex_load_init[i] ) for i in flex_node_idx) \
+               + 0.5 * sum((m.xmer_tap_number[j] - opfobj.reg_taps_init[j] ) * cost_reg_b[j] * (
+                    m.xmer_tap_number[j] - opfobj.reg_taps_init[j] ) for j in num_xmers_idx) \
                + 0.5 * sum((m.cap_active_number[j] - opfobj.cap_bank_init[j]) * cost_bank_b[j] * (
                     m.cap_active_number[j] - opfobj.cap_bank_init[j]) for j in cap_node_idx) \
                + sum((m.p_pv[i] - opfobj.pv_p_init[i]) * cost_pv_p_a[i]
@@ -859,8 +867,8 @@ def solve_central_optimization(opfobj):
                      i in pv_node_idx) \
                + 0.5 * sum(
             (m.q_pv[i] - opfobj.pv_q_init[i]) * cost_pv_q_b[i] * (m.q_pv[i] - opfobj.pv_q_init[i]) for i in pv_node_idx) \
-               + cost_p_gen_a * m.p_net_import + 0.5 * m.p_net_import * cost_p_gen_b * m.p_net_import \
-               + cost_q_gen_a * m.q_net_import + 0.5 * m.q_net_import * cost_q_gen_b * m.q_net_import
+               + m.p_net_import*cost_p_gen_a + 0.5 * m.p_net_import*cost_p_gen_b*m.p_net_import \
+               + m.q_net_import*cost_q_gen_a  + 0.5 * m.q_net_import * cost_q_gen_b * m.q_net_import
 
     if u_unit == 'kW':
         conv_factor = 1000  # to convert from kW to Watt
@@ -876,22 +884,27 @@ def solve_central_optimization(opfobj):
     tau = 0.00625  # tap steps
     #TODO: use rated values to set limits for the OPF
     p_flex_load_var_limit_min = opfobj.p_flex_load_init * 0
-    p_flex_load_var_limit_max = opfobj.p_flex_load_init * random.gauss(1, 0.5) / 2
-    cap_power_min = 0 * np.ones(shape=no_cap_nodes) * conv_factor
+#     p_flex_load_var_limit_min = -opfobj.p_flex_load_init  / 2
+    p_flex_load_var_limit_max = opfobj.p_flex_load_init  / 2
+    # cap_power_min = 0 * np.ones(shape=no_cap_nodes) * conv_factor
+    # cap_power_max = opfobj.cap_bank_init * random.gauss(2, 0.5) / 2
     # cap_power_max = opfobj.cap_load_inc_matrix.T.dot(opfobj.cap_bank_init) * np.ones(shape=no_cap_nodes) * random.gauss(2, 0.5)
-    cap_power_max = opfobj.cap_bank_init * random.gauss(2, 0.5)
+    cap_power_min = -opfobj.cap_bank_init * 0
+    cap_power_max = opfobj.cap_bank_init / 2
+
 
     xmer_min_taps = -16 * np.ones(shape=no_xmers_reg)
     xmer_max_taps = 16 * np.ones(shape=no_xmers_reg)
 
     # we assume inverters are oversized
-    opfobj.pv_s_init = np.sqrt(1.1 * opfobj.pv_p_init ** 2 + 1.1 * opfobj.pv_q_init ** 2)
+    # opfobj.pv_s_init = np.sqrt(1.1 * opfobj.pv_p_init ** 2 + 1.1 * opfobj.pv_q_init ** 2)
+
     pv_p_max = opfobj.pv_p_init * 0.25  # will only allow to curtail by quarter of the pv generation
-    pv_p_min = opfobj.pv_s_init * 0
+    pv_p_min = -opfobj.pv_p_init * 0.0
     q_2 = opfobj.pv_s_init ** 2 - pv_p_max ** 2
     q_max = np.sqrt(q_2.astype(float))
-    pv_q_max = q_max
-    pv_q_min = -q_max
+    pv_q_max = q_max*0.25
+    pv_q_min = -q_max*0.25
 
     # extract appropriate line ratings
     # because sometimes network models don't have proper normal amperes and emergency amperes with line defs
@@ -971,6 +984,25 @@ def solve_central_optimization(opfobj):
     # model.pprint()
     # solver.options['tol'] = 1E-3
     # results= solver.solve(model)
+    logger.debug(f'opfobj.p_flex_load_init {opfobj.p_flex_load_init}')
+    logger.debug(f'p_flex_min {p_flex_load_var_limit_min}')
+    logger.debug(f'p_flex_max {p_flex_load_var_limit_max}')
+    logger.debug(f'opfobj.reg_taps_init {opfobj.reg_taps_init}')
+    logger.debug(f'reg_max {xmer_max_taps}')
+    logger.debug(f'reg_min {xmer_min_taps}')
+
+    logger.debug(f'opfobj.cap_bank_init {opfobj.cap_bank_init}')
+    logger.debug(f'cap_max {cap_power_max}')
+    logger.debug(f'cap_min {cap_power_min}')
+
+    logger.debug(f'opfobj.pv_p_init {opfobj.pv_p_init}')
+    logger.debug(f'pv_p_min {pv_p_min}')
+    logger.debug(f'pv_p_max {pv_p_max}')
+
+    logger.debug(f'opfobj.pv_q_init {opfobj.pv_q_init}')
+    logger.debug(f'pv_q_min {pv_q_min}')
+    logger.debug(f'pv_q_max {pv_q_max}')
+    logger.debug(f'opfobj.pv_s_init {opfobj.pv_s_init}')
 
     stop_central_prep = timeit.default_timer()
     central_prep_times = stop_central_prep - start_central_prep
@@ -988,67 +1020,107 @@ def solve_central_optimization(opfobj):
     # central_solution_value[loop] = pyo.value(model.obj)
     logger.debug(f"{results.solver.Message}")
     try:
-        opfobj.p_flex_load_var_opti = []
+        opfobj.p_flex_load_var_opti_abs = []
         for i in flex_node_idx:
-            opfobj.p_flex_load_var_opti.append(pyo.value(model.p_flex_load_var[i]))
+            opfobj.p_flex_load_var_opti_abs.append(pyo.value(model.p_flex_load_var[i]))
         volt_approx_opti = []
         for i in node_idx:
             volt_approx_opti.append(pyo.value(model.voltage_approx[i]))
         flow_approx_opti = []
         for l in line_idx:
             flow_approx_opti.append(pyo.value(model.line_flow_approx[l]))
-        opfobj.cap_value_opti = []
+        opfobj.cap_value_opti_abs = []
         for c in cap_node_idx:
-            opfobj.cap_value_opti.append(pyo.value(model.cap_active_number[c]))
-        opfobj.xmer_value_opti = []
+            opfobj.cap_value_opti_abs.append(pyo.value(model.cap_active_number[c]))
+        opfobj.xmer_value_opti_abs = []
         for x in num_xmers_idx:
-            opfobj.xmer_value_opti.append(pyo.value(model.xmer_tap_number[x]))
-        opfobj.p_pv_opti = []
+            opfobj.xmer_value_opti_abs.append(pyo.value(model.xmer_tap_number[x]))
+        opfobj.p_pv_opti_abs = []
         for i in pv_node_idx:
-            opfobj.p_pv_opti.append(pyo.value(model.p_pv[i]))
-        opfobj.q_pv_opti = []
+            opfobj.p_pv_opti_abs.append(pyo.value(model.p_pv[i]))
+        opfobj.q_pv_opti_abs = []
         for i in pv_node_idx:
-            opfobj.q_pv_opti.append(pyo.value(model.q_pv[i]))
+            opfobj.q_pv_opti_abs.append(pyo.value(model.q_pv[i]))
 
-        active_power_generation_import = pyo.value(model.p_net_import)
-        reactive_power_generation_import = pyo.value(model.q_net_import)
-        array_p_flex_load_var_opti = np.array(opfobj.p_flex_load_var_opti).transpose()
-        array_p_pv_opti = np.array(opfobj.p_pv_opti).transpose()
-        array_q_pv_opti = np.array(opfobj.q_pv_opti).transpose()
-        array_q_cap_opti = np.array(opfobj.cap_value_opti)
-        array_tap_opti = np.array(opfobj.xmer_value_opti)
-        # some validation scripts
-        # active power
-        cap_p_losses = opfobj.m_pl_qY.dot(opfobj.cap_load_inc_matrix).dot(np.array(opfobj.cap_value_opti))
-        flex_load_p_losses = opfobj.m_pl_pY.dot(opfobj.flex_load_inc_matrix).dot(np.array(opfobj.p_flex_load_var_opti))
-        pv_p_plosses = opfobj.m_pl_pY.dot(opfobj.pv_inc_matrix).dot(np.array(opfobj.p_pv_opti))
-        pv_q_plosses = opfobj.m_pl_qY.dot(opfobj.pv_inc_matrix).dot(np.array(opfobj.q_pv_opti))
-        total_p_load = sum(opfobj.pL) - sum(np.array(opfobj.p_flex_load_var_opti)) - sum(np.array(opfobj.p_pv_opti))
-        total_p_losses = pv_q_plosses + pv_p_plosses + cap_p_losses + flex_load_p_losses + opfobj.p_loss_dss
-        net_gen_p_imports = (total_p_load + total_p_losses) / 1000
-        net_p_original_imports = (sum(opfobj.pL) + opfobj.p_loss_dss) / 1000
-        # reactive power
-        cap_q_losses = opfobj.m_ql_qY.dot(opfobj.cap_load_inc_matrix).dot(np.array(opfobj.cap_value_opti))
-        flex_load_q_losses = opfobj.m_ql_pY.dot(opfobj.flex_load_inc_matrix).dot(np.array(opfobj.p_flex_load_var_opti))
-        pv_p_qlosses = opfobj.m_ql_pY.dot(opfobj.pv_inc_matrix).dot(np.array(opfobj.p_pv_opti))
-        pv_q_qlosses = opfobj.m_ql_qY.dot(opfobj.pv_inc_matrix).dot(np.array(opfobj.q_pv_opti))
-        total_q_load = sum(opfobj.qL) - sum(np.array(opfobj.cap_value_opti)) - sum(np.array(opfobj.q_pv_opti))
-        total_q_losses = pv_p_qlosses + pv_q_qlosses + cap_q_losses + flex_load_q_losses + opfobj.q_loss_dss
-        net_gen_q_imports = (total_q_load + total_q_losses) / 1000
-        net_q_original_imports = (sum(opfobj.qL) + opfobj.q_loss_dss) / 1000
+        #TODO: check validation script below
+
+        opfobj.active_power_generation_import = pyo.value(model.p_net_import)
+        opfobj.reactive_power_generation_import = pyo.value(model.q_net_import)
+        # array_p_flex_load_var_opti = np.array(opfobj.p_flex_load_var_opti_abs).transpose()
+        # array_p_pv_opti = np.array(opfobj.p_pv_opti_abs).transpose()
+        # array_q_pv_opti = np.array(opfobj.q_pv_opti_abs).transpose()
+        # array_q_cap_opti = np.array(opfobj.cap_value_opti_abs)
+        # array_tap_opti = np.array(opfobj.xmer_value_opti_abs)
+        # # some validation scripts
+        # # active power
+        # cap_p_losses = opfobj.m_pl_qY.dot(opfobj.cap_load_inc_matrix).dot(np.array(opfobj.cap_value_opti))
+        # flex_load_p_losses = opfobj.m_pl_pY.dot(opfobj.flex_load_inc_matrix).dot(np.array(opfobj.p_flex_load_var_opti))
+        # pv_p_plosses = opfobj.m_pl_pY.dot(opfobj.pv_inc_matrix).dot(np.array(opfobj.p_pv_opti))
+        # pv_q_plosses = opfobj.m_pl_qY.dot(opfobj.pv_inc_matrix).dot(np.array(opfobj.q_pv_opti))
+        # total_p_load = sum(opfobj.pL) - sum(np.array(opfobj.p_flex_load_var_opti)) - sum(np.array(opfobj.p_pv_opti))
+        # total_p_losses = pv_q_plosses + pv_p_plosses + cap_p_losses + flex_load_p_losses + opfobj.p_loss_dss
+        # net_gen_p_imports = (total_p_load + total_p_losses) / 1000
+        # net_p_original_imports = (sum(opfobj.pL) + opfobj.p_loss_dss) / 1000
+        # # reactive power
+        # cap_q_losses = opfobj.m_ql_qY.dot(opfobj.cap_load_inc_matrix).dot(np.array(opfobj.cap_value_opti))
+        # flex_load_q_losses = opfobj.m_ql_pY.dot(opfobj.flex_load_inc_matrix).dot(np.array(opfobj.p_flex_load_var_opti))
+        # pv_p_qlosses = opfobj.m_ql_pY.dot(opfobj.pv_inc_matrix).dot(np.array(opfobj.p_pv_opti))
+        # pv_q_qlosses = opfobj.m_ql_qY.dot(opfobj.pv_inc_matrix).dot(np.array(opfobj.q_pv_opti))
+        # total_q_load = sum(opfobj.qL) - sum(np.array(opfobj.cap_value_opti)) - sum(np.array(opfobj.q_pv_opti))
+        # total_q_losses = pv_p_qlosses + pv_q_qlosses + cap_q_losses + flex_load_q_losses + opfobj.q_loss_dss
+        # net_gen_q_imports = (total_q_load + total_q_losses) / 1000
+        # net_q_original_imports = (sum(opfobj.qL) + opfobj.q_loss_dss) / 1000
 
         logger.debug(f'Optimization Results Loaded')
 
     except:
         logger.debug(f'Optimization Results not Loaded there may be some errors')
         logger.debug(f"using base-values")
-        active_power_generation_import = np.genfromtxt('active_power_generation_import.csv', delimiter=',')
-        reactive_power_generation_import = np.genfromtxt('reactive_power_generation_import.csv', delimiter=',')
-        array_p_flex_load_var_opti = np.genfromtxt('array_p_flex_load_var_opti.csv', delimiter=',')
-        array_p_pv_opti = np.genfromtxt('array_p_pv_opti.csv', delimiter=',')
-        array_q_pv_opti = np.genfromtxt('array_q_pv_opti.csv', delimiter=',')
-        array_q_cap_opti = np.genfromtxt('array_q_cap_opti.csv', delimiter=',')
-        array_tap_opti = np.genfromtxt('xmer_value_opti.csv', delimiter=',')
+        opfobj.active_power_generation_import = np.genfromtxt('base_vals/active_power_generation_import.csv', delimiter=',')
+        opfobj.reactive_power_generation_import = np.genfromtxt('base_vals/reactive_power_generation_import.csv', delimiter=',')
+        opfobj.p_flex_load_var_opti_abs = np.genfromtxt('base_vals/array_p_flex_load_var_opti.csv', delimiter=',')
+        opfobj.p_pv_opti_abs = np.genfromtxt('base_vals/array_p_pv_opti.csv', delimiter=',')
+        opfobj.q_pv_opti_abs = np.genfromtxt('base_vals/array_q_pv_opti.csv', delimiter=',')
+        opfobj.cap_value_opti_abs = np.genfromtxt('base_vals/array_q_cap_opti.csv', delimiter=',')
+        opfobj.xmer_value_opti_abs = np.genfromtxt('base_vals/xmer_value_opti.csv', delimiter=',')
+
+
+
+    logger.debug("======= initial values loaded in the optimization ======== ")
+    logger.debug(f'opfobj.p_flex_load_init {opfobj.p_flex_load_init}')
+    logger.debug(f'opfobj.reg_taps_init {opfobj.reg_taps_init}')
+    logger.debug(f'opfobj.cap_bank_init {opfobj.cap_bank_init}')
+    logger.debug(f'opfobj.pv_p_init {opfobj.pv_p_init}')
+    logger.debug(f'opfobj.pv_q_init {opfobj.pv_q_init}')
+    logger.debug(f'opfobj.pv_s_init {opfobj.pv_s_init}')
+
+
+    logger.debug("======= optimal variable movement proposed ==== ")
+    logger.debug(f'active_power_generation_import {opfobj.active_power_generation_import}')
+    logger.debug(f'reactive_power_generation_import {opfobj.reactive_power_generation_import}')
+    logger.debug(f'array_p_flex_load_var_opti_abs {opfobj.p_flex_load_var_opti_abs}')
+    logger.debug(f'array_p_pv_opti_abs { opfobj.p_pv_opti_abs}')
+    logger.debug(f'array_q_pv_opti_abs {opfobj.q_pv_opti_abs}')
+    logger.debug(f'array_q_cap_opti_abs {opfobj.cap_value_opti_abs}')
+    logger.debug(f'array_tap_opti_abs {opfobj.xmer_value_opti_abs}')
+
+
+    opfobj.p_flex_load_var_opti = opfobj.p_flex_load_init - np.array(opfobj.p_flex_load_var_opti_abs)
+    opfobj.cap_value_opti = opfobj.cap_bank_init - np.array(opfobj.cap_value_opti_abs)
+    opfobj.xmer_value_opti = opfobj.reg_taps_init - np.array(opfobj.xmer_value_opti_abs)
+    opfobj.p_pv_opti = opfobj.pv_p_init - np.array(opfobj.p_pv_opti_abs)
+    opfobj.q_pv_opti =  opfobj.pv_q_init - np.array(opfobj.q_pv_opti_abs)
+
+    logger.debug("======= control variable movement sent to feeder (Current Val - Optimal Val) ==== ")
+
+    logger.debug(f'array_p_flex_load_var_opti_to_send {opfobj.p_flex_load_var_opti}')
+    logger.debug(f'cap_value_opti_to_send {opfobj.cap_value_opti}')
+    logger.debug(f'xmer_value_opti_to_send {opfobj.xmer_value_opti}')
+    logger.debug(f'array_q_cap_opti_to_send {opfobj.p_pv_opti}')
+    logger.debug(f'q_pv_opti_to_send {opfobj.q_pv_opti}')
+
+
+
 def distributed_optimization(opfobj):
     alpha_p = 1e-3
     alpha_q = 1e-3

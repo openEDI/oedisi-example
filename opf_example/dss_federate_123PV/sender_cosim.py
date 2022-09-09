@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 test_se = False
 
@@ -102,7 +102,8 @@ def get_phase(name):
     else:
         raise Exception("Cannot parse name")
 
-@dataclass(kw_only=True)
+# @dataclass(kw_only=True)
+@dataclass()
 class OPFControl:
     sub_powers_flex: Optional[h.HelicsInput]
     sub_cap_powers_imag: Optional[h.HelicsInput]
@@ -389,10 +390,12 @@ class SimulationFederate:
                 # logger.info(f"{taps}")
                 # TODO: previous ids were sim._AllNodeNames - check its imapct on the pub/sub
                 logger.info('Publish load ' + str(np.sum(active_power_loads)))
+
                 self.pub_voltages_real.publish(
                     LabelledArray(array=list(feeder_voltages.real), unique_ids=sim._opf_node_order).json())
                 logger.info(f'real voltages published')
-
+                #logger.info(f'length: {len(feeder_voltages.real)}')
+                logger.debug(f'values: {feeder_voltages.real.tolist()}')
                 self.pub_voltages_imag.publish(
                     LabelledArray(array=list(feeder_voltages.imag), unique_ids=sim._opf_node_order).json())
                 logger.info(f'voltages_imag published')
@@ -411,10 +414,12 @@ class SimulationFederate:
 
                 self.pub_pv_powers_real.publish(LabelledArray(array=list(active_power_pv), unique_ids=sim._AllNodeNames).json())
                 logger.info(f'pv_powers_real published')
+                logger.debug(f"{list(active_power_pv)}")
 
                 self.pub_pv_powers_imag.publish(
                     LabelledArray(array=list(reactive_power_pv), unique_ids=sim._AllNodeNames).json())
                 logger.info(f'pv_powers_imag published')
+                logger.debug(f"{list(reactive_power_pv)}")
 
                 self.pub_tap_values.publish(LabelledArray(array=list(taps), unique_ids=sim._opf_reg_order_names).json())
                 logger.info(f'tap_values published')

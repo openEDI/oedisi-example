@@ -563,6 +563,8 @@ def get_variables_manual(simobj, dss):
 
     simobj.i_f_abs = np.abs(simobj.i_f)  # absolute flows complex
     # simobj.s_loss_manual = np.conj(np.conj(simobj.voltages.T).dot(simobj.y_matrix.toarray()).dot(simobj.voltages))
+    logger.debug(f"voltage \n {simobj._voltages.T}")
+    logger.debug(f"y bus \n {simobj._y_matrix}")
     simobj.s_loss_manual = np.conj(np.conj(simobj._voltages.T).dot(simobj._y_matrix).dot(simobj._voltages))
 
     simobj.p_loss_dss = dss.Circuit.Losses()[0]
