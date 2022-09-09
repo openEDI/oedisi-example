@@ -7,18 +7,18 @@ import json
 import os
 from gadal.gadal_types.data_types import MeasurementArray, AdmittanceMatrix, Topology
 
-voltage_real = feather.read_feather(os.path.join("recorder_voltage_real","data.feather"))
-voltage_imag = feather.read_feather(os.path.join("recorder_voltage_imag","data.feather"))
+voltage_real = feather.read_feather(os.path.join("outputs","voltage_real.feather"))
+voltage_imag = feather.read_feather(os.path.join("outputs","voltage_imag.feather"))
 
-with open(os.path.join("local_feeder","topology.json")) as f:
+with open(os.path.join("outputs","topology.json")) as f:
     topology = Topology.parse_obj(json.load(f))
-    base_voltages = np.array(topology.base_voltage_magnitudes.values)
+    base_voltages = np.array(topology["base_voltages"])
 
 true_voltages = voltage_real.drop('time', axis=1) + 1j * voltage_imag.drop('time', axis=1)
 time = voltage_real["time"]
 
-voltage_mag = feather.read_feather(os.path.join("recorder_voltage_mag","data.feather")).drop('time', axis=1)
-voltage_angle = feather.read_feather(os.path.join("recorder_voltage_angle","data.feather")).drop('time', axis=1)
+voltage_mag = feather.read_feather(os.path.join("outputs","voltage_mag.feather")).drop('time', axis=1)
+voltage_angle = feather.read_feather(os.path.join("outputs", "voltage_angle.feather")).drop('time', axis=1)
 
 estimated_voltages = voltage_mag * np.exp(1j * voltage_angle)
 

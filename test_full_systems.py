@@ -40,6 +40,6 @@ component_types = {
 wiring_diagram = WiringDiagram.parse_file("test_system.json")
 #wiring_diagram.clean_model()
 # Generate runner config using wiring diagram and component types
-runner_config = generate_runner_config(wiring_diagram, component_types)
-with open("test_system_runner.json", "w") as f:
+runner_config = generate_runner_config(wiring_diagram, component_types, target_directory="build")
+with open("build/test_system_runner.json", "w") as f:
     f.write(runner_config.json(indent=2))

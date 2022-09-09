@@ -4,30 +4,30 @@
         {
             "name": "recorder_voltage_real",
             "type": "Recorder",
-            "parameters": {"feather_filename": "data.feather", 
-                           "csv_filename": "data.csv"
-            }
+            "parameters": {"feather_filename": "../../outputs/voltage_real.feather",
+		           "csv_filename": "../../outputs/voltage_real.csv"
+	    }
         },
         {
             "name": "recorder_voltage_imag",
             "type": "Recorder",
-            "parameters": {"feather_filename": "data.feather",
-                           "csv_filename": "data.csv"
-            }
+            "parameters": {"feather_filename": "../../outputs/voltage_imag.feather",
+		           "csv_filename": "../../outputs/voltage_imag.csv"
+	    }
         },
         {
             "name": "recorder_voltage_mag",
             "type": "Recorder",
-            "parameters": {"feather_filename": "data.feather",
-                           "csv_filename": "data.csv"
-            }
+            "parameters": {"feather_filename": "../../outputs/voltage_mag.feather",
+		           "csv_filename": "../../outputs/voltage_mag.csv"
+	    }
         },
         {
             "name": "recorder_voltage_angle",
             "type": "Recorder",
-            "parameters": {"feather_filename": "data.feather",
-                           "csv_filename": "data.csv"
-            }
+            "parameters": {"feather_filename": "../../outputs/voltage_angle.feather",
+		           "csv_filename": "../../outputs/voltage_angle.csv"
+	    }
         },
         {
             "name": "state_estimator",
@@ -47,7 +47,8 @@
                 "smartds_year": "2017",
                 "start_date": "2017-05-01 00:00:00",
                 "increment_value": 900,
-                "number_of_timesteps": 36
+                "number_of_timesteps": 36,
+		"topology_output": "../../outputs/topology.json"
             }
         },
         {
@@ -58,7 +59,8 @@
                 "start_date": "2017-01-01 00:00:00",
                 "run_freq_sec": 900,
                 "number_of_timesteps": 36,
-                "start_time_index": 0
+                "start_time_index": 0,
+		"topology_output": "../../outputs/topology.json"
             }
         },
         {
