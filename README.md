@@ -7,7 +7,7 @@ pip install -r requirements.txt
 pip install matplotlib`
 ```
 2. Run `python test_full_systems.py` to initialize the system
-3. Run `helics run --path=test_system_runner.json`
+3. Run `helics run --path=build/test_system_runner.json`
 4. Analyze the results using `python post_analysis.py`
 
 ## Troubleshooting
@@ -81,10 +81,18 @@ one specifically for docker builds as well, but for testing you may just downloa
 
 Assuming the github SSH key is `gadal_docker_key`, we can build the docker image with
 ```
-docker build --secret id=gadal_github_key,src=gadal_docker_key -t gadal-example0.0.0 .
+docker build --secret id=gadal_github_key,src=gadal_docker_key -t gadal-example:0.0.0 .
+```
+
+To get a docker volume pointed at the right place locally, we have to run more commands
+```
+mkdir outputs_build
+docker volume create --name gadal_output --opt type=none --opt device=$(pwd)/outputs_build --opt o=bind
 ```
 
 Then we can run the docker image:
 ```
-docker run --rm gadal-example0.0.0
+docker run --rm --mount source=gadal_output,target=/simulation/outputs gadal-example:0.0.0
 ```
+
+You can omit the docker volume parts as well as `--mount` if you do not care about the exact outputs.
