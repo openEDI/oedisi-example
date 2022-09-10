@@ -10,7 +10,7 @@ from gadal.gadal_types.data_types import MeasurementArray, AdmittanceMatrix, Top
 voltage_real = feather.read_feather(os.path.join("recorder_voltage_real","data.feather"))
 voltage_imag = feather.read_feather(os.path.join("recorder_voltage_imag","data.feather"))
 
-with open(os.path.join("feeder","topology.json")) as f:
+with open(os.path.join("local_feeder","topology.json")) as f:
     topology = Topology.parse_obj(json.load(f))
     base_voltages = np.array(topology.base_voltage_magnitudes.values)
 
