@@ -20,6 +20,8 @@ jobs:
       with:
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
+        submodules: true
+        token: ${{ secrets.CI_TOKEN }}
     - name: Install python dependencies
       shell: bash -l {0}
       run: |
@@ -37,8 +39,6 @@ jobs:
     - name: Run example
       shell: bash -l {0}
       run: |
-        git submodule init 
-        git submodule update
         python test_full_systems.py
         helics run --path=test_system_runner.json
         python post_analysis.py
