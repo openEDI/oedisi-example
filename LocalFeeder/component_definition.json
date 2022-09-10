@@ -11,6 +11,7 @@
     ],
     "dynamic_inputs": [],
     "dynamic_outputs": [
+        {"type": "VoltagesMagnitude", "port_id": "voltages_magnitude"},
         {"type": "VoltagesReal", "port_id": "voltages_real"},
         {"type": "VoltagesImaginary", "port_id": "voltages_imag"},
         {"type": "PowersReal", "port_id": "powers_real"},

@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from scipy import sparse as sparse
 import cmath
+from scipy.sparse import csc_matrix, save_npz
 
 # from simulator.simulator import node_number
 
@@ -46,6 +47,8 @@ def get_y_matrix_file(dss):
     dss.run_command('export y triplet base_ysparse.csv')
     dss.run_command('export ynodelist base_nodelist.csv')
     dss.run_command('export summary base_summary.csv')
+    Ysparse = csc_matrix(dss.YMatrix.getYsparse())
+    save_npz('base_ysparse.npz', Ysparse)
 
     # dss.run_command('show Y')
     # dss.run_command('solve mode=snap')
@@ -144,7 +147,9 @@ def parse_Ymatrix(Ysparse, totalnode_number):
             Ymatrix[r, c] = complex(g, b)
             Ymatrix[c, r] = Ymatrix[r, c]
 
-    return Ymatrix
+    from scipy.sparse import load_npz
+    Ymatrix_new = load_npz('base_ysparse.npz')
+    return Ymatrix_new.tocoo()
 
 
 def get_loads(dss, circuit):
@@ -192,13 +197,17 @@ def get_pvSystems(dss):
         datum = {}
         # PVname = dss.CktElement.Name()
         PVname = dss.PVsystems.Name()
+        PVpmpp = dss.PVsystems.Pmpp()
+        PVkW = dss.PVsystems.kW()
+        PVpf = dss.PVsystems.pf()
+        PVkVARated = dss.PVsystems.kVARated()
+        PVkvar = dss.PVsystems.kvar()
+
         NumPhase = dss.CktElement.NumPhases()
         bus = dss.CktElement.BusNames()[0]
+        #PVkV = dss.run_command('? ' + PVname + '.kV') #Not included in PVsystems commands for some reason
+        PVkV = 2.4
 
-        PVkW = dss.run_command('? ' + PVname + '.Pmpp')
-        PVpf = dss.run_command('? ' + PVname + '.pf')
-        PVkVA = dss.run_command('? ' + PVname + '.kVA')
-        PVkV = dss.run_command('? ' + PVname + '.kV')
 
         datum["name"] = PVname
         datum["bus"] = bus
@@ -206,10 +215,9 @@ def get_pvSystems(dss):
         datum["Pmpp"] = PVkW
         datum["pf"] = PVpf
         datum["kV"] = PVkV
-        datum["kW"] = dss.PVsystems.kW()
-        datum["kVA"] = PVkVA
-        datum["kVar"] = dss.PVsystems.kvar()
-        datum["kVarRated"] = dss.PVsystems.kVARated()
+        datum["kW"] = PVkW
+        datum["kVar"] = PVkvar
+        datum["kVARated"] = PVkVARated
         datum["numPhase"] = NumPhase
         datum["numPhases"] = NumPhase
         datum["power"] = dss.CktElement.Powers()[0:2*NumPhase]

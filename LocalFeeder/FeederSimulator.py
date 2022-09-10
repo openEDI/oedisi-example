@@ -6,8 +6,12 @@ import numpy as np
 import csv
 import time
 from time import strptime
+from scipy.sparse import coo_matrix
 import os
+import random
+import math
 import logging
+import json
 
 from pydantic import BaseModel
 
@@ -20,6 +24,24 @@ import dss_functions
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
+
+def permutation(from_list, to_list):
+    """
+    Create permutation representing change in from_list to to_list
+
+    Specifically, if `permute = permutation(from_list, to_list)`,
+    then `permute[i] = j` means that `from_list[i] = to_list[j]`.
+
+    This also means that `to_list[permute] == from_list`, so you
+    can convert from indices under to_list to indices under from_list.
+
+    You may view the permutation as a function from `from_list` to `to_list`.
+    """
+    #return [to_list.find(v) for v in enumerate(from_list)]
+    index_map = {v: i for i, v in enumerate(to_list)}
+    return [index_map[v] for v in from_list]
+
+
 
 def check_node_order(l1, l2):
     print('check order ' + str(l1 == l2))
@@ -61,7 +83,31 @@ class FeederSimulator(object):
         self._name_index_dict = {}
 
         self.load_feeder()
+        #self.create_measurement_lists()
 
+    def create_measurement_lists(self,
+            percent_voltage=75,
+            percent_real=75,
+            percent_reactive=75,
+            voltage_seed=1,
+            real_seed=2,
+            reactive_seed=3
+        ):
+
+        random.seed(voltage_seed)
+        voltage_subset = random.sample(self._AllNodeNames,math.floor(len(self._AllNodeNames)*float(percent_voltage)/100))
+        with open('voltage_ids.json','w') as fp:
+            json.dump(voltage_subset,fp,indent=4)
+
+        random.seed(real_seed)
+        real_subset = random.sample(self._AllNodeNames,math.floor(len(self._AllNodeNames)*float(percent_real)/100))
+        with open('real_ids.json','w') as fp:
+            json.dump(real_subset,fp,indent=4)
+
+        random.seed(reactive_seed)
+        reactive_subset = random.sample(self._AllNodeNames,math.floor(len(self._AllNodeNames)*float(percent_voltage)/100))
+        with open('reactive_ids.json','w') as fp:
+            json.dump(reactive_subset,fp,indent=4)
     def setup_player(self):
         dss.run_command('set mode=yearly loadmult=1 number=1 stepsize=1m ')
 
@@ -77,61 +123,16 @@ class FeederSimulator(object):
     def get_node_names(self):
         return self._AllNodeNames
 
+
     def load_feeder(self):
-        dss.run_command("redirect " + self._feeder_file)
-        # dss.run_command("show voltages LN nodes")
+        result = dss.run_command("redirect " + self._feeder_file)
+        if not result == '':
+            raise ValueError("Feeder not loaded: "+result)
         self._circuit = dss.Circuit
-        print(self._circuit.Name())
-        # dss.run_command("Solve")
-        self._load_names = dss.Loads.AllNames()
-        self._pv_names = dss.PVsystems.AllNames()
-        self._gen_names = dss.Generators.AllNames()
-        self._cap_names = dss.Capacitors.AllNames()
-        self._regNames = dss.RegControls.AllNames()
-        self._loads = get_loads(dss, self._circuit)
-        self._vsources = []
-        for Source in dss.Vsources.AllNames():
-            self._circuit.SetActiveElement('Vsource.' + Source)
-            bus = dss.CktElement.BusNames()[0].upper()
-            print(dss.CktElement.Name())
-            bus = bus.split('.')
-            if len(bus) == 1:
-                bus = bus + ['1', '2', '3']
-            self._vsources.append({
-                "name": dss.CktElement.Name(),
-                "busname": dss.CktElement.BusNames()[0].upper(),
-                "bus": bus,
-                "numPhases": dss.CktElement.NumPhases()
-            })
-        self._pvs = get_pvSystems(dss)
-        self._gens = get_Generator(dss)
-        self._caps = get_capacitors(dss)
-
-
-    def get_y_matrix(self):
-        get_y_matrix_file(dss)
         self._AllNodeNames = self._circuit.YNodeOrder()
         self._node_number = len(self._AllNodeNames)
-        AllNodeNames = []
-        with open(os.path.join('.', 'base_nodelist.csv')) as csvfile:
-            reader = csv.reader(csvfile, delimiter=',')
-            for row in reader:
-                AllNodeNames.append(row[0])
-        check_node_order(self._AllNodeNames,AllNodeNames)
         self._nodes_index = [self._AllNodeNames.index(ii) for ii in self._AllNodeNames]
         self._name_index_dict = {ii: self._AllNodeNames.index(ii) for ii in self._AllNodeNames}
-        print(self._AllNodeNames)
-
-        ## For y-matrix pu
-        self.setup_vbase()
-
-        self._expect_max_name_load_dict = {}
-        self._expect_max_load_power = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
-        for load in self._loads:
-            for phase in load['phases']:
-                # print(load['bus1'].upper()+'.'+phase, name_index_dict[load['bus1'].upper()+'.'+phase])
-                self._expect_max_name_load_dict[load['bus1'].upper() + '.' + phase] = complex(load['kW'],load['kVar'])
-                self._expect_max_load_power[self._name_index_dict[load['bus1'].upper() + '.' + phase]] = complex(load['kW'], load['kVar'])
 
         self._source_indexes = []
         for Source in dss.Vsources.AllNames():
@@ -139,17 +140,18 @@ class FeederSimulator(object):
             Bus = dss.CktElement.BusNames()[0].upper()
             for phase in range(1, dss.CktElement.NumPhases() + 1):
                 self._source_indexes.append(self._AllNodeNames.index(Bus.upper() + '.' + str(phase)))
-        logger.debug("Voltage Sources")
-        logger.debug(self._source_indexes)
 
-        Ymatrix = parse_Ymatrix('base_ysparse.csv', self._node_number)
 
-        self.snapshot_run()
         self.setup_vbase()
-        temp_AllNodeNames = self._circuit.YNodeOrder()
-        check_node_order(temp_AllNodeNames, self._AllNodeNames)
 
-        return Ymatrix
+    def get_y_matrix(self):
+        get_y_matrix_file(dss)
+        Ymatrix = parse_Ymatrix('base_ysparse.csv', self._node_number)
+        new_order = self._circuit.YNodeOrder()
+        permute = np.array(permutation(new_order, self._AllNodeNames))
+        #inv_permute = np.array(permutation(self._AllNodeNames, new_order))
+        return coo_matrix((Ymatrix.data, (permute[Ymatrix.row], permute[Ymatrix.col])), shape=Ymatrix.shape)
+
 
     def setup_vbase(self):
         self._Vbase_allnode = np.zeros((self._node_number), dtype=np.complex_)
@@ -195,7 +197,7 @@ class FeederSimulator(object):
         num_nodes = len(self._name_index_dict.keys())
 
         PQ_load = np.zeros((num_nodes), dtype=np.complex_)
-        for ld in self._loads:
+        for ld in get_loads(dss,self._circuit):
             for ii in range(len(ld['phases'])):
                 name = ld['bus1'] + '.' + ld['phases'][ii]
                 index = self._name_index_dict[name.upper()]
@@ -204,7 +206,7 @@ class FeederSimulator(object):
                 PQ_load[index] += np.complex(power[2 * ii], power[2 * ii + 1])
 
         PQ_PV = np.zeros((num_nodes), dtype=np.complex_)
-        for PV in self._pvs:
+        for PV in get_pvSystems(dss):
             bus = PV["bus"].split('.')
             if len(bus) == 1:
                 bus = bus + ['1', '2', '3']
@@ -216,7 +218,7 @@ class FeederSimulator(object):
 
         PQ_gen = np.zeros((num_nodes), dtype=np.complex_)
         PQ_gen_all = np.zeros((num_nodes), dtype=np.complex_)
-        for PV in self._gens:
+        for PV in get_Generator(dss):
             bus = PV["bus"]
             self._circuit.SetActiveElement('Generator.'+PV["name"])
             power = dss.CktElement.Powers()
@@ -226,7 +228,7 @@ class FeederSimulator(object):
                 PQ_gen[index] += np.complex(power[2 * ii], power[2 * ii + 1])
 
         Qcap = [0] * num_nodes
-        for cap in self._caps:
+        for cap in get_capacitors(dss):
             for ii in range(cap["numPhases"]):
                 index = self._name_index_dict[cap["busname"].upper() + '.' + cap["busphase"][ii]]
                 Qcap[index] = -cap["power"][2 * ii - 1]
