@@ -145,11 +145,11 @@ def go_cosim(sim, config: FeederConfig):
     current_hour = 0
     current_second = 0
     current_index = config.start_time_index
-    for request_time in range(0, 100):
+    for request_time in range(0, 30):
         while granted_time < request_time:
             granted_time = h.helicsFederateRequestTime(vfed, request_time)
 
-        logger.info('start time:',datetime.now())
+        logger.info('start time: '+str(datetime.now()))
         current_index+=1
         current_timestamp = datetime.strptime(config.start_date, '%Y-%m-%d %H:%M:%S') + timedelta(seconds = current_index*config.run_freq_sec)
         current_second+=config.run_freq_sec
@@ -205,7 +205,7 @@ def go_cosim(sim, config: FeederConfig):
         pub_powers_real.publish(PowersReal(values=list(PQ_node.real), ids=sim._AllNodeNames, time = current_timestamp).json())
         pub_powers_imag.publish(PowersImaginary(values=list(PQ_node.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
 
-        logger.info('end time:',datetime.now())
+        logger.info('end time: '+str(datetime.now()))
 
     h.helicsFederateDisconnect(vfed)
     h.helicsFederateFree(vfed)

@@ -151,7 +151,7 @@ def go_cosim(sim, config: FeederConfig):
     for request_time in range(0, 100):
         while granted_time < request_time:
             granted_time = h.helicsFederateRequestTime(vfed, request_time)
-        logger.info('start time:',datetime.now())
+        logger.info('start time: '+str(datetime.now()))
         current_index+=1
         current_timestamp = datetime.strptime(sim._start_date, '%Y-%m-%d %H:%M:%S') + timedelta(minutes = current_index*15)
         current_second+=15*60
@@ -205,7 +205,7 @@ def go_cosim(sim, config: FeederConfig):
         pub_voltages_imag.publish(VoltagesImaginary(values=list(feeder_voltages.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
         pub_powers_real.publish(PowersReal(values=list(PQ_node.real), ids=sim._AllNodeNames, time = current_timestamp).json())
         pub_powers_imag.publish(PowersImaginary(values=list(PQ_node.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
-        logger.info('end time:',datetime.now())
+        logger.info('end time: '+str(datetime.now()))
 
 
     h.helicsFederateDisconnect(vfed)

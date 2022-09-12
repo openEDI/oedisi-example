@@ -261,7 +261,7 @@ class StateEstimatorFederate:
                 granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
                 continue
 
-            logger.info('start time:',datetime.now())
+            logger.info('start time: '+str(datetime.now()))
 
             slack_index =  None
             if not isinstance(topology.admittance, AdmittanceMatrix):
@@ -298,7 +298,7 @@ class StateEstimatorFederate:
                 ids=topology.admittance.ids,
                 time = voltages.time
             ).json())
-            logger.info('end time:',datetime.now())
+            logger.info('end time: '+str(datetime.now()))
 
         self.destroy()
 
