@@ -15,7 +15,7 @@ from gadal.gadal_types.data_types import Complex,Topology,VoltagesReal,VoltagesI
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
-logger.setLevel(logging.DEBUG)
+#logger.setLevel(logging.DEBUG)
 
 test_se = False
 

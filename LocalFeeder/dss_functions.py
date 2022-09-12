@@ -206,7 +206,6 @@ def get_pvSystems(dss):
         NumPhase = dss.CktElement.NumPhases()
         bus = dss.CktElement.BusNames()[0]
         #PVkV = dss.run_command('? ' + PVname + '.kV') #Not included in PVsystems commands for some reason
-        PVkV = 2.4
 
 
         datum["name"] = PVname
@@ -214,7 +213,7 @@ def get_pvSystems(dss):
         datum["phases"] = bus[1:]
         datum["Pmpp"] = PVkW
         datum["pf"] = PVpf
-        datum["kV"] = PVkV
+        #datum["kV"] = PVkV
         datum["kW"] = PVkW
         datum["kVar"] = PVkvar
         datum["kVARated"] = PVkVARated
