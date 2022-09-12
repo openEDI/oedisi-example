@@ -225,7 +225,7 @@ class FeederSimulator(object):
         for voltage_name in Vnom_dict.keys():
             Vnom[self._name_index_dict[voltage_name]] = Vnom_dict[voltage_name]
         # Vnom(1: 3) = [];
-        print(Vnom[self._source_indexes[0]:self._source_indexes[-1]])
+        logger.debug(Vnom[self._source_indexes[0]:self._source_indexes[-1]])
         Vnom = np.concatenate((Vnom[:self._source_indexes[0]], Vnom[self._source_indexes[-1] + 1:]))
         Vnom = np.abs(Vnom)
         return Vnom

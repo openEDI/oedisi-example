@@ -44,7 +44,7 @@ def permutation(from_list, to_list):
 
 
 def check_node_order(l1, l2):
-    print('check order ' + str(l1 == l2))
+    logger.debug('check order ' + str(l1 == l2))
 
 
 class FeederConfig(BaseModel):
@@ -188,7 +188,7 @@ class FeederSimulator(object):
         for voltage_name in Vnom_dict.keys():
             Vnom[self._name_index_dict[voltage_name]] = Vnom_dict[voltage_name]
         # Vnom(1: 3) = [];
-        print(Vnom[self._source_indexes[0]:self._source_indexes[-1]])
+        logger.debug(Vnom[self._source_indexes[0]:self._source_indexes[-1]])
         Vnom = np.concatenate((Vnom[:self._source_indexes[0]], Vnom[self._source_indexes[-1] + 1:]))
         Vnom = np.abs(Vnom)
         return Vnom
@@ -409,7 +409,7 @@ class FeederSimulator(object):
 
     def run_next_control(self, load_df, pv_df, gen_df):
         # snapshot_run(dss)
-        print(type(load_df) )
+        logger.debug(type(load_df) )
         if type(load_df) == complex:
             self.set_load_pq(1., 1.)
             self.set_pv_pq(1., 1.)

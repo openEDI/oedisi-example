@@ -142,8 +142,8 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
         delta = np.full(num_node, initial_ang)
     else:
         delta = initial_ang
-    print(delta.shape)
-    print(num_node)
+    logger.debug(delta.shape)
+    logger.debug(num_node)
     assert delta.shape == (num_node,)
 
     if type(initial_V) != np.ndarray:
@@ -222,7 +222,7 @@ class StateEstimatorFederate:
         )
 
         self.vfed = h.helicsCreateValueFederate(federate_name, fedinfo)
-        print("Value federate created")
+        logger.info("Value federate created")
 
         # Register the publication #
         self.sub_voltages_magnitude = self.vfed.register_subscription(
@@ -248,7 +248,7 @@ class StateEstimatorFederate:
         "Enter execution and exchange data"
         # Enter execution mode #
         self.vfed.enter_executing_mode()
-        print("Entering execution mode")
+        logger.info("Entering execution mode")
 
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
 
@@ -256,14 +256,12 @@ class StateEstimatorFederate:
         self.initial_V = None
         while granted_time < h.HELICS_TIME_MAXTIME:
 
-            print('start1',datetime.now())
             topology = Topology.parse_obj(self.sub_topology.json)
             if not self.sub_voltages_magnitude.is_updated():
                 granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
                 continue
 
-            print('start2',datetime.now())
-            print(granted_time)
+            logger.info('start time:',datetime.now())
 
             slack_index =  None
             if not isinstance(topology.admittance, AdmittanceMatrix):
@@ -283,7 +281,6 @@ class StateEstimatorFederate:
             power_P = PowersReal.parse_obj(self.sub_power_P.json)
             power_Q = PowersImaginary.parse_obj(self.sub_power_Q.json)
 
-            print(self.algorithm_parameters)
             voltage_magnitudes, voltage_angles = state_estimator(
                 self.algorithm_parameters,
                 topology, power_P, power_Q, voltages, initial_V=self.initial_V,
@@ -301,14 +298,14 @@ class StateEstimatorFederate:
                 ids=topology.admittance.ids,
                 time = voltages.time
             ).json())
-            print('end',datetime.now())
+            logger.info('end time:',datetime.now())
 
         self.destroy()
 
     def destroy(self):
         "Finalize and destroy the federates"
         h.helicsFederateDisconnect(self.vfed)
-        print("Federate disconnected")
+        logger.info("Federate disconnected")
 
         h.helicsFederateFree(self.vfed)
         h.helicsCloseLibrary()

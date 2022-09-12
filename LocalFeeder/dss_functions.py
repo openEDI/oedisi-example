@@ -65,19 +65,19 @@ def get_vnom2(dss):
     test_Vnom2_dict = {AllNodeNames[ii].upper(): test_Vnom2[ii] for ii in range(len(test_Vnom2))}
 
     test_vmag_volts_result = np.allclose(vmags, np.abs(test_Vnom2))
-    print('test_vmag_volts_result', test_vmag_volts_result)
+    logger.debug('test_vmag_volts_result', test_vmag_volts_result)
 
     AllNodeNamesY = circuit.YNodeOrder()
     yv = circuit.YNodeVArray()
     test_yv = np.array([complex(yv[i], yv[i + 1]) for i in range(0, len(yv), 2)])
     test_yv_dict = {AllNodeNamesY[ii]: test_yv[ii] for ii in range(len(test_yv))}
     test_yv_result = np.allclose(vmags, np.abs(test_yv))
-    print('test_yv_result', test_yv_result)
+    logger.debug('test_yv_result', test_yv_result)
 
-    print('Test dictionary')
+    logger.debug('Test dictionary')
     for i in test_yv_dict.keys():
         if abs(abs(test_Vnom2_dict[i]) - abs(test_yv_dict[i])) > .0001:
-            print(i, abs(test_Vnom2_dict[i]), abs(test_yv_dict[i]))
+            logger.debug(i, abs(test_Vnom2_dict[i]), abs(test_yv_dict[i]))
     # for t1, t2 in zip(np.abs(test_Vnom2), np.abs(test_yv)):
     # np.testing.assert_array_almost_equal(np.abs(test_Vnom2), np.abs(test_yv),decimal=5)
 
