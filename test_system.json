@@ -4,22 +4,30 @@
         {
             "name": "recorder_voltage_real",
             "type": "Recorder",
-            "parameters": {"filename": "data.feather"}
+            "parameters": {"feather_filename": "data.feather", 
+                           "csv_filename": "data.csv"
+            }
         },
         {
             "name": "recorder_voltage_imag",
             "type": "Recorder",
-            "parameters": {"filename": "data.feather"}
+            "parameters": {"feather_filename": "data.feather",
+                           "csv_filename": "data.csv"
+            }
         },
         {
             "name": "recorder_voltage_mag",
             "type": "Recorder",
-            "parameters": {"filename": "data.feather"}
+            "parameters": {"feather_filename": "data.feather",
+                           "csv_filename": "data.csv"
+            }
         },
         {
             "name": "recorder_voltage_angle",
             "type": "Recorder",
-            "parameters": {"filename": "data.feather"}
+            "parameters": {"feather_filename": "data.feather",
+                           "csv_filename": "data.csv"
+            }
         },
         {
             "name": "state_estimator",

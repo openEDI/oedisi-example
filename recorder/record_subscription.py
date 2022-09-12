@@ -1,6 +1,7 @@
 import helics as h
 import numpy as np
 from pydantic import BaseModel
+import pandas as pd
 from typing import List
 import json
 import csv
@@ -9,7 +10,7 @@ from datetime import datetime
 from gadal.gadal_types.data_types import MeasurementArray
 
 class Recorder:
-    def __init__(self, name, filename, input_mapping):
+    def __init__(self, name, feather_filename, csv_filename, input_mapping):
         self.rng = np.random.default_rng(12345)
         deltat = 0.01
         # deltat = 60.
@@ -32,7 +33,8 @@ class Recorder:
         self.sub = self.vfed.register_subscription(
             input_mapping["subscription"], ""
         )
-        self.filename = filename
+        self.feather_filename = feather_filename
+        self.csv_filename = csv_filename
 
     def run(self):
         # Enter execution mode #
@@ -43,7 +45,7 @@ class Recorder:
         start = True
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
 
-        with pa.OSFile(self.filename, 'wb') as sink:
+        with pa.OSFile(self.feather_filename, 'wb') as sink:
             writer = None
             while granted_time < h.HELICS_TIME_MAXTIME:
                 print('start',datetime.now())
@@ -54,7 +56,7 @@ class Recorder:
                 measurement = MeasurementArray(**self.sub.json)
 
                 measurement_dict = {key: value for key, value in zip(measurement.ids,measurement.values)}
-                measurement_dict['time'] = measurement.time.strftime("YY-%m-%d %H:%M:%S")
+                measurement_dict['time'] = measurement.time.strftime("%Y-%m-%d %H:%M:%S")
                 print(measurement.time)
 
                 if start:
@@ -74,6 +76,8 @@ class Recorder:
 
             if writer is not None:
                 writer.close()
+        data = pd.read_feather(self.feather_filename)
+        data.to_csv(self.csv_filename, header=True, index=False)
         self.destroy()
 
     def destroy(self):
@@ -87,10 +91,11 @@ if __name__ == "__main__":
     with open("static_inputs.json") as f:
         config = json.load(f)
         name = config["name"]
-        path = config["filename"]
+        feather_path = config["feather_filename"]
+        csv_path = config["csv_filename"]
 
     with open("input_mapping.json") as f:
         input_mapping = json.load(f)
 
-    sfed = Recorder(name, path, input_mapping)
+    sfed = Recorder(name, feather_path, csv_path, input_mapping)
     sfed.run()
