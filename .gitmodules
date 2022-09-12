@@ -1,0 +1,3 @@
+[submodule "LocalFeeder/gadal-ieee123"]
+	path = LocalFeeder/gadal-ieee123
+	url = https://github.com/openEDI/gadal-ieee123.git

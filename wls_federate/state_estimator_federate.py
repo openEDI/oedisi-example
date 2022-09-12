@@ -15,6 +15,8 @@ from pydantic import BaseModel
 from enum import Enum
 from typing import List, Optional
 from scipy.optimize import least_squares
+from datetime import datetime
+from gadal.gadal_types.data_types import MeasurementArray, AdmittanceMatrix, Topology, Complex, VoltagesMagnitude, VoltagesAngle, VoltagesReal, VoltagesImaginary, PowersReal, PowersImaginary
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -65,43 +67,17 @@ def residual(X0, z, num_node, knownP, knownQ, knownV, Y):
     logger.debug(h)
     return z-h
 
-class Complex(BaseModel):
-    "Pydantic model for complex values with json representation"
-    real: float
-    imag: float
 
 
-class Topology(BaseModel):
-    "All necessary data for state estimator run"
-    y_matrix: List[List[Complex]]
-    phases: List[float]
-    base_voltages: List[float]
-    slack_bus: List[str]
-    unique_ids: List[str]
-
-
-class LabelledArray(BaseModel):
-    "Labelled array has associated list of ids"
-    array: List[float]
-    unique_ids: List[str]
-
-
-class PolarLabelledArray(BaseModel):
-    "Labelled arrays of magnitudes and angles with list of ids"
-    magnitudes: List[float]
-    angles: List[float]
-    unique_ids: List[str]
-
-
-def matrix_to_numpy(y_matrix: List[List[Complex]]):
+def matrix_to_numpy(admittance: List[List[Complex]]):
     "Convert list of list of our Complex type into a numpy matrix"
-    return np.array([[x.real + 1j * x.imag for x in row] for row in y_matrix])
+    return np.array([[x[0] + 1j * x[1] for x in row] for row in admittance])
 
 
-def get_indices(topology, labelled_array):
-    "Get list of indices in the topology for each index of the labelled array"
-    inv_map = {v: i for i, v in enumerate(topology.unique_ids)}
-    return [inv_map[v] for v in labelled_array.unique_ids]
+def get_indices(topology, measurement):
+    "Get list of indices in the topology for each index of the input measurement"
+    inv_map = {v: i for i, v in enumerate(topology.admittance.ids)}
+    return [inv_map[v] for v in measurement.ids]
 
 class UnitSystem(str, Enum):
     SI = 'SI'
@@ -125,15 +101,15 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
         Miscellaneous parameters for algorithm: tolerance, unit-system, etc.
     topology : Topology
         topology includes: Y-matrix, some initial phases, and unique ids
-    P : LabelledArray
+    P : PowersReal (inherited from MeasurementArray)
         Real power injection with unique ids
-    Q : LabelledArray
+    Q : PowersImaginary (inherited from MeasurementArray)
         Reactive power injection with unique ids
-    V : LabelledArray
+    V : VoltagesMagnitude (inherited from MeasurementArray)
         Voltage magnitude with unique ids
     """
-    num_node = len(topology.unique_ids)
-    base_voltages = np.array(topology.base_voltages)
+    num_node = len(topology.admittance.ids)
+    base_voltages = np.array(topology.base_voltage_magnitudes.values)
     logging.debug("Number of Nodes")
     logging.debug(num_node)
     knownP = get_indices(topology, P)
@@ -144,17 +120,17 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
         z = np.concatenate((
             V.array, -1000*np.array(P.array), -1000*np.array(Q.array)
         ), axis=0)
-        Y = matrix_to_numpy(topology.y_matrix)
+        Y = matrix_to_numpy(topology.admittance.admittance_matrix)
     elif parameters.units == UnitSystem.PER_UNIT:
         base_power = 100
         if parameters.base_power != None:
             base_power = parameters.base_power
         z = np.concatenate((
-            V.array / base_voltages[knownV],
-            -np.array(P.array) / base_power,
-            -np.array(Q.array) / base_power
+            V.values / base_voltages[knownV],
+            -np.array(P.values) / base_power,
+            -np.array(Q.values) / base_power
         ), axis=0)
-        Y = matrix_to_numpy(topology.y_matrix)
+        Y = matrix_to_numpy(topology.admittance.admittance_matrix)
         # Hand-crafted unit conversion (check it, it works)
         Y = base_voltages.reshape(1, -1) * Y * \
             base_voltages.reshape(-1, 1) / (base_power * 1000)
@@ -166,6 +142,8 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
         delta = np.full(num_node, initial_ang)
     else:
         delta = initial_ang
+    print(delta.shape)
+    print(num_node)
     assert delta.shape == (num_node,)
 
     if type(initial_V) != np.ndarray:
@@ -197,7 +175,6 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
             xtol=tol,
             gtol=tol,
             args=(z, num_node, knownP, knownQ, knownV, Y),
-            max_nfev=50
         )
     else:
         res_1 = least_squares(
@@ -211,7 +188,6 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
             xtol=tol,
             gtol=tol,
             args=(z, num_node, knownP, knownQ, knownV, Y),
-            max_nfev=50
         )
     result = res_1.x
     vmagestDecen, vangestDecen = result[num_node:], result[:num_node]
@@ -246,17 +222,17 @@ class StateEstimatorFederate:
         )
 
         self.vfed = h.helicsCreateValueFederate(federate_name, fedinfo)
-        print("Value federate created", flush=True)
+        print("Value federate created")
 
         # Register the publication #
-        self.sub_voltages = self.vfed.register_subscription(
-            input_mapping["voltages"], "V"
+        self.sub_voltages_magnitude = self.vfed.register_subscription(
+            input_mapping["voltages_magnitude"], "V"
         )
         self.sub_power_P = self.vfed.register_subscription(
-            input_mapping["power_P"], "W"
+            input_mapping["powers_real"], "W"
         )
         self.sub_power_Q = self.vfed.register_subscription(
-            input_mapping["power_Q"], "W"
+            input_mapping["powers_imaginary"], "W"
         )
         self.sub_topology = self.vfed.register_subscription(
             input_mapping["topology"], ""
@@ -272,32 +248,42 @@ class StateEstimatorFederate:
         "Enter execution and exchange data"
         # Enter execution mode #
         self.vfed.enter_executing_mode()
-        print("Entering execution mode", flush=True)
+        print("Entering execution mode")
 
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
 
         self.initial_ang = None
         self.initial_V = None
         while granted_time < h.HELICS_TIME_MAXTIME:
+
+            print('start1',datetime.now())
             topology = Topology.parse_obj(self.sub_topology.json)
-            if not self.sub_voltages.is_updated():
+            if not self.sub_voltages_magnitude.is_updated():
                 granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
                 continue
 
-            print(granted_time, flush=True)
+            print('start2',datetime.now())
+            print(granted_time)
 
-            slack_index = topology.unique_ids.index(topology.slack_bus[0])
+            slack_index =  None
+            if not isinstance(topology.admittance, AdmittanceMatrix):
+                raise "Weighted Least Squares algorithm expects AdmittanceMatrix as input"
+
+            for i in range(len(topology.admittance.ids)):
+                if topology.admittance.ids[i] == topology.slack_bus[0]:
+                    slack_index = i
 
             if self.initial_V is None:
                 self.initial_V = 1.025 #*np.array(topology.base_voltages)
             if self.initial_ang is None:
-                self.initial_ang = np.array(topology.phases)
+                self.initial_ang = np.array(topology.base_voltage_angles.values)
 
-            voltages = LabelledArray.parse_obj(self.sub_voltages.json)
+            voltages = VoltagesMagnitude.parse_obj(self.sub_voltages_magnitude.json)
 
-            power_P = LabelledArray.parse_obj(self.sub_power_P.json)
-            power_Q = LabelledArray.parse_obj(self.sub_power_Q.json)
+            power_P = PowersReal.parse_obj(self.sub_power_P.json)
+            power_Q = PowersImaginary.parse_obj(self.sub_power_Q.json)
 
+            print(self.algorithm_parameters)
             voltage_magnitudes, voltage_angles = state_estimator(
                 self.algorithm_parameters,
                 topology, power_P, power_Q, voltages, initial_V=self.initial_V,
@@ -305,21 +291,24 @@ class StateEstimatorFederate:
             )
             #self.initial_V = voltage_magnitudes
             #self.initial_ang = voltage_angles
-            self.pub_voltage_mag.publish(LabelledArray(
-                array=list(voltage_magnitudes),
-                unique_ids=topology.unique_ids
+            self.pub_voltage_mag.publish(VoltagesMagnitude(
+                values=list(voltage_magnitudes),
+                ids=topology.admittance.ids,
+                time = voltages.time
             ).json())
-            self.pub_voltage_angle.publish(LabelledArray(
-                array=list(voltage_angles),
-                unique_ids=topology.unique_ids
+            self.pub_voltage_angle.publish(VoltagesAngle(
+                values=list(voltage_angles),
+                ids=topology.admittance.ids,
+                time = voltages.time
             ).json())
+            print('end',datetime.now())
 
         self.destroy()
 
     def destroy(self):
         "Finalize and destroy the federates"
         h.helicsFederateDisconnect(self.vfed)
-        print("Federate disconnected", flush=True)
+        print("Federate disconnected")
 
         h.helicsFederateFree(self.vfed)
         h.helicsCloseLibrary()

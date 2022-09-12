@@ -6,8 +6,10 @@ import json
 from dss_functions import snapshot_run
 from FeederSimulator import FeederSimulator, FeederConfig
 from pydantic import BaseModel
-from typing import List
+from typing import List, Tuple
 import numpy as np
+from datetime import datetime, timedelta
+from gadal.gadal_types.data_types import Complex,Topology,VoltagesReal,VoltagesImaginary,PowersReal,PowersImaginary, AdmittanceMatrix, VoltagesMagnitude, VoltagesAngle
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -15,34 +17,9 @@ logger.setLevel(logging.INFO)
 
 test_se = False
 
-class Complex(BaseModel):
-    real: float
-    imag: float
-
-
-class Topology(BaseModel):
-    y_matrix: List[List[Complex]]
-    phases: List[float]
-    base_voltages: List[float]
-    slack_bus: List[str]
-    unique_ids: List[str]
-
-
-class LabelledArray(BaseModel):
-    array: List[float]
-    unique_ids: List[str]
-
-
-def make_labelled_array(array, binary_mask):
-    (integer_ids,) = np.nonzero(binary_mask)
-    return LabelledArray(
-        array=list(array[integer_ids]), unique_ids=list(map(str, integer_ids))
-    )
-
-
 def numpy_to_y_matrix(array):
     return [
-        [Complex(real=element.real, imag=element.imag) for element in row]
+        [(element.real, element.imag) for element in row]
         for row in array
     ]
 
@@ -74,10 +51,6 @@ def get_true_phases(angle):
 
 
 def go_cosim(sim, config: FeederConfig):
-    load_df = pd.read_csv(config.load_file)
-    load_df.columns = ['time']+sim._load_names
-    pv_df = pd.read_csv(config.pv_file, header=None, names=['pv'])
-    pv_df['pv'] = pv_df['pv'] / pv_df['pv'].max()
 
     deltat = 0.01
     fedinitstring = "--federates=1"
@@ -92,6 +65,7 @@ def go_cosim(sim, config: FeederConfig):
 
     pub_voltages_real = h.helicsFederateRegisterPublication(vfed, "voltages_real", h.HELICS_DATA_TYPE_STRING, "")
     pub_voltages_imag = h.helicsFederateRegisterPublication(vfed, "voltages_imag", h.HELICS_DATA_TYPE_STRING, "")
+    pub_voltages_magnitude = h.helicsFederateRegisterPublication(vfed, "voltages_magnitude", h.HELICS_DATA_TYPE_STRING, "")
     pub_powers_real = h.helicsFederateRegisterPublication(vfed, "powers_real", h.HELICS_DATA_TYPE_STRING, "")
     pub_powers_imag = h.helicsFederateRegisterPublication(vfed, "powers_imag", h.HELICS_DATA_TYPE_STRING, "")
     pub_topology = h.helicsFederateRegisterPublication(vfed, "topology", h.HELICS_DATA_TYPE_STRING, "")
@@ -125,12 +99,39 @@ def go_cosim(sim, config: FeederConfig):
     ]
 
     unique_ids = sim._AllNodeNames
+
+    logger.debug("y-matrix")
+    logger.debug(y_matrix)
+    logger.debug("phases")
+    logger.debug(phases)
+    logger.debug("base_voltages")
+    logger.debug(base_voltages)
+    logger.debug("slack_bus")
+    logger.debug(slack_bus)
+    logger.debug("unique_ids")
+    logger.debug(unique_ids)
+
+    admittancematrix = AdmittanceMatrix(
+        admittance_matrix = y_matrix,
+        ids = unique_ids
+    )
+
+    base_voltagemagnitude = VoltagesMagnitude(
+           values = [abs(i) for i in base_voltages],
+           ids = unique_ids
+    )
+
+    base_voltageangle = VoltagesAngle(
+           values = phases,
+           ids = unique_ids
+    )
+
     topology = Topology(
-        y_matrix=y_matrix,
-        phases=phases,
-        base_voltages=base_voltages,
+        admittance=admittancematrix,
+        base_voltage_angles=base_voltageangle,
+        injections={},
+        base_voltage_magnitudes=base_voltagemagnitude,
         slack_bus=slack_bus,
-        unique_ids=unique_ids
     )
 
     logger.info("Sending topology and saving to topology.json")
@@ -141,20 +142,21 @@ def go_cosim(sim, config: FeederConfig):
     snapshot_run(sim)
 
     granted_time = -1
+    current_hour = 0
+    current_second = 0
     current_index = config.start_time_index
-    for request_time in range(0, 100):
+    for request_time in range(0, 30):
         while granted_time < request_time:
             granted_time = h.helicsFederateRequestTime(vfed, request_time)
         current_index+=1
+        current_timestamp = datetime.strptime(config.start_date, '%Y-%m-%d %H:%M:%S') + timedelta(seconds = current_index*config.run_freq_sec)
+        current_second+=config.run_freq_sec
+        if current_second >=60*60:
+            current_second = 0
+            current_hour+=1
         logger.info(f'Get Voltages and PQs at {current_index} {granted_time} {request_time}')
 
-
-        pv_ = pv_df.loc[sim._simulation_step][0]
-
-        sim.set_load_pq_timeseries(load_df)
-        if granted_time <= 2:
-            sim.set_gen_pq(pv_, pv_)
-        sim.solve()
+        sim.solve(current_hour,current_second)
 
         feeder_voltages = sim.get_voltages_actual()
         PQ_node = sim.get_PQs()
@@ -179,22 +181,28 @@ def go_cosim(sim, config: FeederConfig):
 
 
         phases = list(map(get_true_phases, np.angle(feeder_voltages)))
+
+        base_voltageangle = VoltagesAngle(
+           values = phases,
+           ids = unique_ids
+        )
         topology = Topology(
-            y_matrix=y_matrix,
-            phases=phases,
-            base_voltages=base_voltages,
+            admittance=admittancematrix,
+            base_voltage_angles=base_voltageangle,
+            injections={},
+            base_voltage_magnitudes=base_voltagemagnitude,
             slack_bus=slack_bus,
-            unique_ids=unique_ids
         )
         pub_topology.publish(topology.json())
 
         print('Publish load ' + str(feeder_voltages.real[0]))
-        pub_voltages_real.publish(LabelledArray(array=list(feeder_voltages.real), unique_ids=sim._AllNodeNames).json())
-        pub_voltages_imag.publish(LabelledArray(array=list(feeder_voltages.imag), unique_ids=sim._AllNodeNames).json())
-        pub_powers_real.publish(LabelledArray(array=list(PQ_node.real), unique_ids=sim._AllNodeNames).json())
-        pub_powers_imag.publish(LabelledArray(array=list(PQ_node.imag), unique_ids=sim._AllNodeNames).json())
+        voltage_magnitudes = np.abs(feeder_voltages.real + 1j* feeder_voltages.imag)
+        pub_voltages_magnitude.publish(VoltagesMagnitude(values=list(voltage_magnitudes), ids=sim._AllNodeNames, time = current_timestamp).json())
+        pub_voltages_real.publish(VoltagesReal(values=list(feeder_voltages.real), ids=sim._AllNodeNames, time = current_timestamp).json())
+        pub_voltages_imag.publish(VoltagesImaginary(values=list(feeder_voltages.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
+        pub_powers_real.publish(PowersReal(values=list(PQ_node.real), ids=sim._AllNodeNames, time = current_timestamp).json())
+        pub_powers_imag.publish(PowersImaginary(values=list(PQ_node.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
 
-        sim.run_next()
 
     h.helicsFederateDisconnect(vfed)
     h.helicsFederateFree(vfed)
