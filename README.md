@@ -18,6 +18,17 @@ pip install scipy matplotlib numpy pandas
 3. Run `helics run --path=test_system_runner.json`
 4. Analyze the results using `python post_analysis.py`
 
+### Using IEEE123 test system with OPF
+A prebuilt ipopt binary can be put into your python executables '/bin/' folder. 
+Based on your OS, binaries can be downloaded from: https://www.coin-or.org/download/binary/Ipopt/
+install all other requirements using 
+`pip install -r requirements.txt`
+For running the opf example
+`./run_ieee123_with_opf.sh`
+The shell script contains two lines
+`python test_full_systems_with_opf.py test_ieee123_with_opf.json`
+`helics run --path=test_system_runner.json`
+
 ## Troubleshooting
 
 If the simulation fails, you may **need** to kill the `helics_broker` manually before you can start a new simulation.
