@@ -57,6 +57,7 @@
                 "feeder_file": "gadal-ieee123/qsts/master.dss",
                 "start_date": "2017-01-01 00:00:00",
                 "run_freq_sec": 900,
+                "number_of_timesteps": 36,
                 "start_time_index": 0
             }
         },
