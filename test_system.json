@@ -50,7 +50,7 @@
                 "increment_value": 900
             }
         },
-	{
+        {
             "name": "local_feeder",
             "type": "LocalFeeder",
             "parameters": {
