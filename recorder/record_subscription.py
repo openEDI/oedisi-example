@@ -1,3 +1,4 @@
+import logging
 import helics as h
 import numpy as np
 from pydantic import BaseModel
@@ -8,6 +9,10 @@ import csv
 import pyarrow as pa
 from datetime import datetime
 from gadal.gadal_types.data_types import MeasurementArray
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.INFO)
 
 class Recorder:
     def __init__(self, name, feather_filename, csv_filename, input_mapping):
@@ -20,14 +25,14 @@ class Recorder:
         fedinfo.core_name = name
         fedinfo.core_type = h.HELICS_CORE_TYPE_ZMQ
         fedinfo.core_init = "--federates=1"
-        print(name)
+        logger.debug(name)
 
         h.helicsFederateInfoSetTimeProperty(
             fedinfo, h.helics_property_time_delta, deltat
         )
 
         self.vfed = h.helicsCreateValueFederate(name, fedinfo)
-        print("Value federate created")
+        logger.info("Value federate created")
 
         # Register the publication #
         self.sub = self.vfed.register_subscription(
@@ -40,7 +45,7 @@ class Recorder:
         # Enter execution mode #
         self.vfed.enter_initializing_mode()
         self.vfed.enter_executing_mode()
-        print("Entering execution mode")
+        logger.info("Entering execution mode")
 
         start = True
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
@@ -48,8 +53,8 @@ class Recorder:
         with pa.OSFile(self.feather_filename, 'wb') as sink:
             writer = None
             while granted_time < h.HELICS_TIME_MAXTIME:
-                print('start',datetime.now())
-                print(granted_time)
+                logger.info('start time: '+str(datetime.now()))
+                logger.debug(granted_time)
                 # Check that the data is a MeasurementArray type
                 json_data = self.sub.json
                 json_data['time'] = granted_time
@@ -57,7 +62,7 @@ class Recorder:
 
                 measurement_dict = {key: value for key, value in zip(measurement.ids,measurement.values)}
                 measurement_dict['time'] = measurement.time.strftime("%Y-%m-%d %H:%M:%S")
-                print(measurement.time)
+                logger.debug(measurement.time)
 
                 if start:
                     schema_elements = [(key, pa.float64()) for key in measurement.ids]
@@ -72,7 +77,7 @@ class Recorder:
                 ]))
 
                 granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
-                print('end',datetime.now())
+                logger.info('end time: '+str(datetime.now()))
 
             if writer is not None:
                 writer.close()
@@ -82,7 +87,7 @@ class Recorder:
 
     def destroy(self):
         h.helicsFederateDisconnect(self.vfed)
-        print("Federate disconnected")
+        logger.info("Federate disconnected")
         h.helicsFederateFree(self.vfed)
         h.helicsCloseLibrary()
 

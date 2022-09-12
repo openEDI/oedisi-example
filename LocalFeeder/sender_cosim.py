@@ -47,7 +47,7 @@ def get_true_phases(angle):
     elif np.abs(angle-(-3*np.pi/3))<0.2:
         return -3*np.pi/3
     else:
-        print("error")
+        logger.debug("error")
 
 
 def go_cosim(sim, config: FeederConfig):
@@ -55,7 +55,7 @@ def go_cosim(sim, config: FeederConfig):
     deltat = 0.01
     fedinitstring = "--federates=1"
 
-    print("Creating Federate Info")
+    logger.info("Creating Federate Info")
     fedinfo = h.helicsCreateFederateInfo()
     h.helicsFederateInfoSetCoreName(fedinfo, config.name)
     h.helicsFederateInfoSetCoreTypeFromString(fedinfo, "zmq")
@@ -148,6 +148,8 @@ def go_cosim(sim, config: FeederConfig):
     for request_time in range(0, 30):
         while granted_time < request_time:
             granted_time = h.helicsFederateRequestTime(vfed, request_time)
+
+        logger.info('start time: '+str(datetime.now()))
         current_index+=1
         current_timestamp = datetime.strptime(config.start_date, '%Y-%m-%d %H:%M:%S') + timedelta(seconds = current_index*config.run_freq_sec)
         current_second+=config.run_freq_sec
@@ -195,7 +197,7 @@ def go_cosim(sim, config: FeederConfig):
         )
         pub_topology.publish(topology.json())
 
-        print('Publish load ' + str(feeder_voltages.real[0]))
+        logger.debug('Publish load ' + str(feeder_voltages.real[0]))
         voltage_magnitudes = np.abs(feeder_voltages.real + 1j* feeder_voltages.imag)
         pub_voltages_magnitude.publish(VoltagesMagnitude(values=list(voltage_magnitudes), ids=sim._AllNodeNames, time = current_timestamp).json())
         pub_voltages_real.publish(VoltagesReal(values=list(feeder_voltages.real), ids=sim._AllNodeNames, time = current_timestamp).json())
@@ -203,6 +205,7 @@ def go_cosim(sim, config: FeederConfig):
         pub_powers_real.publish(PowersReal(values=list(PQ_node.real), ids=sim._AllNodeNames, time = current_timestamp).json())
         pub_powers_imag.publish(PowersImaginary(values=list(PQ_node.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
 
+        logger.info('end time: '+str(datetime.now()))
 
     h.helicsFederateDisconnect(vfed)
     h.helicsFederateFree(vfed)
