@@ -148,7 +148,7 @@ def go_cosim(sim, config: FeederConfig):
     current_index = 0
     current_hour = 0
     current_second = 0
-    for request_time in range(0, 100):
+    for request_time in range(0, config.number_of_timesteps):
         while granted_time < request_time:
             granted_time = h.helicsFederateRequestTime(vfed, request_time)
         logger.info('start time: '+str(datetime.now()))

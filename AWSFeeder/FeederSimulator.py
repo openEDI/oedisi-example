@@ -54,8 +54,8 @@ class FeederConfig(BaseModel):
     smartds_scenario: str
     smartds_year: str
     start_date: str
-    end_date: str
     increment_value: int # increment in seconds
+    number_of_timesteps: int
 
 
 class FeederSimulator(object):
@@ -71,7 +71,8 @@ class FeederSimulator(object):
         self._smartds_scenario = config.smartds_scenario
         self._smartds_year = config.smartds_year
         self._start_date = config.start_date
-        self._end_date = config.end_date
+        self._number_of_timesteps = config.number_of_timesteps
+        self._increment_value = config.increment_value
 
         self._feeder_file = None
         self._circuit=None

@@ -51,6 +51,7 @@ class FeederConfig(BaseModel):
     name: str
     feeder_file: str
     start_date: str
+    number_of_timesteps: float
     run_freq_sec: float = 15*60
     start_time_index: int = 0
 
@@ -77,6 +78,7 @@ class FeederSimulator(object):
         self._run_freq_sec = config.run_freq_sec
         self._simulation_step = config.start_time_index
         self._simulation_time_step = self._start_time
+        self._number_of_timesteps = config.number_of_timesteps
         self._vmult = 0.001
 
         self._nodes_index = []

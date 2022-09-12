@@ -2,12 +2,14 @@
     "directory": "AWSFeeder",
     "execute_function": "python sender_cosim.py",
     "static_inputs": [
-        {"type": "", "port_id": "feeder_file"},
-        {"type": "", "port_id": "load_file"},
-        {"type": "", "port_id": "pv_file"},
+        {"type": "", "port_id": "name"},
+        {"type": "", "port_id": "smartds_region"},
+        {"type": "", "port_id": "smartds_feeder"},
+        {"type": "", "port_id": "smartds_scenario"},
+        {"type": "", "port_id": "smartds_year"},
         {"type": "", "port_id": "start_date"},
-        {"type": "", "port_id": "run_freq_sec"},
-        {"type": "", "port_id": "start_time_index"}
+        {"type": "", "port_id": "increment_value"},
+        {"type": "", "port_id": "number_of_timesteps"}
     ],
     "dynamic_inputs": [],
     "dynamic_outputs": [
