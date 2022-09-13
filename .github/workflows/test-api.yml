@@ -29,7 +29,7 @@ jobs:
         pip install -r requirements.txt
         eval `ssh-agent -s`
         ssh-add - <<< '${{ secrets.SGIDAL_CLONE_KEY }}'
-        pip install git+ssh://git@github.com/openEDI/GADAL@4dc7b661e61f972e5e807ef712171f78100ab2c5
+        pip install git+ssh://git@github.com/openEDI/GADAL@v0.2.2
     - name: Run example
       shell: bash -l {0}
       run: |

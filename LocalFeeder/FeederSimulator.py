@@ -54,6 +54,7 @@ class FeederConfig(BaseModel):
     number_of_timesteps: float
     run_freq_sec: float = 15*60
     start_time_index: int = 0
+    topology_output: str = "topology.json"
 
 
 class FeederSimulator(object):
