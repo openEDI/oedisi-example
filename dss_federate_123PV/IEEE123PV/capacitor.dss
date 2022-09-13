@@ -1,8 +1,0 @@
-
-!New Capacitor.C83       Bus1=83      Phases=3     kVAR=600     kV=4.16
-New Capacitor.C83a       Bus1=83.1      Phases=1     kVAR=200     kV=2.402
-New Capacitor.C83b       Bus1=83.2      Phases=1     kVAR=200     kV=2.402
-New Capacitor.C83c       Bus1=83.3      Phases=1     kVAR=200     kV=2.402
-New Capacitor.C88a      Bus1=88.1    Phases=1     kVAR=50      kV=2.402
-New Capacitor.C90b      Bus1=90.2    Phases=1     kVAR=50      kV=2.402
-New Capacitor.C92c      Bus1=92.3    Phases=1     kVAR=50      kV=2.402
