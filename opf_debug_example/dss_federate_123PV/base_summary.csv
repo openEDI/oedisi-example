@@ -1,0 +1,6 @@
+DateTime, CaseName, Status, Mode, Number, LoadMult, NumDevices, NumBuses, NumNodes, Iterations, ControlMode, ControlIterations, MostIterationsDone, Year, Hour, MaxPuVoltage, MinPuVoltage, TotalMW, TotalMvar, MWLosses, pctLosses, MvarLosses, Frequency
+"8-9-22 12:56:37", ieee123pv, SOLVED, Snap, 1,    1.000, 259, 132, 278, 2, Off, 1, 2, 0, 0, 0, -1, 0, 0Total Active Losses:   ****** MW, (**** %%), 0, 60
+"8-9-22 13:12:11", ieee123pv, SOLVED, Snap, 1,    1.000, 259, 132, 278, 2, Off, 1, 2, 0, 0, 0, -1, 0, 0Total Active Losses:   ****** MW, (**** %%), 0, 60
+"8-9-22 15:17:13", ieee123pv, SOLVED, Snap, 1,    1.000, 259, 132, 278, 2, Off, 1, 2, 0, 0, 0, -1, 0, 0Total Active Losses:   ****** MW, (**** %%), 0, 60
+"8-9-22 15:56:48", ieee123pv, SOLVED, Snap, 1,    1.000, 259, 132, 278, 2, Off, 1, 2, 0, 0, 0, -1, 0, 0Total Active Losses:   ****** MW, (**** %%), 0, 60
+"9-9-22 08:35:27", ieee123pv, SOLVED, Snap, 1,    1.000, 259, 132, 278, 2, Off, 1, 2, 0, 0, 0, -1, 0, 0Total Active Losses:   ****** MW, (**** %%), 0, 60
