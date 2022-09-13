@@ -5,13 +5,14 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import json
 import os
+from gadal.gadal_types.data_types import MeasurementArray, AdmittanceMatrix, Topology
 
 voltage_real = feather.read_feather(os.path.join("recorder_voltage_real","data.feather"))
 voltage_imag = feather.read_feather(os.path.join("recorder_voltage_imag","data.feather"))
 
-with open(os.path.join("feeder","topology.json")) as f:
-    topology = json.load(f)
-    base_voltages = np.array(topology["base_voltages"])
+with open(os.path.join("local_feeder","topology.json")) as f:
+    topology = Topology.parse_obj(json.load(f))
+    base_voltages = np.array(topology.base_voltage_magnitudes.values)
 
 true_voltages = voltage_real.drop('time', axis=1) + 1j * voltage_imag.drop('time', axis=1)
 time = voltage_real["time"]
@@ -86,7 +87,8 @@ print(f"MAPE = {MAPE}, MAE={MAE}")
 fig1, fig2 = plots(true_voltages.iloc[0,:] / base_voltages, estimated_voltages.iloc[0,:] / base_voltages, unit="p.u.")
 fig1.savefig("voltage_angles_0.png")
 fig2.savefig("voltage_magnitudes_0.png")
-fig1, fig2 = plots(true_voltages.iloc[95,:] / base_voltages, estimated_voltages.iloc[95,:] / base_voltages, time=95, unit="p.u.")
-fig1.savefig("voltage_angles_95.png")
-fig2.savefig("voltage_magnitudes_95.png")
+if len(true_voltages) >=96:
+    fig1, fig2 = plots(true_voltages.iloc[95,:] / base_voltages, estimated_voltages.iloc[95,:] / base_voltages, time=95, unit="p.u.")
+    fig1.savefig("voltage_angles_95.png")
+    fig2.savefig("voltage_magnitudes_95.png")
 

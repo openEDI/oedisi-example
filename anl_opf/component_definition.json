@@ -1,0 +1,20 @@
+{
+    "directory": "anl_opf",
+    "execute_function": "NAME OF EXECUTABLE",
+    "static_inputs": [],
+    "dynamic_inputs": [
+        {"type": "VoltagesReal", "port_id": "voltages_real"},
+        {"type": "VoltagesImaginary", "port_id": "voltages_imaginary"},
+        {"type": "PowersReal", "port_id": "powers_real"},
+        {"type": "PowersImaginary", "port_id": "powers_imaginary"},
+        {"type": "SolarIrraadiances", "port_id": "solar_irradiance"},
+        {"type": "Topology", "port_id": "topology"}
+    ],
+    "dynamic_outputs": [
+        {"type": "VoltagesMagnitude", "port_id": "voltages_magnitude"},
+        {"type": "VoltagesAngle", "port_id": "voltages_angle"},
+        {"type": "RegulatorStates", "port_id": "regulator_taps"},
+        {"type": "SwitchStates", "port_id": "switch_states"},
+        {"type": "CapacitorStates", "port_id": "capacitor_state"}
+    ]
+}

@@ -1,7 +1,7 @@
-# SGIDAL-example
+# GADAL-example
 
 
-1. Install the SGIDAL `componentframework` using `python setup.py develop` along with its dependencies. You'll also need the HELICS CLI, `opendssdirect`, `pyarrow` in addition to the usual `scipy`, `matplotlib`, `numpy`, and `pandas`.
+1. Install the GADAL `componentframework` using `python setup.py develop` along with its dependencies. You'll also need the HELICS CLI, `opendssdirect`, `pyarrow` in addition to the usual `scipy`, `matplotlib`, `numpy`, and `pandas`.
 ```
 pip install 'OpenDSSDirect.py[extras]'
 pip install git+https://github.com/GMLC-TDC/helics-cli.git@main

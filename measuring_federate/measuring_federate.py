@@ -1,60 +1,46 @@
+import logging
 import helics as h
 import numpy as np
 from pydantic import BaseModel
 from typing import List
 import scipy.io
 import json
+from datetime import datetime
+from gadal.gadal_types.data_types import MeasurementArray
 
-
-class Complex(BaseModel):
-    real: float
-    imag: float
-
-
-class Topology(BaseModel):
-    y_matrix: List[List[Complex]]
-    phases: List[float]
-    unique_ids: List[str]
-
-
-class LabelledArray(BaseModel):
-    array: List[float]
-    unique_ids: List[str]
-
-
-class PolarLabelledArray(BaseModel):
-    magnitudes: List[float]
-    angles: List[float]
-    unique_ids: List[str]
-
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.INFO)
 
 class MeasurementConfig(BaseModel):
     name: str
     gaussian_variance: float
-    voltage_id_file: str
-    real_power_id_file: str
-    reactive_power_id_file: str
+    measurement_file: str
+    random_percent: float
 
 
 def get_indices(labelled_array, indices):
     "Get list of indices in the topology for each index of the labelled array"
     inv_map = {v: i for i, v in enumerate(indices)}
-    return [inv_map[v] for v in labelled_array.unique_ids]
+    return [inv_map[v] for v in labelled_array.ids]
 
 
-def reindex(labelled_array, indices):
-    inv_map = {v: i for i, v in enumerate(labelled_array.unique_ids)}
+def reindex(measurement_array, indices):
+    inv_map = {v: i for i, v in enumerate(measurement_array.ids)}
     for i in inv_map:
-        print(i)
-    return LabelledArray(array=[
-        labelled_array.array[inv_map[i]] for i in indices
-    ], unique_ids=indices)
+        logger.debug(i)
+    return MeasurementArray(values=[
+        measurement_array.values[inv_map[i]] for i in indices
+    ], ids=indices, units = measurement_array.units, equipment_type = measurement_array.equipment_type, time = measurement_array.time)
 
 
-def apply(f, labelled_array):
-    return LabelledArray(
-        array=list(map(f, labelled_array.array)),
-        unique_ids=labelled_array.unique_ids
+def apply(f, measurement_array):
+    return MeasurementArray(
+        values=list(map(f, measurement_array.values)),
+        ids=measurement_array.ids,
+        units = measurement_array.units,
+        equipment_type = measurement_array.equipment_type,
+        time = measurement_array.time
     )
 
 
@@ -69,45 +55,31 @@ class MeasurementRelay:
         fedinfo.core_name = config.name
         fedinfo.core_type = h.HELICS_CORE_TYPE_ZMQ
         fedinfo.core_init = "--federates=1"
-        print(config.name)
+        logger.debug(config.name)
 
         h.helicsFederateInfoSetTimeProperty(
             fedinfo, h.helics_property_time_delta, deltat
         )
 
         self.vfed = h.helicsCreateValueFederate(config.name, fedinfo)
-        print("Value federate created")
+        logger.info("Value federate created")
 
         # Register the publication #
-        self.sub_voltage_real = self.vfed.register_subscription(
-            input_mapping["voltage_real"], "V"
+        self.sub_measurement = self.vfed.register_subscription(
+            input_mapping["subscription"], ""
         )
-        self.sub_voltage_imag = self.vfed.register_subscription(
-            input_mapping["voltage_imag"], "V"
-        )
-        self.sub_power_real = self.vfed.register_subscription(
-            input_mapping["power_real"], "W"
-        )
-        self.sub_power_imag = self.vfed.register_subscription(
-            input_mapping["power_imag"], "W"
-        )
-        self.pub_voltages = self.vfed.register_publication(
-            "voltages", h.HELICS_DATA_TYPE_STRING, "V"
-        )
-        self.pub_power_real = self.vfed.register_publication(
-            "power_real", h.HELICS_DATA_TYPE_STRING, "W"
-        )
-        self.pub_power_imag = self.vfed.register_publication(
-            "power_imag", h.HELICS_DATA_TYPE_STRING, "W"
+
+        #TODO: find better way to determine what the name of this federate instance is than looking at the subscription
+        self.pub_measurement = self.vfed.register_publication(
+            "publication", h.HELICS_DATA_TYPE_STRING, ""
         )
 
         self.gaussian_variance = config.gaussian_variance
-        self.voltage_id_file = config.voltage_id_file
-        self.real_power_id_file = config.real_power_id_file
-        self.reactive_power_id_file = config.reactive_power_id_file
+        self.measurement_file = config.measurement_file
+        self.random_percent = config.random_percent
 
-    def transform(self, array: LabelledArray, unique_ids):
-        new_array = reindex(array, unique_ids)
+    def transform(self, measurement_array: MeasurementArray, unique_ids):
+        new_array = reindex(measurement_array, unique_ids)
         return apply(
             lambda x: x + self.rng.normal(scale=np.sqrt(self.gaussian_variance)),
             new_array
@@ -116,48 +88,30 @@ class MeasurementRelay:
     def run(self):
         # Enter execution mode #
         self.vfed.enter_executing_mode()
-        print("Entering execution mode")
+        logger.info("Entering execution mode")
 
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
         while granted_time < h.HELICS_TIME_MAXTIME:
-            print(granted_time)
-            voltage_real = LabelledArray.parse_obj(self.sub_voltage_real.json)
-            voltage_imag = LabelledArray.parse_obj(self.sub_voltage_imag.json)
-            power_real = LabelledArray.parse_obj(self.sub_power_real.json)
-            power_imag = LabelledArray.parse_obj(self.sub_power_imag.json)
+            logger.info('start time: '+str(datetime.now()))
+            json_data = self.sub_measurement.json
+            measurement = MeasurementArray(**json_data)
 
-            assert voltage_real.unique_ids == voltage_imag.unique_ids
-            assert voltage_real.unique_ids == power_real.unique_ids
-            assert voltage_real.unique_ids == power_imag.unique_ids
-            voltage_abs = LabelledArray(
-                array=list(np.abs(np.array(voltage_real.array) + 1j*np.array(voltage_imag.array))),
-                unique_ids=voltage_real.unique_ids
-            )
-            with open(self.voltage_id_file,'r') as fp:
-                self.voltage_ids = json.load(fp)
-            with open(self.real_power_id_file,'r') as fp:
-                self.real_power_ids = json.load(fp)
-            with open(self.reactive_power_id_file,'r') as fp:
-                self.reactive_power_ids = json.load(fp)
-            print("true voltages")
-            print(voltage_abs)
-            measured_voltages = self.transform(voltage_abs, self.voltage_ids)
-            print("measured voltages")
-            print(measured_voltages)
-            measured_power_real = self.transform(power_real, self.real_power_ids)
-            measured_power_imag = self.transform(power_imag, self.reactive_power_ids)
+            with open(self.measurement_file,'r') as fp:
+                self.measurement = json.load(fp)
+            measurement_transformed = self.transform(measurement, self.measurement)
+            logger.debug("measured transformed")
+            logger.debug(measurement_transformed)
 
-            self.pub_voltages.publish(measured_voltages.json())
-            self.pub_power_real.publish(measured_power_real.json())
-            self.pub_power_imag.publish(measured_power_imag.json())
+            self.pub_measurement.publish(measurement_transformed.json())
 
             granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
+            logger.info('end time: '+str(datetime.now()))
 
         self.destroy()
 
     def destroy(self):
         h.helicsFederateDisconnect(self.vfed)
-        print("Federate disconnected")
+        logger.info("Federate disconnected")
         h.helicsFederateFree(self.vfed)
         h.helicsCloseLibrary()
 

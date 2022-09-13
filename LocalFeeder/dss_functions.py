@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from scipy import sparse as sparse
 import cmath
+from scipy.sparse import csc_matrix, save_npz
 
 # from simulator.simulator import node_number
 
@@ -46,6 +47,8 @@ def get_y_matrix_file(dss):
     dss.run_command('export y triplet base_ysparse.csv')
     dss.run_command('export ynodelist base_nodelist.csv')
     dss.run_command('export summary base_summary.csv')
+    Ysparse = csc_matrix(dss.YMatrix.getYsparse())
+    save_npz('base_ysparse.npz', Ysparse)
 
     # dss.run_command('show Y')
     # dss.run_command('solve mode=snap')
@@ -62,19 +65,19 @@ def get_vnom2(dss):
     test_Vnom2_dict = {AllNodeNames[ii].upper(): test_Vnom2[ii] for ii in range(len(test_Vnom2))}
 
     test_vmag_volts_result = np.allclose(vmags, np.abs(test_Vnom2))
-    print('test_vmag_volts_result', test_vmag_volts_result)
+    logger.debug('test_vmag_volts_result', test_vmag_volts_result)
 
     AllNodeNamesY = circuit.YNodeOrder()
     yv = circuit.YNodeVArray()
     test_yv = np.array([complex(yv[i], yv[i + 1]) for i in range(0, len(yv), 2)])
     test_yv_dict = {AllNodeNamesY[ii]: test_yv[ii] for ii in range(len(test_yv))}
     test_yv_result = np.allclose(vmags, np.abs(test_yv))
-    print('test_yv_result', test_yv_result)
+    logger.debug('test_yv_result', test_yv_result)
 
-    print('Test dictionary')
+    logger.debug('Test dictionary')
     for i in test_yv_dict.keys():
         if abs(abs(test_Vnom2_dict[i]) - abs(test_yv_dict[i])) > .0001:
-            print(i, abs(test_Vnom2_dict[i]), abs(test_yv_dict[i]))
+            logger.debug(i, abs(test_Vnom2_dict[i]), abs(test_yv_dict[i]))
     # for t1, t2 in zip(np.abs(test_Vnom2), np.abs(test_yv)):
     # np.testing.assert_array_almost_equal(np.abs(test_Vnom2), np.abs(test_yv),decimal=5)
 
@@ -144,7 +147,9 @@ def parse_Ymatrix(Ysparse, totalnode_number):
             Ymatrix[r, c] = complex(g, b)
             Ymatrix[c, r] = Ymatrix[r, c]
 
-    return Ymatrix
+    from scipy.sparse import load_npz
+    Ymatrix_new = load_npz('base_ysparse.npz')
+    return Ymatrix_new.tocoo()
 
 
 def get_loads(dss, circuit):
@@ -192,24 +197,26 @@ def get_pvSystems(dss):
         datum = {}
         # PVname = dss.CktElement.Name()
         PVname = dss.PVsystems.Name()
+        PVpmpp = dss.PVsystems.Pmpp()
+        PVkW = dss.PVsystems.kW()
+        PVpf = dss.PVsystems.pf()
+        PVkVARated = dss.PVsystems.kVARated()
+        PVkvar = dss.PVsystems.kvar()
+
         NumPhase = dss.CktElement.NumPhases()
         bus = dss.CktElement.BusNames()[0]
+        #PVkV = dss.run_command('? ' + PVname + '.kV') #Not included in PVsystems commands for some reason
 
-        PVkW = dss.run_command('? ' + PVname + '.Pmpp')
-        PVpf = dss.run_command('? ' + PVname + '.pf')
-        PVkVA = dss.run_command('? ' + PVname + '.kVA')
-        PVkV = dss.run_command('? ' + PVname + '.kV')
 
         datum["name"] = PVname
         datum["bus"] = bus
         datum["phases"] = bus[1:]
         datum["Pmpp"] = PVkW
         datum["pf"] = PVpf
-        datum["kV"] = PVkV
-        datum["kW"] = dss.PVsystems.kW()
-        datum["kVA"] = PVkVA
-        datum["kVar"] = dss.PVsystems.kvar()
-        datum["kVarRated"] = dss.PVsystems.kVARated()
+        #datum["kV"] = PVkV
+        datum["kW"] = PVkW
+        datum["kVar"] = PVkvar
+        datum["kVARated"] = PVkVARated
         datum["numPhase"] = NumPhase
         datum["numPhases"] = NumPhase
         datum["power"] = dss.CktElement.Powers()[0:2*NumPhase]

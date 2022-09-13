@@ -1,0 +1,16 @@
+{
+    "directory": "ornl_dsse",
+    "execute_function": "NAME OF EXECUTABLE",
+    "static_inputs": [],
+    "dynamic_inputs": [
+        {"type": "VoltagesMagnitude", "port_id": "voltages_magnitude"},
+        {"type": "VoltagesAngle", "port_id": "voltages_angle"},
+        {"type": "PowersReal", "port_id": "powers_real"},
+        {"type": "PowersImaginary", "port_id": "powers_imaginary"},
+        {"type": "Topology", "port_id": "topology"}
+    ],
+    "dynamic_outputs": [
+        {"type": "VoltagesMagnitude", "port_id": "voltages_magnitude"},
+        {"type": "VoltagesAngle", "port_id": "voltages_angle"}
+    ]
+}

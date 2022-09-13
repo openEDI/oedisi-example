@@ -54,8 +54,8 @@ class FeederConfig(BaseModel):
     smartds_scenario: str
     smartds_year: str
     start_date: str
-    end_date: str
     increment_value: int # increment in seconds
+    number_of_timesteps: int
 
 
 class FeederSimulator(object):
@@ -71,7 +71,8 @@ class FeederSimulator(object):
         self._smartds_scenario = config.smartds_scenario
         self._smartds_year = config.smartds_year
         self._start_date = config.start_date
-        self._end_date = config.end_date
+        self._number_of_timesteps = config.number_of_timesteps
+        self._increment_value = config.increment_value
 
         self._feeder_file = None
         self._circuit=None
@@ -225,7 +226,7 @@ class FeederSimulator(object):
         for voltage_name in Vnom_dict.keys():
             Vnom[self._name_index_dict[voltage_name]] = Vnom_dict[voltage_name]
         # Vnom(1: 3) = [];
-        print(Vnom[self._source_indexes[0]:self._source_indexes[-1]])
+        logger.debug(Vnom[self._source_indexes[0]:self._source_indexes[-1]])
         Vnom = np.concatenate((Vnom[:self._source_indexes[0]], Vnom[self._source_indexes[-1] + 1:]))
         Vnom = np.abs(Vnom)
         return Vnom
