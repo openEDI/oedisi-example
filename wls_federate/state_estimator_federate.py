@@ -161,14 +161,14 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
     if len(knownP) + len(knownV) + len(knownQ) < num_node * 2:
         #If not observable 
         low_limit = np.concatenate((np.ones(num_node)* (- np.pi - np.pi/6),
-                                    np.ones(num_node)*0.95))
+                                    np.ones(num_node)*0.90))
         up_limit = np.concatenate((np.ones(num_node)* (np.pi + np.pi/6),
                                     np.ones(num_node)*1.05))
         res_1 = least_squares(
             residual,
             X0,
             jac=cal_H,
-            bounds = (low_limit, up_limit),
+            #bounds = (low_limit, up_limit),
             # method = 'lm',
             verbose=2,
             ftol=tol,
@@ -182,7 +182,7 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
             X0,
             jac=cal_H,
             # bounds = (low_limit, up_limit),
-            method = 'lm',
+            #method = 'lm',
             verbose=2,
             ftol=tol,
             xtol=tol,
@@ -270,13 +270,19 @@ class StateEstimatorFederate:
             for i in range(len(topology.admittance.ids)):
                 if topology.admittance.ids[i] == topology.slack_bus[0]:
                     slack_index = i
-
+                    
+            voltages = VoltagesMagnitude.parse_obj(self.sub_voltages_magnitude.json)
+            knownV = get_indices(topology, voltages)
             if self.initial_V is None:
-                self.initial_V = 1.025 #*np.array(topology.base_voltages)
+                self.initial_V = np.mean(
+                    np.array(voltages.values) / np.array(topology.base_voltage_magnitudes.values)[knownV])
+                
+            #if self.initial_V is None:
+               # self.initial_V = 1.025 #*np.array(topology.base_voltages)
             if self.initial_ang is None:
                 self.initial_ang = np.array(topology.base_voltage_angles.values)
 
-            voltages = VoltagesMagnitude.parse_obj(self.sub_voltages_magnitude.json)
+            
 
             power_P = PowersReal.parse_obj(self.sub_power_P.json)
             power_Q = PowersImaginary.parse_obj(self.sub_power_Q.json)
