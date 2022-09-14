@@ -14,12 +14,12 @@ def bad_type_checker(type, x):
     return True
 
 # We make classes for each component using a type checker
-AWSFeeder = component_from_json(
-    "AWSFeeder/component_definition.json", bad_type_checker
-)
-LocalFeeder = component_from_json(
-    "LocalFeeder/component_definition.json", bad_type_checker
-)
+# AWSFeeder = component_from_json(
+#     "AWSFeeder/component_definition.json", bad_type_checker
+# )
+# LocalFeeder = component_from_json(
+#     "LocalFeeder/component_definition.json", bad_type_checker
+# )
 MeasurementComponent = component_from_json(
     "measuring_federate/component_definition.json", bad_type_checker
 )
@@ -35,8 +35,8 @@ IEEE123Feeder = component_from_json(
 
 # Dictionary used to interpret test_system.json
 component_types = {
-    "LocalFeeder": LocalFeeder,
-    "AWSFeeder": AWSFeeder,
+    # "LocalFeeder": LocalFeeder,
+    # "AWSFeeder": AWSFeeder,
     "MeasurementComponent": MeasurementComponent,
     "StateEstimatorComponent": StateEstimatorComponent,
     "Recorder": Recorder,

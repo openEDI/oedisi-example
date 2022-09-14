@@ -156,8 +156,8 @@ def get_pv_vector(self, dss_obj):
         temp = dss_obj.CktElement.BusNames()
         connected_bus = re.search(find, temp[0]).group(0)
         phase_order = dss_obj.CktElement.NodeOrder()
-        pv_kW_val = abs(dss_obj.CktElement.TotalPowers()[0])
-        pv_kvar_val = abs(dss_obj.CktElement.TotalPowers()[1])
+        pv_kW_val = -dss_obj.CktElement.TotalPowers()[0]
+        pv_kvar_val = -dss_obj.CktElement.TotalPowers()[1]
 
         for i in range(0, len(phase_order) - 1):
             current_node = [connected_bus + '.' + str(phase_order[i])]

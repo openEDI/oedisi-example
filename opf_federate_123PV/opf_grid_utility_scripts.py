@@ -1116,7 +1116,7 @@ def solve_central_optimization(opfobj):
     logger.debug(f'array_p_flex_load_var_opti_to_send {opfobj.p_flex_load_var_opti}')
     logger.debug(f'cap_value_opti_to_send {opfobj.cap_value_opti}')
     logger.debug(f'xmer_value_opti_to_send {opfobj.xmer_value_opti}')
-    logger.debug(f'array_q_cap_opti_to_send {opfobj.p_pv_opti}')
+    logger.debug(f'p_pv_opti_to_send {opfobj.p_pv_opti}')
     logger.debug(f'q_pv_opti_to_send {opfobj.q_pv_opti}')
 
 

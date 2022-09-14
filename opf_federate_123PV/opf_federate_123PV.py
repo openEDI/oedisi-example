@@ -29,8 +29,6 @@ logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.DEBUG)
 
 
-
-
 class Complex(BaseModel):
     "Pydantic model for complex values with json representation"
     real: float
@@ -205,9 +203,8 @@ class OptimalPowerFlowFederate:
         self.opf_fed.enter_executing_mode()
         logger.info("Entering execution mode")
 
-        # seconds = 60
-        minutes = 30
-        total_interval = int(minutes*60 + 10)
+        seconds = 60*60*12
+        total_interval = int(seconds + 10)
         logger.info(f'HELICS PROPERTY TIME PERIOD {h.HELICS_PROPERTY_TIME_PERIOD}')
         update_interval = int(h.helicsFederateGetTimeProperty(self.opf_fed, h.HELICS_PROPERTY_TIME_PERIOD))
         logger.info(f'update interval OPF Fed at start {update_interval}')
@@ -230,10 +227,10 @@ class OptimalPowerFlowFederate:
 
             # logger.info(f'While loop with granted time: {granted_time} requested time: {requested_time}')
 
-            if int(granted_time-5) % (60*15) == 0:
-                # 2 seconds delay
+            if int(granted_time) % (60*60) == 0:
+                # 5 seconds delay
                 # initialization - this could be done before the loop starts too.
-                if granted_time == 5: # first time ever, we'd need to load up all vectors and matrices
+                if granted_time <= 60*60: # first time ever, we'd need to load up all vectors and matrices
                     self.topology = Topology.parse_obj(self.sub_topology.json)
                     logger.info(f'Subscribed Topology Received')
 
@@ -316,7 +313,7 @@ class OptimalPowerFlowFederate:
                     logger.info(f'tap_values published to feeder')
 
                 else: # dynamic
-                    # dynamic states, coming every 60 seconds or some predefined intervals
+                    # dynamic states, coming every 60%15 seconds or some predefined intervals
                     self.voltages_real = LabelledArray.parse_obj(self.sub_voltages_real.json)
                     logger.info(f'Subscribed REAL Voltages Received')
 

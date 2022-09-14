@@ -6,16 +6,15 @@ import json
 # from opf_dss_functions import set_feeder_flex_load
 from dss_functions import snapshot_run
 from FeederSimulator import FeederSimulator, FeederConfig
-
 from pydantic import BaseModel
 from typing import List, Optional
 import numpy as np
-
+import csv
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 test_se = False
 
@@ -316,9 +315,9 @@ class SimulationFederate:
         )
 
         #TODO: decide time steps and time intervals
-        minutes = 30
+        seconds = 60*60*12
 
-        total_interval = int(minutes*60 + 10)
+        total_interval = int(seconds + 10)
         current_index = config.start_time_index
         sim._simulation_step = current_index
         logger.info(f'HELICS PROPERTY TIME PERIOD {h.HELICS_PROPERTY_TIME_PERIOD}')
@@ -326,6 +325,18 @@ class SimulationFederate:
         logger.info(f'update interval DSS Fed at start {update_interval}')
 
         granted_time = 0
+        with open('nodenames.csv', 'w') as f:
+            wr = csv.writer(f, dialect='excel')
+            wr.writerows(sim._AllNodeNames)
+        f.close()
+
+        voltages_list = []
+        active_power_loads_list = []
+        reactive_power_loads_list = []
+        active_power_pv_list = []
+        reactive_power_pv_list = []
+        taps_list = []
+        cap_reactive_power_list = []
         # for request_time in range(0, 100):
         while granted_time < total_interval:
             #logger.info(f'update interval DSS Fed {update_interval}')
@@ -368,8 +379,32 @@ class SimulationFederate:
                 reactive_power_pv = sim._q_pV_Y
                 taps = sim._reg_taps
 
+                # logger.info(f'writing to csv file')
+                #
+                # f = open('voltages.csv', 'wb')
+                # np.savetxt(f, np.abs(feeder_voltages).transpose(), delimiter=",")
+                # f.close()
+                # f = open('active_power_loads.csv', 'wb')
+                # np.savetxt(f, np.abs(active_power_loads).transpose(), delimiter=",")
+                # f.close()
+                # f = open('reactive_power_loads.csv', 'wb')
+                # np.savetxt(f, reactive_power_loads.transpose(), delimiter=",")
+                # f.close()
+                # f = open('active_power_pv.csv', 'wb')
+                # np.savetxt(f, np.abs(active_power_pv).transpose(), delimiter=",")
+                # f.close()
+                # f = open('reactive_power_pv.csv', 'wb')
+                # np.savetxt(f, reactive_power_pv.transpose(), delimiter=",")
+                # f.close()
+                # f = open('taps.csv', 'wb')
+                # np.savetxt(f, taps.transpose(), delimiter=",")
+                # f.close()
+                # f = open('cap_reactive_power.csv', 'wb')
+                # np.savetxt(f, cap_reactive_power.transpose(), delimiter=",")
+                # f.close()
             else:
-                sim._simulation_step = int(current_index/(60*15)) # every fifteen minutes
+                sim._simulation_step = int(granted_time/(60*15)) # every fifteen minutes
+                logger.info(f'sim step {sim._simulation_step}')
                 logger.info(f'Get Voltages and PQs at {granted_time} {requested_time}')
 
                 #if (current_index % 60*15) == 0: # change value every 60 seconds.
@@ -424,6 +459,27 @@ class SimulationFederate:
                 self.pub_tap_values.publish(LabelledArray(array=list(taps), unique_ids=sim._opf_reg_order_names).json())
                 logger.info(f'tap_values published')
 
+                # f = open('voltages.csv', 'ab')
+                # np.savetxt(f, np.abs(feeder_voltages).transpose(), delimiter=",")
+                # f.close()
+                # f = open('active_power_loads.csv', 'ab')
+                # np.savetxt(f, np.abs(active_power_loads).transpose(), delimiter=",")
+                # f.close()
+                # f = open('reactive_power_loads.csv', 'ab')
+                # np.savetxt(f, reactive_power_loads.transpose(), delimiter=",")
+                # f.close()
+                # f = open('active_power_pv.csv', 'ab')
+                # np.savetxt(f, np.abs(active_power_pv).transpose(), delimiter=",")
+                # f.close()
+                # f = open('reactive_power_pv.csv', 'ab')
+                # np.savetxt(f, reactive_power_pv.transpose(), delimiter=",")
+                # f.close()
+                # f = open('taps.csv', 'ab')
+                # np.savetxt(f, taps.transpose(), delimiter=",")
+                # f.close()
+                # f = open('cap_reactive_power.csv', 'ab')
+                # np.savetxt(f, cap_reactive_power.transpose(), delimiter=",")
+                # f.close()
                 try:
                     feeder_voltages = sim.get_voltages_actual()
                     PQ_node = sim.get_PQs()
@@ -444,7 +500,7 @@ class SimulationFederate:
                 except:  # TODO: Use actual error message
                     logger.info('Error in conjugate stuff')
 
-                if (current_index % 60) == 0:
+                if ((granted_time-60) % (60*60)) == 0:
                     set_powers_flex(sim, self.opf_control)
                     set_caps(sim, self.opf_control)
                     set_pv(sim, self.opf_control)
@@ -455,6 +511,40 @@ class SimulationFederate:
 
             current_index+=1
             sim.run_next()
+            # if (current_index % 2) == 0:
+                # print(f"shape of feeder_voltages {feeder_voltages.shape[0]},{feeder_voltages.shape[1]}")
+                # print(f"shape of active power load shape {active_power_loads.shape[0]},{active_power_loads.shape[1]}")
+                # active_power_loads = active_power_loads[:].reshape((1,len(active_power_loads)))
+            voltages_list.append(np.abs(feeder_voltages))
+            active_power_loads_list.append(active_power_loads)
+            reactive_power_loads_list.append(reactive_power_loads.transpose())
+            active_power_pv_list.append(active_power_pv.transpose())
+            reactive_power_pv_list.append(reactive_power_pv.transpose())
+            taps_list.append(taps.transpose())
+            cap_reactive_power_list.append(cap_reactive_power.transpose())
+
+        logger.info(f'writing to csv file')
+        f = open('voltages.csv', 'wb')
+        np.savetxt(f, np.array(voltages_list), delimiter=",")
+        f.close()
+        f = open('active_power_loads.csv', 'wb')
+        np.savetxt(f, np.array(active_power_loads_list), delimiter=",")
+        f.close()
+        f = open('reactive_power_loads.csv', 'wb')
+        np.savetxt(f, np.array(reactive_power_loads_list), delimiter=",")
+        f.close()
+        f = open('active_power_pv.csv', 'wb')
+        np.savetxt(f, np.array(active_power_pv_list), delimiter=",")
+        f.close()
+        f = open('reactive_power_pv.csv', 'wb')
+        np.savetxt(f, np.array(reactive_power_pv_list), delimiter=",")
+        f.close()
+        f = open('taps.csv', 'wb')
+        np.savetxt(f, np.array(taps_list), delimiter=",")
+        f.close()
+        f = open('cap_reactive_power.csv', 'wb')
+        np.savetxt(f, np.array(cap_reactive_power_list), delimiter=",")
+        f.close()
         self.finalize_federate()
 
     def finalize_federate(self):
@@ -463,7 +553,6 @@ class SimulationFederate:
         h.helicsFederateFree(self.federate)
         print(f"feeder disconnected")
         h.helicsCloseLibrary()
-
 
 if __name__ == '__main__':
     logger.debug(f'in run-->sender_cosim.py')

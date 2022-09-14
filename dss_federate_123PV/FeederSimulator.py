@@ -523,6 +523,7 @@ class FeederSimulator(object):
 
     def solve(self):
         # snapshot_run(dss)
+        dss.run_command('set controlmode=off')
         dss.run_command('solve')
 
     def run_next(self):
