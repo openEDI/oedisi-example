@@ -167,7 +167,9 @@ def go_cosim(sim, config: FeederConfig):
         logger.debug("PQ")
         logger.debug(PQ_node)
         logger.debug("Calculated Power")
-        errors = PQ_node + feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
+        Cal_power = feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
+        errors = PQ_node + Cal_power
+        PQ_node[:3] = -Cal_power[:3]
         logger.debug("errors")
         logger.debug(errors)
         power_balance = (feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000)
