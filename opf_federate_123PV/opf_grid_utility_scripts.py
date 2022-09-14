@@ -1104,6 +1104,46 @@ def solve_central_optimization(opfobj):
     logger.debug(f'array_q_cap_opti_abs {opfobj.cap_value_opti_abs}')
     logger.debug(f'array_tap_opti_abs {opfobj.xmer_value_opti_abs}')
 
+    logger.debug(f"===== sainty checks =====")
+    for j in range(0, len(opfobj.p_flex_load_var_opti_abs)):
+        if opfobj.p_flex_load_var_opti_abs[j] < p_flex_load_var_limit_min[j]:
+            opfobj.p_flex_load_var_opti_abs[j] = p_flex_load_var_limit_min[j]
+        elif opfobj.p_flex_load_var_opti_abs[j] > p_flex_load_var_limit_max[j]:
+            opfobj.p_flex_load_var_opti_abs[j] = p_flex_load_var_limit_max[j]
+
+    for j in range(0, len(opfobj.reg_taps_init)):
+        if opfobj.xmer_value_opti_abs[j] < xmer_min_taps[j]:
+            opfobj.xmer_value_opti_abs[j] = xmer_min_taps[j]
+        elif opfobj.xmer_value_opti_abs[j] > xmer_max_taps[j]:
+            opfobj.xmer_value_opti_abs[j] = xmer_max_taps[j]
+
+    for j in range(0, len(opfobj.cap_bank_init)):
+        if opfobj.cap_value_opti_abs[j] < cap_power_min[j]:
+            opfobj.cap_value_opti_abs[j] = cap_power_min[j]
+        elif opfobj.cap_value_opti_abs[j] > cap_power_max[j]:
+            opfobj.cap_value_opti_abs[j] = cap_power_max[j]
+
+    for j in range(0, len(opfobj.pv_q_init)):
+        if opfobj.q_pv_opti_abs[j] < pv_q_min[j]:
+            opfobj.q_pv_opti_abs[j] = pv_q_min[j]
+        elif opfobj.q_pv_opti_abs[j] > pv_q_max[j]:
+            opfobj.q_pv_opti_abs[j] = pv_q_max[j]
+
+    for j in range(0, len(opfobj.pv_p_init)):
+        if opfobj.p_pv_opti_abs[j] < pv_p_min[j]:
+            opfobj.p_pv_opti_abs[j] = pv_p_min[j]
+        elif opfobj.p_pv_opti_abs[j] > pv_p_max[j]:
+            opfobj.p_pv_opti_abs[j] = pv_p_max[j]
+
+    logger.debug("======= optimal variable movement proposed after sanity checks==== ")
+    logger.debug(f'active_power_generation_import {opfobj.active_power_generation_import}')
+    logger.debug(f'reactive_power_generation_import {opfobj.reactive_power_generation_import}')
+    logger.debug(f'array_p_flex_load_var_opti_abs {opfobj.p_flex_load_var_opti_abs}')
+    logger.debug(f'array_p_pv_opti_abs { opfobj.p_pv_opti_abs}')
+    logger.debug(f'array_q_pv_opti_abs {opfobj.q_pv_opti_abs}')
+    logger.debug(f'array_q_cap_opti_abs {opfobj.cap_value_opti_abs}')
+    logger.debug(f'array_tap_opti_abs {opfobj.xmer_value_opti_abs}')
+
 
     opfobj.p_flex_load_var_opti = opfobj.p_flex_load_init - np.array(opfobj.p_flex_load_var_opti_abs)
     opfobj.cap_value_opti = opfobj.cap_bank_init - np.array(opfobj.cap_value_opti_abs)

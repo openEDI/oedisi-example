@@ -79,7 +79,10 @@ def get_indices(topology, labelled_array):
     inv_map = {v: i for i, v in enumerate(topology.unique_ids)}
     return [inv_map[v] for v in labelled_array.unique_ids]
 
-
+def pol2cart(rho, phi):
+    x = rho * np.cos(phi)
+    y = rho * np.sin(phi)
+    return x, y
 class OptimalPowerFlowFederate:
     "Optimal Power Flow Federate. Wraps OPF with Pubs and Subs"
 
@@ -132,15 +135,25 @@ class OptimalPowerFlowFederate:
         logger.info(f"pv_info subscribed")
 
 
-        self.sub_voltages_real = self.opf_fed.register_subscription(
-            input_mapping["voltages_real"], "V"
+        self.sub_voltages_angle = self.opf_fed.register_subscription(
+            input_mapping["voltage_angle"], "V"
         )
-        logger.info(f"real voltages subscribed")
+        logger.info(f"angle voltages subscribed")
 
-        self.sub_voltages_imag = self.opf_fed.register_subscription(
-            input_mapping["voltages_imag"], "V"
+        self.sub_voltages_mag = self.opf_fed.register_subscription(
+            input_mapping["voltage_mag"], "V"
         )
-        logger.info(f"imaginary voltages subscribed")
+        logger.info(f"magnitude voltages subscribed")
+
+        # self.sub_voltages_real = self.opf_fed.register_subscription(
+        #     input_mapping["voltages_real"], "V"
+        # )
+        # logger.info(f"real voltages subscribed")
+        #
+        # self.sub_voltages_imag = self.opf_fed.register_subscription(
+        #     input_mapping["voltages_imag"], "V"
+        # )
+        # logger.info(f"imaginary voltages subscribed")
 
         self.sub_powers_real = self.opf_fed.register_subscription(
             input_mapping["powers_real"], "W"
@@ -203,7 +216,7 @@ class OptimalPowerFlowFederate:
         self.opf_fed.enter_executing_mode()
         logger.info("Entering execution mode")
 
-        seconds = 60*60*12
+        seconds = 60*60*24
         total_interval = int(seconds + 10)
         logger.info(f'HELICS PROPERTY TIME PERIOD {h.HELICS_PROPERTY_TIME_PERIOD}')
         update_interval = int(h.helicsFederateGetTimeProperty(self.opf_fed, h.HELICS_PROPERTY_TIME_PERIOD))
@@ -250,15 +263,38 @@ class OptimalPowerFlowFederate:
                     logger.info(f"pv_info received")
                     #TODO: check why the s values are not coming directly
                     self.pv_s_init = np.array(np.sqrt(np.array(self.pv_info.p_values)**2 + np.array(self.pv_info.q_values)**2))
-                    logger.info(f'real voltages subscribed {self.sub_voltages_real.json}')
+                    # logger.info(f'real voltages subscribed {self.sub_voltages_real.json}')
 
                     # dynamic states, which may change
-                    self.voltages_real = LabelledArray.parse_obj(self.sub_voltages_real.json)
-                    logger.info(f'Subscribed REAL Voltages Received')
+                    self.voltages_angle = LabelledArray.parse_obj(self.sub_voltages_angle.json)
+                    logger.info(f'Subscribed angle Voltages Received from WLS')
+                    logger.info(f'self.voltages_angle = {self.voltages_angle}')
+                    self.voltages_mag = LabelledArray.parse_obj(self.sub_voltages_mag.json)
+                    logger.info(f'Subscribed mag Voltages Received from WLS')
+                    logger.info(f'self.voltages_mag = {self.voltages_mag}')
 
-                    self.voltages_imag = LabelledArray.parse_obj(self.sub_voltages_imag.json)
-                    logger.info(f'Subscribed Imag Voltages Received')
+                    voltages_real_wls = self.voltages_angle
+                    voltages_imag_wls = self.voltages_mag
 
+
+                    # state estimator is calculating voltages in LL rather than LN
+                    voltages_real, voltages_imag = pol2cart(self.voltages_mag.array/np.sqrt(3), self.voltages_angle.array)
+                    voltages_real_wls.array = voltages_real.tolist()
+                    voltages_imag_wls.array = voltages_imag.tolist()
+
+                    logger.info(f'self.voltages_real from wls = {voltages_real_wls}')
+                    logger.info(f'self.voltages_imag from wls = {voltages_imag_wls}')
+
+                    self.voltages_real = voltages_real_wls
+                    self.voltages_imag = voltages_imag_wls
+
+                    # self.voltages_real = LabelledArray.parse_obj(self.sub_voltages_real.json)
+                    # logger.info(f'Subscribed REAL Voltages Received')
+
+                    # self.voltages_imag = LabelledArray.parse_obj(self.sub_voltages_imag.json)
+                    # logger.info(f'Subscribed Imag Voltages Received')
+                    # logger.info(f'self.voltages_real from feeder = {self.voltages_real}')
+                    # logger.info(f'self.voltages_imag from feeder = {self.voltages_imag}')
                     self.powers_P = LabelledArray.parse_obj(self.sub_powers_real.json)
                     logger.info(f'Subscribed Active Power Received')
 
@@ -313,12 +349,34 @@ class OptimalPowerFlowFederate:
                     logger.info(f'tap_values published to feeder')
 
                 else: # dynamic
-                    # dynamic states, coming every 60%15 seconds or some predefined intervals
-                    self.voltages_real = LabelledArray.parse_obj(self.sub_voltages_real.json)
-                    logger.info(f'Subscribed REAL Voltages Received')
+                    # dynamic states, which may change
+                    self.voltages_angle = LabelledArray.parse_obj(self.sub_voltages_angle.json)
+                    logger.info(f'Subscribed angle Voltages Received from WLS')
+                    logger.info(f'self.voltages_angle = {self.voltages_angle}')
+                    self.voltages_mag = LabelledArray.parse_obj(self.sub_voltages_mag.json)
+                    logger.info(f'Subscribed mag Voltages Received from WLS')
+                    logger.info(f'self.voltages_mag = {self.voltages_mag}')
 
-                    self.voltages_imag = LabelledArray.parse_obj(self.sub_voltages_imag.json)
-                    logger.info(f'Subscribed Imag Voltages Received')
+                    voltages_real_wls = self.voltages_angle
+                    voltages_imag_wls = self.voltages_mag
+
+
+                    # state estimator is calculating voltages in LL rather than LN
+                    voltages_real, voltages_imag = pol2cart(self.voltages_mag.array/np.sqrt(3), self.voltages_angle.array)
+                    voltages_real_wls.array = voltages_real.tolist()
+                    voltages_imag_wls.array = voltages_imag.tolist()
+
+                    logger.info(f'self.voltages_real from wls = {voltages_real_wls}')
+                    logger.info(f'self.voltages_imag from wls = {voltages_imag_wls}')
+
+                    self.voltages_real = voltages_real_wls
+                    self.voltages_imag = voltages_imag_wls
+                    # # dynamic states, coming every 60%15 seconds or some predefined intervals
+                    # self.voltages_real = LabelledArray.parse_obj(self.sub_voltages_real.json)
+                    # logger.info(f'Subscribed REAL Voltages Received')
+                    #
+                    # self.voltages_imag = LabelledArray.parse_obj(self.sub_voltages_imag.json)
+                    # logger.info(f'Subscribed Imag Voltages Received')
 
                     self.powers_P = LabelledArray.parse_obj(self.sub_powers_real.json)
                     logger.info(f'Subscribed Active Power Received')

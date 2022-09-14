@@ -126,7 +126,7 @@
             "target": "state_estimator",
             "target_port": "power_Q"
         },
-        {
+              {
             "source": "feeder",
             "source_port": "voltages_real",
             "target": "recorder_voltage_real",
@@ -149,6 +149,18 @@
             "source_port": "voltage_mag",
             "target": "recorder_voltage_mag",
             "target_port": "subscription"
+        },
+        {
+            "source": "state_estimator",
+            "source_port": "voltage_angle",
+            "target": "opf",
+            "target_port": "voltage_angle"
+        },
+        {
+            "source": "state_estimator",
+            "source_port": "voltage_mag",
+            "target": "opf",
+            "target_port": "voltage_mag"
         },
         {
           "source": "opf",
@@ -215,18 +227,6 @@
           "source_port": "flex_info",
           "target": "opf",
           "target_port": "flex_info"
-        },
-        {
-          "source": "feeder",
-          "source_port": "voltages_real",
-          "target": "opf",
-          "target_port": "voltages_real"
-        },
-        {
-          "source": "feeder",
-          "source_port": "voltages_imag",
-          "target": "opf",
-          "target_port": "voltages_imag"
         },
         {
           "source": "feeder",

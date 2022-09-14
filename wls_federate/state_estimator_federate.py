@@ -15,11 +15,15 @@ from pydantic import BaseModel
 from enum import Enum
 from typing import List, Optional
 from scipy.optimize import least_squares
-
+import cmath
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
 
+def pol2cart(rho, phi):
+    x = rho * np.cos(phi)
+    y = rho * np.sin(phi)
+    return x, y
 def cal_h(knownP, knownQ, knownV, Y, deltaK, VabsK, num_node):
     h1 = (VabsK[knownV]).reshape(-1,1)
     Vp = VabsK * np.exp(1j * deltaK)
@@ -231,7 +235,7 @@ class StateEstimatorFederate:
     "State estimator federate. Wraps state_estimation with pubs and subs"
     def __init__(self, federate_name, algorithm_parameters: AlgorithmParameters, input_mapping):
         "Initializes federate with name and remaps input into subscriptions"
-        deltat = 0.1
+        deltat = 15*60
 
         self.algorithm_parameters = algorithm_parameters
 
@@ -309,11 +313,17 @@ class StateEstimatorFederate:
                 array=list(voltage_magnitudes),
                 unique_ids=topology.unique_ids
             ).json())
+
             self.pub_voltage_angle.publish(LabelledArray(
                 array=list(voltage_angles),
                 unique_ids=topology.unique_ids
             ).json())
+            v_real, v_imag = pol2cart(voltage_magnitudes,voltage_angles)
+            logger.debug(f'voltage_angles {voltage_angles}')
+            logger.debug(f'voltage_magnitudes {voltage_magnitudes}')
 
+            logger.debug(f'voltage_real {v_real}')
+            logger.debug(f'voltage_imag {v_imag}')
         self.destroy()
 
     def destroy(self):

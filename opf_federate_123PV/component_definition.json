@@ -17,14 +17,14 @@
         {"type": "", "port_id": "cap_info"},
         {"type": "", "port_id": "pv_info"},
         {"type": "", "port_id": "flex_info"},
-        {"type": "", "port_id": "voltages_real"},
-        {"type": "", "port_id": "voltages_imag"},
         {"type": "", "port_id": "powers_real"},
         {"type": "", "port_id": "powers_imag"},
         {"type": "", "port_id": "cap_powers_imag"},
         {"type": "", "port_id": "pv_powers_real"},
         {"type": "", "port_id": "pv_powers_imag"},
-        {"type": "", "port_id": "tap_values"}
+        {"type": "", "port_id": "tap_values"},
+        {"type": "", "port_id": "voltage_mag"},
+        {"type": "", "port_id": "voltage_angle"}
     ],
     "dynamic_outputs": [
         {"type": "", "port_id": "opf_flex_powers_real"},

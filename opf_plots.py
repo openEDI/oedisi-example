@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-opf_flag = True
+opf_flag = False
 print(f"reading data ")
 node_data = np.genfromtxt('feeder/nodenames.csv',dtype=str, delimiter=' ')
 voltage_data = np.genfromtxt('feeder/voltages.csv', delimiter=",")
@@ -39,7 +39,7 @@ if opf_flag is True:
 else:
     leg_str = 'without OPF'
 # voltage plots
-print(f"saving selected idx voltage plots")
+#print(f"saving selected idx voltage plots")
 
 fig, ax = plt.subplots()
 ax.plot(voltage_data[:, voltage_idx])
@@ -48,7 +48,7 @@ ax.set_ylabel("Voltages (V)")
 ax.set_xlabel("Time (seconds)")
 ax.set_title("Voltage Magnitudes "+leg_str)
 plt.savefig("Voltage Magnitudes Powers "+leg_str+'.png')
-print(f"saving voltage plots")
+#print(f"saving voltage plots")
 # pv p plots
 print(f"saving selected idx pv active plots")
 
