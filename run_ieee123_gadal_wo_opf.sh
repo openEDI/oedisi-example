@@ -1,0 +1,2 @@
+python test_full_systems_ieee123_gadal.py test_ieee123_gadal.json
+helics run --path=test_system_runner_ieee123_gadal.json

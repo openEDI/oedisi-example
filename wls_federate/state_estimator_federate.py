@@ -1,8 +1,6 @@
 """
 Basic State Estimation Federate
-
 Uses weighted least squares to estimate the voltage angles.
-
 First `call_h` calculates the residual from the voltage magnitude and angle,
 and `call_H` calculates a jacobian. Then `scipy.optimize.least_squares`
 is used to solve.
@@ -15,15 +13,13 @@ from pydantic import BaseModel
 from enum import Enum
 from typing import List, Optional
 from scipy.optimize import least_squares
-import cmath
+from datetime import datetime
+from gadal.gadal_types.data_types import MeasurementArray, AdmittanceMatrix, Topology, Complex, VoltagesMagnitude, VoltagesAngle, VoltagesReal, VoltagesImaginary, PowersReal, PowersImaginary
+
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
 
-def pol2cart(rho, phi):
-    x = rho * np.cos(phi)
-    y = rho * np.sin(phi)
-    return x, y
 def cal_h(knownP, knownQ, knownV, Y, deltaK, VabsK, num_node):
     h1 = (VabsK[knownV]).reshape(-1,1)
     Vp = VabsK * np.exp(1j * deltaK)
@@ -44,7 +40,7 @@ def cal_H(X0, z, num_node, knownP, knownQ, knownV, Y):
 ##### S = np.diag(Vp) @ Y.conjugate() @ Vp.conjugate()
 ######  Take gradient with respect to V
     H_pow2 = (
-            Vp.reshape(-1, 1) * Y.conjugate() * np.exp(-1j * deltaK).reshape(1, -1) + 
+            Vp.reshape(-1, 1) * Y.conjugate() * np.exp(-1j * deltaK).reshape(1, -1) +
         np.exp(1j * deltaK) * np.diag(Y.conjugate() @ Vp.conjugate())
         )
     # Take gradient with respect to delta
@@ -52,10 +48,10 @@ def cal_H(X0, z, num_node, knownP, knownQ, knownV, Y):
             1j * Vp.reshape(-1, 1) * (np.diag(Y.conjugate() @ Vp.conjugate()) -
                 Y.conjugate() * Vp.conjugate().reshape(1, -1))
             )
-        
+
     H2 = np.concatenate((H_pow1.real, H_pow2.real), axis=1)[knownP, :]
     H3 = np.concatenate((H_pow1.imag, H_pow2.imag), axis=1)[knownQ, :]
-    H = np.concatenate((H1, H2, H3), axis=0)   
+    H = np.concatenate((H1, H2, H3), axis=0)
     return -H
 
 def residual(X0, z, num_node, knownP, knownQ, knownV, Y):
@@ -69,43 +65,17 @@ def residual(X0, z, num_node, knownP, knownQ, knownV, Y):
     logger.debug(h)
     return z-h
 
-class Complex(BaseModel):
-    "Pydantic model for complex values with json representation"
-    real: float
-    imag: float
 
 
-class Topology(BaseModel):
-    "All necessary data for state estimator run"
-    y_matrix: List[List[Complex]]
-    phases: List[float]
-    base_voltages: List[float]
-    slack_bus: List[str]
-    unique_ids: List[str]
-
-
-class LabelledArray(BaseModel):
-    "Labelled array has associated list of ids"
-    array: List[float]
-    unique_ids: List[str]
-
-
-class PolarLabelledArray(BaseModel):
-    "Labelled arrays of magnitudes and angles with list of ids"
-    magnitudes: List[float]
-    angles: List[float]
-    unique_ids: List[str]
-
-
-def matrix_to_numpy(y_matrix: List[List[Complex]]):
+def matrix_to_numpy(admittance: List[List[Complex]]):
     "Convert list of list of our Complex type into a numpy matrix"
-    return np.array([[x.real + 1j * x.imag for x in row] for row in y_matrix])
+    return np.array([[x[0] + 1j * x[1] for x in row] for row in admittance])
 
 
-def get_indices(topology, labelled_array):
-    "Get list of indices in the topology for each index of the labelled array"
-    inv_map = {v: i for i, v in enumerate(topology.unique_ids)}
-    return [inv_map[v] for v in labelled_array.unique_ids]
+def get_indices(topology, measurement):
+    "Get list of indices in the topology for each index of the input measurement"
+    inv_map = {v: i for i, v in enumerate(topology.admittance.ids)}
+    return [inv_map[v] for v in measurement.ids]
 
 class UnitSystem(str, Enum):
     SI = 'SI'
@@ -122,22 +92,21 @@ class AlgorithmParameters(BaseModel):
 def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_ang=0, initial_V=1, slack_index=0):
     """Estimates voltage magnitude and angle from topology, partial power injections
     P + Q i, and lossy partial voltage magnitude.
-
     Parameters
     ----------
     parameters : AlgorithmParameters
         Miscellaneous parameters for algorithm: tolerance, unit-system, etc.
     topology : Topology
         topology includes: Y-matrix, some initial phases, and unique ids
-    P : LabelledArray
+    P : PowersReal (inherited from MeasurementArray)
         Real power injection with unique ids
-    Q : LabelledArray
+    Q : PowersImaginary (inherited from MeasurementArray)
         Reactive power injection with unique ids
-    V : LabelledArray
+    V : VoltagesMagnitude (inherited from MeasurementArray)
         Voltage magnitude with unique ids
     """
-    num_node = len(topology.unique_ids)
-    base_voltages = np.array(topology.base_voltages)
+    num_node = len(topology.admittance.ids)
+    base_voltages = np.array(topology.base_voltage_magnitudes.values)
     logging.debug("Number of Nodes")
     logging.debug(num_node)
     knownP = get_indices(topology, P)
@@ -148,28 +117,30 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
         z = np.concatenate((
             V.array, -1000*np.array(P.array), -1000*np.array(Q.array)
         ), axis=0)
-        Y = matrix_to_numpy(topology.y_matrix)
+        Y = matrix_to_numpy(topology.admittance.admittance_matrix)
     elif parameters.units == UnitSystem.PER_UNIT:
         base_power = 100
         if parameters.base_power != None:
             base_power = parameters.base_power
         z = np.concatenate((
-            V.array / base_voltages[knownV],
-            -np.array(P.array) / base_power,
-            -np.array(Q.array) / base_power
+            V.values / base_voltages[knownV],
+            -np.array(P.values) / base_power,
+            -np.array(Q.values) / base_power
         ), axis=0)
-        Y = matrix_to_numpy(topology.y_matrix)
+        Y = matrix_to_numpy(topology.admittance.admittance_matrix)
         # Hand-crafted unit conversion (check it, it works)
         Y = base_voltages.reshape(1, -1) * Y * \
             base_voltages.reshape(-1, 1) / (base_power * 1000)
     else:
         raise Exception(f"Unit system {parameters.units} not supported")
     tol = parameters.tol
-    
+
     if type(initial_ang) != np.ndarray:
         delta = np.full(num_node, initial_ang)
     else:
         delta = initial_ang
+    logger.debug(delta.shape)
+    logger.debug(num_node)
     assert delta.shape == (num_node,)
 
     if type(initial_V) != np.ndarray:
@@ -185,23 +156,22 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
     # Real dimension of solutions is
     # 2 * num_node - len(knownP) - len(knownV) - len(knownQ)
     if len(knownP) + len(knownV) + len(knownQ) < num_node * 2:
-        #If not observable 
+        #If not observable
         low_limit = np.concatenate((np.ones(num_node)* (- np.pi - np.pi/6),
-                                    np.ones(num_node)*0.95))
+                                    np.ones(num_node)*0.90))
         up_limit = np.concatenate((np.ones(num_node)* (np.pi + np.pi/6),
                                     np.ones(num_node)*1.05))
         res_1 = least_squares(
             residual,
             X0,
             jac=cal_H,
-            bounds = (low_limit, up_limit),
+            #bounds = (low_limit, up_limit),
             # method = 'lm',
             verbose=2,
             ftol=tol,
             xtol=tol,
             gtol=tol,
             args=(z, num_node, knownP, knownQ, knownV, Y),
-            max_nfev=50
         )
     else:
         res_1 = least_squares(
@@ -209,13 +179,12 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
             X0,
             jac=cal_H,
             # bounds = (low_limit, up_limit),
-            method = 'lm',
+            #method = 'lm',
             verbose=2,
             ftol=tol,
             xtol=tol,
             gtol=tol,
             args=(z, num_node, knownP, knownQ, knownV, Y),
-            max_nfev=50
         )
     result = res_1.x
     vmagestDecen, vangestDecen = result[num_node:], result[:num_node]
@@ -235,7 +204,7 @@ class StateEstimatorFederate:
     "State estimator federate. Wraps state_estimation with pubs and subs"
     def __init__(self, federate_name, algorithm_parameters: AlgorithmParameters, input_mapping):
         "Initializes federate with name and remaps input into subscriptions"
-        deltat = 15*60
+        deltat = 0.1
 
         self.algorithm_parameters = algorithm_parameters
 
@@ -250,17 +219,17 @@ class StateEstimatorFederate:
         )
 
         self.vfed = h.helicsCreateValueFederate(federate_name, fedinfo)
-        print("Value federate created", flush=True)
+        logger.info("Value federate created")
 
         # Register the publication #
-        self.sub_voltages = self.vfed.register_subscription(
-            input_mapping["voltages"], "V"
+        self.sub_voltages_magnitude = self.vfed.register_subscription(
+            input_mapping["voltages_magnitude"], "V"
         )
         self.sub_power_P = self.vfed.register_subscription(
-            input_mapping["power_P"], "W"
+            input_mapping["powers_real"], "W"
         )
         self.sub_power_Q = self.vfed.register_subscription(
-            input_mapping["power_Q"], "W"
+            input_mapping["powers_imaginary"], "W"
         )
         self.sub_topology = self.vfed.register_subscription(
             input_mapping["topology"], ""
@@ -276,31 +245,44 @@ class StateEstimatorFederate:
         "Enter execution and exchange data"
         # Enter execution mode #
         self.vfed.enter_executing_mode()
-        print("Entering execution mode", flush=True)
+        logger.info("Entering execution mode")
 
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
 
         self.initial_ang = None
         self.initial_V = None
         while granted_time < h.HELICS_TIME_MAXTIME:
+
             topology = Topology.parse_obj(self.sub_topology.json)
-            if not self.sub_voltages.is_updated():
+            if not self.sub_voltages_magnitude.is_updated():
                 granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
                 continue
 
-            print(granted_time, flush=True)
+            logger.info('start time: '+str(datetime.now()))
 
-            slack_index = topology.unique_ids.index(topology.slack_bus[0])
+            slack_index =  None
+            if not isinstance(topology.admittance, AdmittanceMatrix):
+                raise "Weighted Least Squares algorithm expects AdmittanceMatrix as input"
 
+            for i in range(len(topology.admittance.ids)):
+                if topology.admittance.ids[i] == topology.slack_bus[0]:
+                    slack_index = i
+
+            voltages = VoltagesMagnitude.parse_obj(self.sub_voltages_magnitude.json)
+            knownV = get_indices(topology, voltages)
             if self.initial_V is None:
-                self.initial_V = 1.025 #*np.array(topology.base_voltages)
+                self.initial_V = np.mean(
+                    np.array(voltages.values) / np.array(topology.base_voltage_magnitudes.values)[knownV])
+
+            #if self.initial_V is None:
+               # self.initial_V = 1.025 #*np.array(topology.base_voltages)
             if self.initial_ang is None:
-                self.initial_ang = np.array(topology.phases)
+                self.initial_ang = np.array(topology.base_voltage_angles.values)
 
-            voltages = LabelledArray.parse_obj(self.sub_voltages.json)
 
-            power_P = LabelledArray.parse_obj(self.sub_power_P.json)
-            power_Q = LabelledArray.parse_obj(self.sub_power_Q.json)
+
+            power_P = PowersReal.parse_obj(self.sub_power_P.json)
+            power_Q = PowersImaginary.parse_obj(self.sub_power_Q.json)
 
             voltage_magnitudes, voltage_angles = state_estimator(
                 self.algorithm_parameters,
@@ -309,27 +291,24 @@ class StateEstimatorFederate:
             )
             #self.initial_V = voltage_magnitudes
             #self.initial_ang = voltage_angles
-            self.pub_voltage_mag.publish(LabelledArray(
-                array=list(voltage_magnitudes),
-                unique_ids=topology.unique_ids
+            self.pub_voltage_mag.publish(VoltagesMagnitude(
+                values=list(voltage_magnitudes),
+                ids=topology.admittance.ids,
+                time = voltages.time
             ).json())
-
-            self.pub_voltage_angle.publish(LabelledArray(
-                array=list(voltage_angles),
-                unique_ids=topology.unique_ids
+            self.pub_voltage_angle.publish(VoltagesAngle(
+                values=list(voltage_angles),
+                ids=topology.admittance.ids,
+                time = voltages.time
             ).json())
-            v_real, v_imag = pol2cart(voltage_magnitudes,voltage_angles)
-            logger.debug(f'voltage_angles {voltage_angles}')
-            logger.debug(f'voltage_magnitudes {voltage_magnitudes}')
+            logger.info('end time: '+str(datetime.now()))
 
-            logger.debug(f'voltage_real {v_real}')
-            logger.debug(f'voltage_imag {v_imag}')
         self.destroy()
 
     def destroy(self):
         "Finalize and destroy the federates"
         h.helicsFederateDisconnect(self.vfed)
-        print("Federate disconnected", flush=True)
+        logger.info("Federate disconnected")
 
         h.helicsFederateFree(self.vfed)
         h.helicsCloseLibrary()

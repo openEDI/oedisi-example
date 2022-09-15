@@ -32,7 +32,7 @@
             "name": "feeder",
             "type": "IEEE123Feeder",
             "parameters": {
-                "feeder_file": "IEEE123PV/IEEE123Master_fixedVR.dss",
+                "feeder_file": "gadal-ieee123/qsts/master.dss",
                 "load_file": "IEEE123PV/aug11slow.csv",
                 "pv_file": "IEEE123PV/aug11slow.csv",
                 "start_date": "2013-08-10 00:00:00",

@@ -1,0 +1,178 @@
+{
+    "name": "test_state_estimator",
+    "components": [
+        {
+            "name": "recorder_voltage_real",
+            "type": "Recorder",
+            "parameters": {"feather_filename": "data.feather",
+                           "csv_filename": "data.csv"
+            }
+        },
+        {
+            "name": "recorder_voltage_imag",
+            "type": "Recorder",
+            "parameters": {"feather_filename": "data.feather",
+                           "csv_filename": "data.csv"
+            }
+        },
+        {
+            "name": "recorder_voltage_mag",
+            "type": "Recorder",
+            "parameters": {"feather_filename": "data.feather",
+                           "csv_filename": "data.csv"
+            }
+        },
+        {
+            "name": "recorder_voltage_angle",
+            "type": "Recorder",
+            "parameters": {"feather_filename": "data.feather",
+                           "csv_filename": "data.csv"
+            }
+        },
+        {
+            "name": "state_estimator",
+            "type": "StateEstimatorComponent",
+            "parameters": {
+                "algorithm_parameters": {"tol": 1e-5}
+            }
+        },
+        {
+            "name": "local_feeder",
+            "type": "LocalFeeder",
+            "parameters": {
+                "feeder_file": "gadal-ieee123/qsts/master.dss",
+                "start_date": "2017-01-01 00:00:00",
+                "run_freq_sec": 900,
+                "number_of_timesteps": 36,
+                "start_time_index": 0,
+                "deltat": 60
+            }
+        },
+        {
+            "name": "sensor_voltage_real",
+            "type": "MeasurementComponent",
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+            }
+        },
+        {
+            "name": "sensor_voltage_magnitude",
+            "type": "MeasurementComponent",
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+            }
+        },
+        {
+            "name": "sensor_voltage_imaginary",
+            "type": "MeasurementComponent",
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+            }
+        },
+        {
+            "name": "sensor_power_real",
+            "type": "MeasurementComponent",
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+            }
+        },
+        {
+            "name": "sensor_power_imaginary",
+            "type": "MeasurementComponent",
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+            }
+        }
+
+    ],
+    "links": [
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_magnitude",
+            "target": "sensor_voltage_magnitude",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_real",
+            "target": "sensor_voltage_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_imag",
+            "target": "sensor_voltage_imaginary",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "powers_real",
+            "target": "sensor_power_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "powers_imag",
+            "target": "sensor_power_imaginary",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "topology",
+            "target": "state_estimator",
+            "target_port": "topology"
+        },
+        {
+            "source": "sensor_voltage_magnitude",
+            "source_port": "publication",
+            "target": "state_estimator",
+            "target_port": "voltages_magnitude"
+        },
+        {
+            "source": "sensor_power_real",
+            "source_port": "publication",
+            "target": "state_estimator",
+            "target_port": "powers_real"
+        },
+        {
+            "source": "sensor_power_imaginary",
+            "source_port": "publication",
+            "target": "state_estimator",
+            "target_port": "powers_imaginary"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_real",
+            "target": "recorder_voltage_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_imag",
+            "target": "recorder_voltage_imag",
+            "target_port": "subscription"
+        },
+        {
+            "source": "state_estimator",
+            "source_port": "voltage_angle",
+            "target": "recorder_voltage_angle",
+            "target_port": "subscription"
+        },
+        {
+            "source": "state_estimator",
+            "source_port": "voltage_mag",
+            "target": "recorder_voltage_mag",
+            "target_port": "subscription"
+        }
+    ]
+}
