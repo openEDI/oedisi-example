@@ -126,3 +126,19 @@ This is the new federate that has been made in this example.
 The inputs and outputs for this new federate follow the same configuration
 of the generic `component_description.json` structure.
 The exact definition can be found in `opf_federate_123PV/component_definition.json`
+
+
+
+# Results
+Upon running `python opf_plots.py` the following plots would be generated
+![Load Values in Watts](Load Values with OPF.png)
+
+![Cap Bank Scheduling [Watts]](Cap%20Reactive%20Powers%20with%20OPF.png)
+![Active Power Shedding Results [Watts]](PV%20Active%20Powers%20with%20OPF.png)
+
+![Reactive Power Injection Results [Var]](PV%20Reactive%20Powers%20with%20OPF.png)
+![Resultant Feeder Voltage Magnitudes [Volts]](Voltage%20Magnitudes%20Powers%20with%20OPF.png)
+
+the above results could be generated for feeder without OPF
+using the command `run_ieee123_wo_opf.sh` and then running 
+`python opf_plots.py` with setting `opf_flags=False`
