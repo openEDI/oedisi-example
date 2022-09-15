@@ -4,6 +4,7 @@
   "start_time_index": 1,
   "name": "opf",
   "deltat": 1,
+  "duration": 3600,
   "algorithm_settings": {
     "gradient_descent_setting": {
       "iter_lim": 1050,

@@ -39,7 +39,8 @@
                 "run_freq_sec": 60,
                 "start_time_index": 1,
                 "deltat": 60,
-                "flex_load_input_file": "flex_load_info.json"
+                "flex_load_input_file": "flex_load_info.json",
+              "duration": 3600
             }
         },
         {
@@ -51,6 +52,7 @@
             "start_time_index": 1,
             "name": "opf",
             "deltat": 60,
+            "duration": 3600,
             "algorithm_settings": {
               "gradient_descent_setting": {
                 "iter_lim": 1050,
@@ -127,6 +129,18 @@
             "target_port": "power_Q"
         },
               {
+            "source": "sensors",
+            "source_port": "power_real",
+            "target": "opf",
+            "target_port": "power_P"
+        },
+        {
+            "source": "sensors",
+            "source_port": "power_imag",
+            "target": "opf",
+            "target_port": "power_Q"
+        },
+      {
             "source": "feeder",
             "source_port": "voltages_real",
             "target": "recorder_voltage_real",

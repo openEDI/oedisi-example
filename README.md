@@ -18,17 +18,6 @@ pip install scipy matplotlib numpy pandas
 3. Run `helics run --path=test_system_runner.json`
 4. Analyze the results using `python post_analysis.py`
 
-### Using IEEE123 test system with OPF
-A prebuilt ipopt binary can be put into your python executables '/bin/' folder. 
-Based on your OS, binaries can be downloaded from: https://www.coin-or.org/download/binary/Ipopt/
-install all other requirements using 
-`pip install -r requirements.txt`
-For running the opf example
-`./run_ieee123_with_opf.sh`
-The shell script contains two lines
-`python test_full_systems_with_opf.py test_ieee123_with_opf.json`
-`helics run --path=test_system_runner.json`
-
 ## Troubleshooting
 
 If the simulation fails, you may **need** to kill the `helics_broker` manually before you can start a new simulation.
@@ -88,3 +77,52 @@ for each component with the right configuration.
 
 ![Voltage angles at time 95](voltage_angles_95.png)
 ![Voltage magnitudes at time 95](voltage_magnitudes_95.png)
+
+### Modification of SGIDAL-Example to Run DOPF
+
+1. In addition to the SGIDAL installation dependencies, some more dependencies are required for OPF. You can install them using 
+
+```
+pip install -r requirements.txt
+```
+
+After running this command, the final dependency is IPOPT. 
+A prebuilt ipopt binary can be put into your python executables '/bin/' folder. 
+Based on your OS, binaries can be downloaded from: https://www.coin-or.org/download/binary/Ipopt/
+install all other requirements using 
+2. Running the DOPF Example
+
+`./run_ieee123_with_opf.sh`
+
+The shell script contains two lines
+
+```python test_full_systems_with_opf.py test_ieee123_with_opf.json`
+helics run --path=test_system_runner.json```
+
+`test_ieee123_with_opf.json` contains federate definitions, configuration files and the links between source and targes
+
+`test_full_systems_with_opf.py` uses `test_ieee123_with_opf.json`
+to generate directories of all federates and prepares the helics runner file `test_system_runner.json` 
+
+3. To kill the simulation run
+`./kill.sh`
+
+4. To clean the directory to get rid of .log files
+`./clean.sh`
+
+5. To analyze the results run the file
+`python opf_plots.py`
+
+# Components 
+
+All the required components are in this repo as well. Each component
+also defines its own pydantic models at present.
+
+![Block diagram of DOPF Simulation](dopf_example.png)
+
+
+## DOPF Federate
+This is the new federate that has been made in this example.
+The inputs and outputs for this new federate follow the same configuration
+of the generic `component_description.json` structure.
+The exact definition can be found in `opf_federate_123PV/component_definition.json`

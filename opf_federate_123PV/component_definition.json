@@ -19,6 +19,8 @@
         {"type": "", "port_id": "flex_info"},
         {"type": "", "port_id": "powers_real"},
         {"type": "", "port_id": "powers_imag"},
+        {"type": "", "port_id": "power_P"},
+        {"type": "", "port_id": "power_Q"},
         {"type": "", "port_id": "cap_powers_imag"},
         {"type": "", "port_id": "pv_powers_real"},
         {"type": "", "port_id": "pv_powers_imag"},

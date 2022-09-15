@@ -315,7 +315,7 @@ class SimulationFederate:
         )
 
         #TODO: decide time steps and time intervals
-        seconds = 60*60*24
+        seconds = 60*60*1
 
         total_interval = int(seconds + 10)
         current_index = config.start_time_index

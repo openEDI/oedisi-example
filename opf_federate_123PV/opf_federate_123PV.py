@@ -165,6 +165,16 @@ class OptimalPowerFlowFederate:
         )
         logger.info(f"reactive power load subscribed")
 
+        self.sub_power_real = self.opf_fed.register_subscription(
+            input_mapping["power_P"], "W"
+        )
+        logger.info(f"active power load sensor subscribed")
+
+        self.sub_power_imag = self.opf_fed.register_subscription(
+            input_mapping["power_Q"], "Var"
+        )
+        logger.info(f"reactive power from sensor subscribed")
+
         self.sub_cap_powers_imag = self.opf_fed.register_subscription(
             input_mapping["cap_powers_imag"], "Var"
         )
@@ -216,7 +226,7 @@ class OptimalPowerFlowFederate:
         self.opf_fed.enter_executing_mode()
         logger.info("Entering execution mode")
 
-        seconds = 60*60*24
+        seconds = 60*60*1
         total_interval = int(seconds + 10)
         logger.info(f'HELICS PROPERTY TIME PERIOD {h.HELICS_PROPERTY_TIME_PERIOD}')
         update_interval = int(h.helicsFederateGetTimeProperty(self.opf_fed, h.HELICS_PROPERTY_TIME_PERIOD))
@@ -295,11 +305,22 @@ class OptimalPowerFlowFederate:
                     # logger.info(f'Subscribed Imag Voltages Received')
                     # logger.info(f'self.voltages_real from feeder = {self.voltages_real}')
                     # logger.info(f'self.voltages_imag from feeder = {self.voltages_imag}')
+
+                    self.power_P = LabelledArray.parse_obj(self.sub_power_real.json)
+                    logger.info(f'Subscribed Active Power Sensor Received')
+                    logger.info(f'Subscribed Active Power Received from sensor {self.power_P}')
+
+                    self.power_Q = LabelledArray.parse_obj(self.sub_power_imag.json)
+                    logger.info(f'Subscribed Reactive Power Sensor Received')
+                    logger.info(f'Subscribed Rea Power Received from sensor {self.power_Q}')
+
                     self.powers_P = LabelledArray.parse_obj(self.sub_powers_real.json)
                     logger.info(f'Subscribed Active Power Received')
+                    logger.info(f'Subscribed Active Power Received from feeder {self.powers_P}')
 
                     self.powers_Q = LabelledArray.parse_obj(self.sub_powers_imag.json)
                     logger.info(f'Subscribed Reactive Power Received')
+                    logger.info(f'Subscribed Reactive Power Received from feeder {self.powers_Q}')
 
                     self.cap_Q = LabelledArray.parse_obj(self.sub_cap_powers_imag.json)
                     logger.info(f"cap_powers_imag received")
