@@ -161,15 +161,16 @@ def go_cosim(sim, config: FeederConfig):
         sim.solve(current_hour,current_second)
 
         feeder_voltages = sim.get_voltages_actual()
-        PQ_node = sim.get_PQs()
+        PQ_injections_all,PQ_names_all,PQ_types_all = sim.get_PQs()
+
         logger.debug("Feeder Voltages")
         logger.debug(feeder_voltages)
         logger.debug("PQ")
-        logger.debug(PQ_node)
+        logger.debug(PQ_injections_all)
         logger.debug("Calculated Power")
         Cal_power = feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
-        errors = PQ_node + Cal_power
-        PQ_node[:3] = -Cal_power[:3]
+        errors = PQ_injections_all + Cal_power
+        PQ_injections_all[:3] = -Cal_power[:3]
         logger.debug("errors")
         logger.debug(errors)
         power_balance = (feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000)
@@ -179,7 +180,7 @@ def go_cosim(sim, config: FeederConfig):
         logger.debug(indices)
         logger.debug([sim._AllNodeNames[i] for i in indices])
         logger.debug("Power, Voltages, and Calculated Power at Indices")
-        logger.debug(PQ_node[indices])
+        logger.debug(PQ_injections_all[indices])
         logger.debug(feeder_voltages[indices])
         logger.debug(power_balance[indices])
 
@@ -190,10 +191,24 @@ def go_cosim(sim, config: FeederConfig):
            values = phases,
            ids = unique_ids
         )
+
+        PQ_real = []
+        PQ_imaginary = []
+        PQ_names = []
+        PQ_types = []
+        for i in range(len(PQ_injections_all)):
+            if PQ_injections_all[i] != 0:
+                PQ_real.append(PQ_injections[i].real)
+                PQ_imaginary.append(PQ_injections[i].imag)
+                PQ_names.append(PQ_names_all[i])
+                PQ_types.append(PQ_types_all[i])
+        power_real = PowersReal(ids = PQ_names, values = PQ_real, equipment_type = PQ_types)
+        power_imaginary = PowersImaginary(ids = PQ_names, values = PQ_imaginary, equipment_type = PQ_types)
+        injections = Injection(power_real=power_real, power_imaginary = power_imaginary)
         topology = Topology(
             admittance=admittancematrix,
             base_voltage_angles=base_voltageangle,
-            injections={},
+            injections=injections,
             base_voltage_magnitudes=base_voltagemagnitude,
             slack_bus=slack_bus,
         )
@@ -204,8 +219,8 @@ def go_cosim(sim, config: FeederConfig):
         pub_voltages_magnitude.publish(VoltagesMagnitude(values=list(voltage_magnitudes), ids=sim._AllNodeNames, time = current_timestamp).json())
         pub_voltages_real.publish(VoltagesReal(values=list(feeder_voltages.real), ids=sim._AllNodeNames, time = current_timestamp).json())
         pub_voltages_imag.publish(VoltagesImaginary(values=list(feeder_voltages.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
-        pub_powers_real.publish(PowersReal(values=list(PQ_node.real), ids=sim._AllNodeNames, time = current_timestamp).json())
-        pub_powers_imag.publish(PowersImaginary(values=list(PQ_node.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
+        pub_powers_real.publish(PowersReal(values=list(PQ_injections_all.real), ids=sim._AllNodeNames, time = current_timestamp).json())
+        pub_powers_imag.publish(PowersImaginary(values=list(PQ_injections_all.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
 
         logger.info('end time: '+str(datetime.now()))
 
