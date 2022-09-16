@@ -234,9 +234,9 @@ class FeederSimulator(object):
         for cap in get_capacitors(dss):
             for ii in range(cap["numPhases"]):
                 index = self._name_index_dict[cap["busname"].upper() + '.' + cap["busphase"][ii]]
-                Qcap[index] = -cap["power"][2 * ii - 1]
+                Qcap[index] = cap["power"][2 * ii + 1]
 
-        return PQ_load + PQ_PV + PQ_gen #+ 1j * np.array(Qcap)  # power injection
+        return PQ_load + PQ_PV + PQ_gen + 1j * np.array(Qcap)  # power injection
 
 
     def get_loads(self):
