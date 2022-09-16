@@ -169,6 +169,9 @@ def go_cosim(sim, config: FeederConfig):
         logger.debug("Calculated Power")
         Cal_power = feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
         errors = PQ_node + Cal_power
+        sort_errors = np.sort(np.abs(errors))
+        if np.any(sort_errors[:-3] > 1):
+            raise ValueError('Power balance does not hold')
         PQ_node[sim._source_indexes] = -Cal_power[sim._source_indexes]
         logger.debug("errors")
         logger.debug(errors)
