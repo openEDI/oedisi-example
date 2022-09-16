@@ -6,19 +6,26 @@ import pandas as pd
 import json
 import os
 from gadal.gadal_types.data_types import MeasurementArray, AdmittanceMatrix, Topology
+import argparse
 
-voltage_real = feather.read_feather(os.path.join("recorder_voltage_real","data.feather"))
-voltage_imag = feather.read_feather(os.path.join("recorder_voltage_imag","data.feather"))
 
-with open(os.path.join("local_feeder","topology.json")) as f:
+parser = argparse.ArgumentParser(description='Create plots')
+parser.add_argument("directory", nargs="?", default="outputs",
+                    help="directory to look for voltage_measurements")
+args = parser.parse_args()
+
+voltage_real = feather.read_feather(os.path.join(args.directory, "voltage_real.feather"))
+voltage_imag = feather.read_feather(os.path.join(args.directory, "voltage_imag.feather"))
+
+with open(os.path.join(args.directory, "topology.json")) as f:
     topology = Topology.parse_obj(json.load(f))
     base_voltages = np.array(topology.base_voltage_magnitudes.values)
 
 true_voltages = voltage_real.drop('time', axis=1) + 1j * voltage_imag.drop('time', axis=1)
 time = voltage_real["time"]
 
-voltage_mag = feather.read_feather(os.path.join("recorder_voltage_mag","data.feather")).drop('time', axis=1)
-voltage_angle = feather.read_feather(os.path.join("recorder_voltage_angle","data.feather")).drop('time', axis=1)
+voltage_mag = feather.read_feather(os.path.join(args.directory, "voltage_mag.feather")).drop('time', axis=1)
+voltage_angle = feather.read_feather(os.path.join(args.directory, "voltage_angle.feather")).drop('time', axis=1)
 
 estimated_voltages = voltage_mag * np.exp(1j * voltage_angle)
 
@@ -62,7 +69,7 @@ def errors(true_voltages, estimated_voltages):
     return MAPE, MAE
 
 
-def error_table(true_voltages, estimated_voltage):
+def error_table(true_voltages, estimated_voltages):
     error_table = []
     for i, t in enumerate(time):
         MAPE, MAE = errors(true_voltages.iloc[i,:], estimated_voltages.iloc[i,:])
@@ -78,6 +85,7 @@ def plot_errors(err_table):
     ax.set_ylabel("Error")
     ax.set_xlabel("Time (15 minute)")
     ax.set_title("Voltage Errors")
+    ax.set_xticks(err_table["t"][::5], err_table["t"][::5], rotation=-25, fontsize=5)
     return fig
 
 err_table = error_table(true_voltages, estimated_voltages)

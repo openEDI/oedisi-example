@@ -139,7 +139,7 @@ def go_cosim(sim, config: FeederConfig):
 
     logger.info("Sending topology and saving to topology.json")
     pub_topology.publish(topology.json())
-    with open("topology.json", "w") as f:
+    with open(config.topology_output, "w") as f:
         f.write(topology.json())
 
     snapshot_run(sim)

@@ -56,6 +56,7 @@ class FeederConfig(BaseModel):
     start_date: str
     increment_value: int # increment in seconds
     number_of_timesteps: int
+    topology_output: str = "topology.json"
 
 
 class FeederSimulator(object):

@@ -5,6 +5,26 @@ from gadal.componentframework.system_configuration import (
     generate_runner_config,
     WiringDiagram,
 )
+import argparse
+
+parser = argparse.ArgumentParser(description="Build system")
+parser.add_argument(
+    "--target-directory",
+    type=str,
+    default="build",
+    help="Target directory to put the system in",
+    metavar="PARAM",
+)
+
+parser.add_argument(
+    "--system",
+    type=str,
+    default="test_system.json",
+    help="Wiring diagram json to build",
+    metavar="PARAM",
+)
+
+args = parser.parse_args()
 
 def bad_type_checker(type, x):
     "Doesn't do any type checking on the exchange types"
@@ -37,9 +57,9 @@ component_types = {
 }
 
 # Read wiring diagram (lists components, links, and parameters)
-wiring_diagram = WiringDiagram.parse_file("test_system.json")
+wiring_diagram = WiringDiagram.parse_file(args.system)
 #wiring_diagram.clean_model()
 # Generate runner config using wiring diagram and component types
-runner_config = generate_runner_config(wiring_diagram, component_types)
-with open("test_system_runner.json", "w") as f:
+runner_config = generate_runner_config(wiring_diagram, component_types, target_directory="build")
+with open(f"{args.target_directory}/test_system_runner.json", "w") as f:
     f.write(runner_config.json(indent=2))

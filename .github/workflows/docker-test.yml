@@ -1,0 +1,52 @@
+name: DockerTest
+
+on: [push]
+jobs:
+  docker:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ['3.10']
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+        token: ${{ secrets.CI_TOKEN }}
+    - name: build docker container
+      shell: bash
+      run: |
+        echo "$SSH_KEY" > gadal_docker_key
+        docker build --secret id=gadal_github_key,src=gadal_docker_key --progress=plain -t gadal-example:0.0.0 .
+      env:
+        SSH_KEY: ${{secrets.SGIDAL_CLONE_KEY}}
+        DOCKER_BUILDKIT: '1'
+    - name: run docker continaer
+      shell: bash
+      run: |
+        mkdir outputs_build
+        docker volume create --name gadal_output --opt type=none --opt device=$(pwd)/outputs_build --opt o=bind
+        docker run --rm --mount source=gadal_output,target=/simulation/outputs gadal-example:0.0.0
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: ${{ matrix.python-version }}
+    - name: Run plots
+      shell: bash -l {0}
+      run: |
+        pip install matplotlib pyarrow numpy matplotlib pandas
+        eval `ssh-agent -s`
+        ssh-add - <<< '${{ secrets.SGIDAL_CLONE_KEY }}'
+        pip install git+ssh://git@github.com/openEDI/GADAL@v0.2.2
+
+        python post_analysis.py outputs_build
+    - name: Archive logs
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: docker_logs
+        path: |
+          outputs_build/*.log
+          *.png

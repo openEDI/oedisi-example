@@ -1,0 +1,10 @@
+helics==3.2.1.post15 
+helics-apps==3.2.1
+pydantic
+pyarrow
+scipy
+matplotlib
+numpy
+pandas
+OpenDSSDirect.py[extras]
+boto3
