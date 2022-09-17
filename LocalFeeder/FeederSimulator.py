@@ -196,63 +196,95 @@ class FeederSimulator(object):
         Vnom = np.abs(Vnom)
         return Vnom
 
-    def get_PQs(self):
+    def get_PQs_load(self,static=False):
         num_nodes = len(self._name_index_dict.keys())
 
-        PQ_names_all = ['' for i in len(num_nodes)]
-        PQ_types_all = ['' for i in len(num_nodes)]
+        PQ_names= ['' for i in range(num_nodes)]
+        PQ_types= ['' for i in range(num_nodes)]
         PQ_load = np.zeros((num_nodes), dtype=np.complex_)
         for ld in get_loads(dss,self._circuit):
+            self._circuit.SetActiveElement('Load.' + ld["name"])
             for ii in range(len(ld['phases'])):
                 name = ld['bus1'].upper() + '.' + ld['phases'][ii]
                 index = self._name_index_dict[name]
-                self._circuit.SetActiveElement('Load.' + ld["name"])
-                power = dss.CktElement.Powers()
-                PQ_load[index] += np.complex(power[2 * ii], power[2 * ii + 1])
-                PQ_names_all[index] = name
-                PQ_types_all[index] = 'Load'
+                if static:
+                    power = complex(ld['kW'],ld['kVar'])
+                    PQ_load[index] += power/len(ld['phases'])
+                else:
+                    power = dss.CktElement.Powers()
+                    PQ_load[index] += np.complex(power[2 * ii], power[2 * ii + 1])
+                PQ_names[index] = name
+                PQ_types[index] = 'Load'
 
+        return PQ_load,PQ_names,PQ_types
+
+    def get_PQs_pv(self,static=False):
+        num_nodes = len(self._name_index_dict.keys())
+
+        PQ_names= ['' for i in range(num_nodes)]
+        PQ_types= ['' for i in range(num_nodes)]
         PQ_PV = np.zeros((num_nodes), dtype=np.complex_)
         for PV in get_pvSystems(dss):
             bus = PV["bus"].split('.')
             if len(bus) == 1:
                 bus = bus + ['1', '2', '3']
             self._circuit.SetActiveElement('PVSystem.'+PV["name"])
-            power = dss.CktElement.Powers()
             for ii in range(len(bus) - 1):
                 name = bus[0].upper() + '.' + bus[ii + 1]
                 index = self._name_index_dict[name]
-                PQ_PV[index] += np.complex(power[2 * ii], power[2 * ii + 1])
-                PQ_names_all[index] = name
-                PQ_types_all[index] = 'PVSystem'
+                if static:
+                    power = complex(-1*PV['kW'],-1*PV['kVar']) #-1 because injecting
+                    PQ_PV[index] += power/(len(bus)-1)
+                else:
+                    power = dss.CktElement.Powers()
+                    PQ_PV[index] += np.complex(power[2 * ii], power[2 * ii + 1])
+                PQ_names[index] = name
+                PQ_types[index] = 'PVSystem'
+        return PQ_PV,PQ_names,PQ_types
 
+    def get_PQs_gen(self,static=False):
+        num_nodes = len(self._name_index_dict.keys())
+
+        PQ_names= ['' for i in range(num_nodes)]
+        PQ_types= ['' for i in range(num_nodes)]
         PQ_gen = np.zeros((num_nodes), dtype=np.complex_)
-        PQ_gen_all = np.zeros((num_nodes), dtype=np.complex_)
         for PV in get_Generator(dss):
             bus = PV["bus"]
             self._circuit.SetActiveElement('Generator.'+PV["name"])
-            power = dss.CktElement.Powers()
             for ii in range(len(bus) - 1):
                 name = bus[0].upper() + '.' + bus[ii + 1]
                 index = self._name_index_dict[name]
-                PQ_gen_all[index] += np.complex(power[2 * ii], power[2 * ii + 1])
-                PQ_gen[index] += np.complex(power[2 * ii], power[2 * ii + 1])
-                PQ_names_all[index] = name
-                PQ_types_all[index] = 'Generator'
+                if static:
+                    power = complex(-1*PV['kW'],-1*PV['kVar']) #-1 because injecting
+                    PQ_gen[index] += power/(len(bus)-1)
+                else:
+                    power = dss.CktElement.Powers()
+                    PQ_gen[index] += np.complex(power[2 * ii], power[2 * ii + 1])
+                PQ_names[index] = name
+                PQ_types[index] = 'Generator'
+        return PQ_gen,PQ_names,PQ_types
 
-        Qcap = [0] * num_nodes
+    def get_PQs_cap(self,static=False):
+        num_nodes = len(self._name_index_dict.keys())
+
+        PQ_names= ['' for i in range(num_nodes)]
+        PQ_types= ['' for i in range(num_nodes)]
+        PQ_cap = np.zeros((num_nodes), dtype=np.complex_)
         for cap in get_capacitors(dss):
             for ii in range(cap["numPhases"]):
                 name = cap["busname"].upper() + '.' + cap["busphase"][ii]
                 index = self._name_index_dict[name]
-                Qcap[index] = cap["power"][2 * ii + 1]
-                PQ_names_all[index] = name
-                PQ_types_all[index] = 'Capacitor'
+                if static:
+                    power = complex(0,-1*cap['kVar']) #-1 because it's injected into the grid
+                    PQ_cap[index] += power/cap["numPhases"]
+                else:
+                    PQ_cap[index] = np.complex(0,cap["power"][2 * ii + 1])
+                PQ_names[index] = name
+                PQ_types[index] = 'Capacitor'
 
-        PQ_injections_all = PQ_load + PQ_PV + PQ_gen + 1j * np.array(Qcap)  # power injection
+        return PQ_cap,PQ_names,PQ_types
 
 
-        return PQ_injections_all,PQ_names_all,PQ_types_all
 
 
     def get_loads(self):
