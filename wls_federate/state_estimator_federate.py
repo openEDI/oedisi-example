@@ -155,15 +155,17 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
     logging.debug(delta)
     X0 = np.concatenate((delta, Vabs))
     logging.debug(X0)
+    ang_low =  np.concatenate(([-1e-5], np.ones(num_node -1)* (- np.inf)))
+    ang_up =  np.concatenate(([1e-5], np.ones(num_node -1)* ( np.inf)))
+    mag_low =  np.ones(num_node)* (- np.inf)
+    mag_up =  np.ones(num_node)* (np.inf)
+    low_limit = np.concatenate((ang_low, mag_low))
+    up_limit = np.concatenate((ang_up, mag_up))
     # Weights are ignored since errors are sampled from Gaussian
     # Real dimension of solutions is
     # 2 * num_node - len(knownP) - len(knownV) - len(knownQ)
     if len(knownP) + len(knownV) + len(knownQ) < num_node * 2:
         #If not observable 
-        low_limit = np.concatenate((np.ones(num_node)* (- np.pi - np.pi/6),
-                                    np.ones(num_node)*0.90))
-        up_limit = np.concatenate((np.ones(num_node)* (np.pi + np.pi/6),
-                                    np.ones(num_node)*1.05))
         res_1 = least_squares(
             residual,
             X0,
@@ -181,7 +183,7 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
             residual,
             X0,
             jac=cal_H,
-            # bounds = (low_limit, up_limit),
+            bounds = (low_limit, up_limit),
             #method = 'lm',
             verbose=2,
             ftol=tol,
