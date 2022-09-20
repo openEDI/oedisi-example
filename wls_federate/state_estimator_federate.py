@@ -274,20 +274,20 @@ class StateEstimatorFederate:
                     slack_index = i
                     
             voltages = VoltagesMagnitude.parse_obj(self.sub_voltages_magnitude.json)
+            power_Q = PowersImaginary.parse_obj(self.sub_power_Q.json)
+            power_P = PowersReal.parse_obj(self.sub_power_P.json)
+            knownP = get_indices(topology, power_P)
+            knownQ = get_indices(topology, power_Q)
             knownV = get_indices(topology, voltages)
+            
             if self.initial_V is None:
-                self.initial_V = np.mean(
-                    np.array(voltages.values) / np.array(topology.base_voltage_magnitudes.values)[knownV])
-                
-            #if self.initial_V is None:
-               # self.initial_V = 1.025 #*np.array(topology.base_voltages)
+                #Flat start or using average measurements
+                if len(knownP) + len(knownV) + len(knownQ) > len(topology.admittance.ids) * 2:
+                    self.initial_V = 1.0
+                else:
+                    self.initial_V = np.mean(np.array(voltages.values) / np.array(topology.base_voltage_magnitudes.values)[knownV])
             if self.initial_ang is None:
                 self.initial_ang = np.array(topology.base_voltage_angles.values)
-
-            
-
-            power_P = PowersReal.parse_obj(self.sub_power_P.json)
-            power_Q = PowersImaginary.parse_obj(self.sub_power_Q.json)
 
             voltage_magnitudes, voltage_angles = state_estimator(
                 self.algorithm_parameters,
