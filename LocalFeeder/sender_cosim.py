@@ -132,7 +132,6 @@ def go_cosim(sim, config: FeederConfig):
     all_PQs['gen'] = sim.get_PQs_gen(static=True)
     all_PQs['cap'] = sim.get_PQs_cap(static=True)
 
-    PQ_injections_all = all_PQs['load'][0]+ all_PQs['pv'][0] + all_PQs['gen'][0]+ all_PQs['cap'][0]
     PQ_real = []
     PQ_imaginary = []
     PQ_names = []
@@ -189,19 +188,6 @@ def go_cosim(sim, config: FeederConfig):
         all_PQs['cap'] = sim.get_PQs_cap(static=False)
     
         PQ_injections_all = all_PQs['load'][0]+ all_PQs['pv'][0] + all_PQs['gen'][0]+ all_PQs['cap'][0]
-        PQ_real = []
-        PQ_imaginary = []
-        PQ_names = []
-        PQ_types = []
-        for i in range(len(all_PQs['load'][0])):
-            for key in all_PQs:
-                if all_PQs[key][1][i] !='':
-                    PQ_real.append(-1*all_PQs[key][0][i].real) # injections are negative singe PQ values are positive
-                    PQ_imaginary.append(-1*all_PQs[key][0][i].imag) # injections are negative singe PQ values are positive
-                    PQ_names.append(all_PQs[key][1][i])
-                    PQ_types.append(all_PQs[key][2][i])
-
-
 
         logger.debug("Feeder Voltages")
         logger.debug(feeder_voltages)
@@ -234,17 +220,6 @@ def go_cosim(sim, config: FeederConfig):
            values = phases,
            ids = unique_ids
         )
-        power_real = PowersReal(ids = PQ_names, values = PQ_real, equipment_type = PQ_types)
-        power_imaginary = PowersImaginary(ids = PQ_names, values = PQ_imaginary, equipment_type = PQ_types)
-        injections = Injection(power_real=power_real, power_imaginary = power_imaginary)
-        topology = Topology(
-            admittance=admittancematrix,
-            base_voltage_angles=base_voltageangle,
-            injections=injections,
-            base_voltage_magnitudes=base_voltagemagnitude,
-            slack_bus=slack_bus,
-        )
-        pub_topology.publish(topology.json())
 
         logger.debug('Publish load ' + str(feeder_voltages.real[0]))
         voltage_magnitudes = np.abs(feeder_voltages.real + 1j* feeder_voltages.imag)
