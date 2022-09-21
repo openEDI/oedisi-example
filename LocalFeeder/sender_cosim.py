@@ -9,11 +9,11 @@ from pydantic import BaseModel
 from typing import List, Tuple
 import numpy as np
 from datetime import datetime, timedelta
-from gadal.gadal_types.data_types import Complex,Topology,VoltagesReal,VoltagesImaginary,PowersReal,PowersImaginary, AdmittanceMatrix, VoltagesMagnitude, VoltagesAngle
+from gadal.gadal_types.data_types import Complex,Topology,VoltagesReal,VoltagesImaginary,PowersReal,PowersImaginary, AdmittanceMatrix, VoltagesMagnitude, VoltagesAngle, Injection
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 test_se = False
 
@@ -99,6 +99,7 @@ def go_cosim(sim, config: FeederConfig):
     ]
 
     unique_ids = sim._AllNodeNames
+    snapshot_run(sim)
 
     logger.debug("y-matrix")
     logger.debug(y_matrix)
@@ -125,11 +126,31 @@ def go_cosim(sim, config: FeederConfig):
            values = phases,
            ids = unique_ids
     )
+    all_PQs = {}
+    all_PQs['load'] = sim.get_PQs_load(static=True) # Return type is PQ_values, PQ_names, PQ_types all with same size
+    all_PQs['pv'] = sim.get_PQs_pv(static=True)
+    all_PQs['gen'] = sim.get_PQs_gen(static=True)
+    all_PQs['cap'] = sim.get_PQs_cap(static=True)
 
+    PQ_real = []
+    PQ_imaginary = []
+    PQ_names = []
+    PQ_types = []
+    for i in range(len(all_PQs['load'][0])):
+        for key in all_PQs:
+            if all_PQs[key][1][i] !='':
+                PQ_real.append(-1*all_PQs[key][0][i].real) # injections are negative singe PQ values are positive
+                PQ_imaginary.append(-1*all_PQs[key][0][i].imag) # injections are negative singe PQ values are positive
+                PQ_names.append(all_PQs[key][1][i])
+                PQ_types.append(all_PQs[key][2][i])
+    power_real = PowersReal(ids = PQ_names, values = PQ_real, equipment_type = PQ_types)
+    power_imaginary = PowersImaginary(ids = PQ_names, values = PQ_imaginary, equipment_type = PQ_types)
+    injections = Injection(power_real=power_real, power_imaginary = power_imaginary)
+ 
     topology = Topology(
         admittance=admittancematrix,
         base_voltage_angles=base_voltageangle,
-        injections={},
+        injections=injections,
         base_voltage_magnitudes=base_voltagemagnitude,
         slack_bus=slack_bus,
     )
@@ -139,7 +160,6 @@ def go_cosim(sim, config: FeederConfig):
         f.write(topology.json())
     pub_topology.publish(topology.json())
 
-    snapshot_run(sim)
 
     granted_time = -1
     current_hour = 0
@@ -161,17 +181,27 @@ def go_cosim(sim, config: FeederConfig):
         sim.solve(current_hour,current_second)
 
         feeder_voltages = sim.get_voltages_actual()
-        PQ_node = sim.get_PQs()
+        all_PQs = {}
+        all_PQs['load'] = sim.get_PQs_load(static=False) # Return type is PQ_values, PQ_names, PQ_types all with same size
+        all_PQs['pv'] = sim.get_PQs_pv(static=False)
+        all_PQs['gen'] = sim.get_PQs_gen(static=False)
+        all_PQs['cap'] = sim.get_PQs_cap(static=False)
+    
+        PQ_injections_all = all_PQs['load'][0]+ all_PQs['pv'][0] + all_PQs['gen'][0]+ all_PQs['cap'][0]
+
         logger.debug("Feeder Voltages")
         logger.debug(feeder_voltages)
         logger.debug("PQ")
-        logger.debug(PQ_node)
+        logger.debug(PQ_injections_all)
         logger.debug("Calculated Power")
         Cal_power = feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
-        errors = PQ_node + Cal_power
-        PQ_node[:3] = -Cal_power[:3]
+        errors = PQ_injections_all + Cal_power
+        sort_errors = np.sort(np.abs(errors))
         logger.debug("errors")
         logger.debug(errors)
+        if np.any(sort_errors[:-3] > 1):
+            raise ValueError('Power balance does not hold')
+        PQ_injections_all[sim._source_indexes] = -Cal_power[sim._source_indexes]
         power_balance = (feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000)
         logger.debug(power_balance)
         indices, = np.nonzero(np.abs(errors) > 1)
@@ -179,7 +209,7 @@ def go_cosim(sim, config: FeederConfig):
         logger.debug(indices)
         logger.debug([sim._AllNodeNames[i] for i in indices])
         logger.debug("Power, Voltages, and Calculated Power at Indices")
-        logger.debug(PQ_node[indices])
+        logger.debug(PQ_injections_all[indices])
         logger.debug(feeder_voltages[indices])
         logger.debug(power_balance[indices])
 
@@ -190,22 +220,14 @@ def go_cosim(sim, config: FeederConfig):
            values = phases,
            ids = unique_ids
         )
-        topology = Topology(
-            admittance=admittancematrix,
-            base_voltage_angles=base_voltageangle,
-            injections={},
-            base_voltage_magnitudes=base_voltagemagnitude,
-            slack_bus=slack_bus,
-        )
-        pub_topology.publish(topology.json())
 
         logger.debug('Publish load ' + str(feeder_voltages.real[0]))
         voltage_magnitudes = np.abs(feeder_voltages.real + 1j* feeder_voltages.imag)
         pub_voltages_magnitude.publish(VoltagesMagnitude(values=list(voltage_magnitudes), ids=sim._AllNodeNames, time = current_timestamp).json())
         pub_voltages_real.publish(VoltagesReal(values=list(feeder_voltages.real), ids=sim._AllNodeNames, time = current_timestamp).json())
         pub_voltages_imag.publish(VoltagesImaginary(values=list(feeder_voltages.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
-        pub_powers_real.publish(PowersReal(values=list(PQ_node.real), ids=sim._AllNodeNames, time = current_timestamp).json())
-        pub_powers_imag.publish(PowersImaginary(values=list(PQ_node.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
+        pub_powers_real.publish(PowersReal(values=list(PQ_injections_all.real), ids=sim._AllNodeNames, time = current_timestamp).json())
+        pub_powers_imag.publish(PowersImaginary(values=list(PQ_injections_all.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
 
         logger.info('end time: '+str(datetime.now()))
 

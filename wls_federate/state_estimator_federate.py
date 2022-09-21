@@ -155,15 +155,17 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
     logging.debug(delta)
     X0 = np.concatenate((delta, Vabs))
     logging.debug(X0)
+    ang_low =  np.concatenate(([-1e-5], np.ones(num_node -1)* (- np.inf)))
+    ang_up =  np.concatenate(([1e-5], np.ones(num_node -1)* ( np.inf)))
+    mag_low =  np.ones(num_node)* (- np.inf)
+    mag_up =  np.ones(num_node)* (np.inf)
+    low_limit = np.concatenate((ang_low, mag_low))
+    up_limit = np.concatenate((ang_up, mag_up))
     # Weights are ignored since errors are sampled from Gaussian
     # Real dimension of solutions is
     # 2 * num_node - len(knownP) - len(knownV) - len(knownQ)
     if len(knownP) + len(knownV) + len(knownQ) < num_node * 2:
         #If not observable 
-        low_limit = np.concatenate((np.ones(num_node)* (- np.pi - np.pi/6),
-                                    np.ones(num_node)*0.90))
-        up_limit = np.concatenate((np.ones(num_node)* (np.pi + np.pi/6),
-                                    np.ones(num_node)*1.05))
         res_1 = least_squares(
             residual,
             X0,
@@ -181,7 +183,7 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
             residual,
             X0,
             jac=cal_H,
-            # bounds = (low_limit, up_limit),
+            bounds = (low_limit, up_limit),
             #method = 'lm',
             verbose=2,
             ftol=tol,
@@ -254,38 +256,39 @@ class StateEstimatorFederate:
 
         self.initial_ang = None
         self.initial_V = None
+        topology = Topology.parse_obj(self.sub_topology.json)
+        slack_index =  None
+        if not isinstance(topology.admittance, AdmittanceMatrix):
+            raise "Weighted Least Squares algorithm expects AdmittanceMatrix as input"
+
+        for i in range(len(topology.admittance.ids)):
+            if topology.admittance.ids[i] == topology.slack_bus[0]:
+                slack_index = i
+
         while granted_time < h.HELICS_TIME_MAXTIME:
 
-            topology = Topology.parse_obj(self.sub_topology.json)
             if not self.sub_voltages_magnitude.is_updated():
                 granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
                 continue
 
             logger.info('start time: '+str(datetime.now()))
 
-            slack_index =  None
-            if not isinstance(topology.admittance, AdmittanceMatrix):
-                raise "Weighted Least Squares algorithm expects AdmittanceMatrix as input"
-
-            for i in range(len(topology.admittance.ids)):
-                if topology.admittance.ids[i] == topology.slack_bus[0]:
-                    slack_index = i
                     
             voltages = VoltagesMagnitude.parse_obj(self.sub_voltages_magnitude.json)
+            power_Q = PowersImaginary.parse_obj(self.sub_power_Q.json)
+            power_P = PowersReal.parse_obj(self.sub_power_P.json)
+            knownP = get_indices(topology, power_P)
+            knownQ = get_indices(topology, power_Q)
             knownV = get_indices(topology, voltages)
+            
             if self.initial_V is None:
-                self.initial_V = np.mean(
-                    np.array(voltages.values) / np.array(topology.base_voltage_magnitudes.values)[knownV])
-                
-            #if self.initial_V is None:
-               # self.initial_V = 1.025 #*np.array(topology.base_voltages)
+                #Flat start or using average measurements
+                if len(knownP) + len(knownV) + len(knownQ) > len(topology.admittance.ids) * 2:
+                    self.initial_V = 1.0
+                else:
+                    self.initial_V = np.mean(np.array(voltages.values) / np.array(topology.base_voltage_magnitudes.values)[knownV])
             if self.initial_ang is None:
                 self.initial_ang = np.array(topology.base_voltage_angles.values)
-
-            
-
-            power_P = PowersReal.parse_obj(self.sub_power_P.json)
-            power_Q = PowersImaginary.parse_obj(self.sub_power_Q.json)
 
             voltage_magnitudes, voltage_angles = state_estimator(
                 self.algorithm_parameters,

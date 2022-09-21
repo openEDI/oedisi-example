@@ -39,7 +39,7 @@ def get_y_matrix_file(dss):
     dss.run_command('batchedit load..* enabled=false')
     dss.run_command('batchedit generator..* enabled=false')
     dss.run_command('batchedit pvsystem..* enabled=false')
-    dss.run_command('Batchedit Capacitor..* enabled=yes')
+    dss.run_command('Batchedit Capacitor..* enabled=false')
     dss.run_command('batchedit storage..* enabled=false')
     dss.run_command('CalcVoltageBases')
     dss.run_command('set maxiterations=20')
@@ -277,7 +277,7 @@ def get_capacitors(dss):
         capname = dss.CktElement.Name()
         NumPhase = dss.CktElement.NumPhases()
         bus = dss.CktElement.BusNames()[0]
-        kvar = dss.run_command('? ' + capname + '.kVar')
+        kvar = dss.Capacitors.kvar()
         datum["name"] = capname
         temp = bus.split('.')
         datum["busname"] = temp[0]
