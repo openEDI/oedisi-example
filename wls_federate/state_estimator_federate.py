@@ -254,22 +254,23 @@ class StateEstimatorFederate:
 
         self.initial_ang = None
         self.initial_V = None
+        topology = Topology.parse_obj(self.sub_topology.json)
+        slack_index =  None
+        if not isinstance(topology.admittance, AdmittanceMatrix):
+            raise "Weighted Least Squares algorithm expects AdmittanceMatrix as input"
+
+        for i in range(len(topology.admittance.ids)):
+            if topology.admittance.ids[i] == topology.slack_bus[0]:
+                slack_index = i
+
         while granted_time < h.HELICS_TIME_MAXTIME:
 
-            topology = Topology.parse_obj(self.sub_topology.json)
             if not self.sub_voltages_magnitude.is_updated():
                 granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
                 continue
 
             logger.info('start time: '+str(datetime.now()))
 
-            slack_index =  None
-            if not isinstance(topology.admittance, AdmittanceMatrix):
-                raise "Weighted Least Squares algorithm expects AdmittanceMatrix as input"
-
-            for i in range(len(topology.admittance.ids)):
-                if topology.admittance.ids[i] == topology.slack_bus[0]:
-                    slack_index = i
                     
             voltages = VoltagesMagnitude.parse_obj(self.sub_voltages_magnitude.json)
             knownV = get_indices(topology, voltages)
