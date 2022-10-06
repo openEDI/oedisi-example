@@ -166,6 +166,8 @@ class FeederSimulator(object):
         return self._AllNodeNames
 
     def load_feeder(self):
+        dss.Basic.LegacyModels(True) 
+        dss.run_command("clear")
         result = dss.run_command("redirect " + self._feeder_file)
         if not result == '':
             raise ValueError("Feeder not loaded: "+result)
