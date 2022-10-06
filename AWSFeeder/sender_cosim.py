@@ -87,10 +87,18 @@ def go_cosim(sim, config: FeederConfig):
     #logger.debug(np.linalg.eig(Y.toarray()))
     unique_ids = sim._AllNodeNames
 
-    admittancematrix = sparse_to_admittance_sparse(
-        Y,
-        unique_ids
-    )
+    if config.use_sparse_admittance:
+        admittancematrix = sparse_to_admittance_sparse(
+            Y,
+            unique_ids
+        )
+    else:
+        admittancematrix = AdmittanceMatrix(
+            admittance_matrix= numpy_to_y_matrix(
+                Y.toarray()
+            ),
+            ids=unique_ids
+        )
 
     def get_phase(name):
         _, end = name.split('.')
