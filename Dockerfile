@@ -10,7 +10,7 @@ RUN --mount=type=secret,id=gadal_github_key pip install git+ssh://git@github.com
 WORKDIR /simulation
 
 COPY test_full_systems.py .
-COPY docker_system.json .
+COPY scenarios/docker_system.json docker_system.json
 COPY AWSFeeder AWSFeeder
 COPY LocalFeeder LocalFeeder
 COPY README.md .

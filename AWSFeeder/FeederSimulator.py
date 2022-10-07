@@ -57,6 +57,7 @@ class FeederConfig(BaseModel):
     increment_value: int # increment in seconds
     number_of_timesteps: int
     topology_output: str = "topology.json"
+    use_sparse_admittance = False
 
 
 class FeederSimulator(object):
@@ -165,6 +166,8 @@ class FeederSimulator(object):
         return self._AllNodeNames
 
     def load_feeder(self):
+        dss.Basic.LegacyModels(True) 
+        dss.run_command("clear")
         result = dss.run_command("redirect " + self._feeder_file)
         if not result == '':
             raise ValueError("Feeder not loaded: "+result)

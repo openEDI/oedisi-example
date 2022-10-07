@@ -13,10 +13,11 @@ import json
 import numpy as np
 from pydantic import BaseModel
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
 from scipy.optimize import least_squares
 from datetime import datetime
-from gadal.gadal_types.data_types import MeasurementArray, AdmittanceMatrix, Topology, Complex, VoltagesMagnitude, VoltagesAngle, VoltagesReal, VoltagesImaginary, PowersReal, PowersImaginary
+from gadal.gadal_types.data_types import AdmittanceSparse, MeasurementArray, AdmittanceMatrix, Topology, Complex, VoltagesMagnitude, VoltagesAngle, VoltagesReal, VoltagesImaginary, PowersReal, PowersImaginary
+import scipy.sparse
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -68,6 +69,26 @@ def residual(X0, z, num_node, knownP, knownQ, knownV, Y):
     return z-h
 
 
+def get_y(admittance: Union[AdmittanceMatrix, AdmittanceSparse], ids: List[str]):
+    if type(admittance) == AdmittanceMatrix:
+        assert ids == admittance.ids
+        return matrix_to_numpy(
+            admittance.admittance_matrix
+        )
+    elif type(admittance) == AdmittanceSparse:
+        node_map = {name: i for (i, name) in enumerate(ids)}
+        return scipy.sparse.coo_matrix(
+            (
+                [
+                    v[0] + 1j*v[1]
+                    for v in admittance.admittance_list
+                ],
+                (
+                    [node_map[r] for r in admittance.from_equipment],
+                    [node_map[c] for c in admittance.to_equipment]
+                )
+            )
+        ).toarray()
 
 def matrix_to_numpy(admittance: List[List[Complex]]):
     "Convert list of list of our Complex type into a numpy matrix"
@@ -76,7 +97,7 @@ def matrix_to_numpy(admittance: List[List[Complex]]):
 
 def get_indices(topology, measurement):
     "Get list of indices in the topology for each index of the input measurement"
-    inv_map = {v: i for i, v in enumerate(topology.admittance.ids)}
+    inv_map = {v: i for i, v in enumerate(topology.base_voltage_magnitudes.ids)}
     return [inv_map[v] for v in measurement.ids]
 
 class UnitSystem(str, Enum):
@@ -108,8 +129,9 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
     V : VoltagesMagnitude (inherited from MeasurementArray)
         Voltage magnitude with unique ids
     """
-    num_node = len(topology.admittance.ids)
     base_voltages = np.array(topology.base_voltage_magnitudes.values)
+    ids = topology.base_voltage_magnitudes.ids
+    num_node = len(ids)
     logging.debug("Number of Nodes")
     logging.debug(num_node)
     knownP = get_indices(topology, P)
@@ -120,7 +142,7 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
         z = np.concatenate((
             V.array, -1000*np.array(P.array), -1000*np.array(Q.array)
         ), axis=0)
-        Y = matrix_to_numpy(topology.admittance.admittance_matrix)
+        Y = get_y(topology.admittance, ids)
     elif parameters.units == UnitSystem.PER_UNIT:
         base_power = 100
         if parameters.base_power != None:
@@ -130,7 +152,7 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
             -np.array(P.values) / base_power,
             -np.array(Q.values) / base_power
         ), axis=0)
-        Y = matrix_to_numpy(topology.admittance.admittance_matrix)
+        Y = get_y(topology.admittance, ids)
         # Hand-crafted unit conversion (check it, it works)
         Y = base_voltages.reshape(1, -1) * Y * \
             base_voltages.reshape(-1, 1) / (base_power * 1000)
@@ -257,12 +279,15 @@ class StateEstimatorFederate:
         self.initial_ang = None
         self.initial_V = None
         topology = Topology.parse_obj(self.sub_topology.json)
+        ids = topology.base_voltage_magnitudes.ids
+        logger.info("Topology has been read")
         slack_index =  None
-        if not isinstance(topology.admittance, AdmittanceMatrix):
-            raise "Weighted Least Squares algorithm expects AdmittanceMatrix as input"
+        if (not isinstance(topology.admittance, AdmittanceMatrix) and
+            not isinstance(topology.admittance, AdmittanceSparse)):
+            raise "Weighted Least Squares algorithm expects AdmittanceMatrix/Sparse as input"
 
-        for i in range(len(topology.admittance.ids)):
-            if topology.admittance.ids[i] == topology.slack_bus[0]:
+        for i in range(len(ids)):
+            if ids[i] == topology.slack_bus[0]:
                 slack_index = i
 
         while granted_time < h.HELICS_TIME_MAXTIME:
@@ -283,7 +308,7 @@ class StateEstimatorFederate:
             
             if self.initial_V is None:
                 #Flat start or using average measurements
-                if len(knownP) + len(knownV) + len(knownQ) > len(topology.admittance.ids) * 2:
+                if len(knownP) + len(knownV) + len(knownQ) > len(ids) * 2:
                     self.initial_V = 1.0
                 else:
                     self.initial_V = np.mean(np.array(voltages.values) / np.array(topology.base_voltage_magnitudes.values)[knownV])
@@ -299,12 +324,12 @@ class StateEstimatorFederate:
             #self.initial_ang = voltage_angles
             self.pub_voltage_mag.publish(VoltagesMagnitude(
                 values=list(voltage_magnitudes),
-                ids=topology.admittance.ids,
+                ids=ids,
                 time = voltages.time
             ).json())
             self.pub_voltage_angle.publish(VoltagesAngle(
                 values=list(voltage_angles),
-                ids=topology.admittance.ids,
+                ids=ids,
                 time = voltages.time
             ).json())
             logger.info('end time: '+str(datetime.now()))

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from typing import List, Tuple
 import numpy as np
 from datetime import datetime, timedelta
-from gadal.gadal_types.data_types import Complex,Topology,VoltagesReal,VoltagesImaginary,PowersReal,PowersImaginary, AdmittanceMatrix, VoltagesMagnitude, VoltagesAngle
+from gadal.gadal_types.data_types import Complex,Topology,VoltagesReal,VoltagesImaginary,PowersReal,PowersImaginary, AdmittanceMatrix, VoltagesMagnitude, VoltagesAngle, AdmittanceSparse
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -25,6 +25,13 @@ def numpy_to_y_matrix(array):
         [(element.real, element.imag) for element in row]
         for row in array
     ]
+
+def sparse_to_admittance_sparse(array, unique_ids):
+    return AdmittanceSparse(
+        from_equipment = [unique_ids[i] for i in array.row],
+        to_equipment = [unique_ids[i] for i in array.col],
+        admittance_list = [(data.real, data.imag) for data in array.data]
+    )
 
 
 def setup_sim(config: FeederConfig):
@@ -76,9 +83,23 @@ def go_cosim(sim, config: FeederConfig):
     h.helicsFederateEnterExecutingMode(vfed)
 
     Y = sim.get_y_matrix()
-    logger.debug("Eigenvalues and vectors")
-    logger.debug(np.linalg.eig(Y.toarray()))
-    y_matrix = numpy_to_y_matrix(Y.toarray())
+    #logger.debug("Eigenvalues and vectors")
+    #logger.debug(np.linalg.eig(Y.toarray()))
+    unique_ids = sim._AllNodeNames
+
+    if config.use_sparse_admittance:
+        admittancematrix = sparse_to_admittance_sparse(
+            Y,
+            unique_ids
+        )
+    else:
+        admittancematrix = AdmittanceMatrix(
+            admittance_matrix= numpy_to_y_matrix(
+                Y.toarray()
+            ),
+            ids=unique_ids
+        )
+
     def get_phase(name):
         _, end = name.split('.')
         if end == '1':
@@ -99,10 +120,7 @@ def go_cosim(sim, config: FeederConfig):
         )
     ]
 
-    unique_ids = sim._AllNodeNames
 
-    logger.debug("y-matrix")
-    logger.debug(y_matrix)
     logger.debug("phases")
     logger.debug(phases)
     logger.debug("base_voltages")
@@ -111,12 +129,7 @@ def go_cosim(sim, config: FeederConfig):
     logger.debug(slack_bus)
     logger.debug("unique_ids")
     logger.debug(unique_ids)
-    
-    
-    admittancematrix = AdmittanceMatrix(
-        admittance_matrix = y_matrix,
-        ids = unique_ids
-    )
+
 
     base_voltagemagnitude = VoltagesMagnitude(
            values = [abs(i) for i in base_voltages],
