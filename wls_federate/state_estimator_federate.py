@@ -192,6 +192,7 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
     else:
         raise Exception(f"Unit system {parameters.units} not supported")
     tol = parameters.tol
+    Y = csr_matrix(Y)
     
     if type(initial_ang) != np.ndarray:
         delta = np.full(num_node, initial_ang)
