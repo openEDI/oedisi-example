@@ -86,8 +86,8 @@ def cal_H_sparse(X0, z, num_node, knownP, knownQ, knownV, Y):
     H_pow1 = 1j * diags(Vp) @ (diags(Y.conjugate() @ Vp.conjugate()) - \
                                Y.conjugate() @ diags(Vp.conjugate()))
         
-    H2 = hstack([H_pow1.real, H_pow2.real], format='csr')[ind_real, :]
-    H3 = hstack([H_pow1.imag, H_pow2.imag], format='csr')[ind_reactive, :]
+    H2 = hstack([H_pow1.real, H_pow2.real], format='csr')[knownP, :]
+    H3 = hstack([H_pow1.imag, H_pow2.imag], format='csr')[knownQ, :]
     H = vstack([H1, H2, H3], format='csr')
     return -H.toarray()
 
