@@ -18,6 +18,7 @@ from scipy.optimize import least_squares
 from datetime import datetime
 from gadal.gadal_types.data_types import AdmittanceSparse, MeasurementArray, AdmittanceMatrix, Topology, Complex, VoltagesMagnitude, VoltagesAngle, VoltagesReal, VoltagesImaginary, PowersReal, PowersImaginary
 import scipy.sparse
+from scipy.sparse import csr_matrix, diags, vstack, hstack
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -68,6 +69,36 @@ def residual(X0, z, num_node, knownP, knownQ, knownV, Y):
     logger.debug(h)
     return z-h
 
+def cal_H_sparse(X0, z, num_node, knownP, knownQ, knownV, Y):
+    deltaK, VabsK = X0[:num_node], X0[num_node:]
+    num_knownV = len(knownV)
+    #Calculate original H1
+    H11, H12 = np.zeros((num_knownV, num_node)), np.zeros(num_knownV * num_node)
+    H12[np.arange(num_knownV)*num_node + knownV] = 1
+    H1 = np.concatenate((H11, H12.reshape(num_knownV, num_node)), axis=1)
+    H1 = csr_matrix(H1)
+    Vp = VabsK * np.exp(1j * deltaK)
+##### S = np.diag(Vp) @ Y.conjugate() @ Vp.conjugate()
+######  Take gradient with respect to V
+    H_pow2 = diags(Vp) @ Y.conjugate() @ diags(np.exp(-1j * deltaK)) + \
+        diags(np.exp(-1j * deltaK)) @ diags(Y.conjugate() @ Vp.conjugate())
+    # Take gradient with respect to delta
+    H_pow1 = 1j * diags(Vp) @ (diags(Y.conjugate() @ Vp.conjugate()) - \
+                               Y.conjugate() @ diags(Vp.conjugate()))
+        
+    H2 = hstack([H_pow1.real, H_pow2.real], format='csr')[ind_real, :]
+    H3 = hstack([H_pow1.imag, H_pow2.imag], format='csr')[ind_reactive, :]
+    H = vstack([H1, H2, H3], format='csr')
+    return -H.toarray()
+
+def cal_h_sparse(knownP, knownQ, knownV, Y, deltaK, VabsK, num_node):
+    h1 = (VabsK[knownV]).reshape(-1,1)
+    Vp = VabsK * np.exp(1j * deltaK)
+    S = diags(Vp) @ Y.conjugate() @ Vp.conjugate()
+    P, Q = S.real, S.imag
+    h2, h3 = P[knownP].reshape(-1,1), Q[knownQ].reshape(-1,1)
+    h = np.concatenate((h1, h2, h3), axis=0)
+    return h.reshape(-1)
 
 def get_y(admittance: Union[AdmittanceMatrix, AdmittanceSparse], ids: List[str]):
     if type(admittance) == AdmittanceMatrix:
