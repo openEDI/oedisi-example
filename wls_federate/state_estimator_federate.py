@@ -70,6 +70,8 @@ def residual(X0, z, num_node, knownP, knownQ, knownV, Y):
     return z-h
 
 def cal_H_sparse(X0, z, num_node, knownP, knownQ, knownV, Y):
+    #If Y is sparse, then the calculation will be based on sparse matrix. 
+    #The output H is sparse, the solver will take tr_option = 'lsmr'.
     deltaK, VabsK = X0[:num_node], X0[num_node:]
     num_knownV = len(knownV)
     #Calculate original H1
@@ -89,7 +91,7 @@ def cal_H_sparse(X0, z, num_node, knownP, knownQ, knownV, Y):
     H2 = hstack([H_pow1.real, H_pow2.real], format='csr')[knownP, :]
     H3 = hstack([H_pow1.imag, H_pow2.imag], format='csr')[knownQ, :]
     H = vstack([H1, H2, H3], format='csr')
-    return -H.toarray()
+    return -H
 
 def cal_h_sparse(knownP, knownQ, knownV, Y, deltaK, VabsK, num_node):
     h1 = (VabsK[knownV]).reshape(-1,1)
