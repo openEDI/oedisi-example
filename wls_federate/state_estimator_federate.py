@@ -343,7 +343,8 @@ class StateEstimatorFederate:
             if self.initial_V is None:
                 #Flat start or using average measurements
                 if len(knownP) + len(knownV) + len(knownQ) > len(ids) * 2:
-                    self.initial_V = 1.0
+                    #self.initial_V = 1.0
+                    self.initial_V = np.mean(np.array(voltages.values) / np.array(topology.base_voltage_magnitudes.values)[knownV])
                 else:
                     self.initial_V = np.mean(np.array(voltages.values) / np.array(topology.base_voltage_magnitudes.values)[knownV])
             if self.initial_ang is None:
