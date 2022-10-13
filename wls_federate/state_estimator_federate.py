@@ -170,7 +170,9 @@ def state_estimator(parameters: AlgorithmParameters, topology, P, Q, V, initial_
     knownP = get_indices(topology, P)
     knownQ = get_indices(topology, Q)
     knownV = get_indices(topology, V)
-
+    knownP = np.sort(knownP)
+    knownQ = np.sort(knownQ)
+    knownV = np.sort(knownV)
     if parameters.units == UnitSystem.SI:
         z = np.concatenate((
             V.array, -1000*np.array(P.array), -1000*np.array(Q.array)
