@@ -12,6 +12,10 @@ import random
 import math
 import logging
 import json
+import sys
+import boto3
+from botocore import UNSIGNED
+from botocore.config import Config
 
 from pydantic import BaseModel
 
@@ -50,11 +54,15 @@ def check_node_order(l1, l2):
 class FeederConfig(BaseModel):
     name: str
     feeder_file: str
+    use_smartds: bool = False
+    profile_location: str #f'SMART-DS/v1.0/{self._smartds_year}/SFO/{self._smartds_region}' 
+    opendss_location: str #f'SMART-DS/v1.0/{self._smartds_year}/SFO/{self._smartds_region}/scenarios/{self._smartds_scenario}/opendss/{self._smartds_feeder}'
     start_date: str
     number_of_timesteps: float
     run_freq_sec: float = 15*60
     start_time_index: int = 0
     topology_output: str = "topology.json"
+    use_sparse_admittance = False
 
 
 class FeederSimulator(object):
@@ -65,7 +73,10 @@ class FeederSimulator(object):
         """ Create a ``FeederSimulator`` object
 
         """
-        self._feeder_file = config.feeder_file
+        self._feeder_file = None
+        self._opendss_location = config.opendss_location
+        self._profile_location = config.profile_location
+        self._use_smartds = config.use_smartds
 
         self._circuit=None
         self._AllNodeNames=None
@@ -85,8 +96,74 @@ class FeederSimulator(object):
         self._nodes_index = []
         self._name_index_dict = {}
 
-        self.load_feeder()
-        #self.create_measurement_lists()
+        if self._use_smartds:
+            self.download_smartds_data()
+            self.load_feeder()
+            self.create_measurement_lists()
+        else:
+            self.download_gadal_data()
+            self.load_feeder()
+
+    def download_smartds_data(self):
+
+        bucket_name = 'oedi-data-lake'
+
+        #Equivalent to --no-sign-request
+        s3_resource = boto3.resource('s3',config=Config(signature_version=UNSIGNED))
+        bucket = s3_resource.Bucket(bucket_name)
+        opendss_location = self._opendss_location
+        profile_location = self._profile_location
+
+        self._feeder_file = os.path.join('opendss','Master.dss')
+        self._simulation_time_step = '15m'
+        for obj in bucket.objects.filter(Prefix=opendss_location):
+            output_location = os.path.join('opendss',obj.key.replace(opendss_location,''))
+            if not os.path.exists(os.path.dirname(output_location)):
+                os.makedirs(os.path.dirname(output_location))
+            bucket.download_file(obj.key,output_location)
+
+        modified_loadshapes = ''
+        all_profiles = set()
+        if not os.path.exists(os.path.join('opendss','profiles')):
+            os.makedirs(os.path.join('opendss','profiles'))
+        with open(os.path.join('opendss','LoadShapes.dss'),'r') as fp_loadshapes:
+            for row in fp_loadshapes.readlines():
+                new_row = row.replace('../','')
+                for token in new_row.split(' '):
+                    if token.startswith('(file='):
+                        location = token.split('=')[1].strip().strip(')')
+                        all_profiles.add(location)
+                modified_loadshapes=modified_loadshapes+new_row
+        with open(os.path.join('opendss','LoadShapes.dss'),'w') as fp_loadshapes:
+            fp_loadshapes.write(modified_loadshapes)
+        for profile in all_profiles:
+            s3_location = f'{profile_location}/{profile}'
+            bucket.download_file(s3_location,os.path.join('opendss',profile))
+
+    def download_gadal_data(self):
+
+        bucket_name = 'gadal'
+
+        #Equivalent to --no-sign-request
+        s3_resource = boto3.resource('s3',config=Config(signature_version=UNSIGNED))
+        bucket = s3_resource.Bucket(bucket_name)
+        opendss_location = self._opendss_location
+        profile_location = self._profile_location
+
+        self._feeder_file = os.path.join('opendss','qsts','master.dss')
+        self._simulation_time_step = '15m'
+        for obj in bucket.objects.filter(Prefix=opendss_location):
+            output_location = os.path.join('opendss','qsts',obj.key.replace(opendss_location,''))
+            if not os.path.exists(os.path.dirname(output_location)):
+                os.makedirs(os.path.dirname(output_location))
+            bucket.download_file(obj.key,output_location)
+
+        for obj in bucket.objects.filter(Prefix=profile_location):
+            output_location = os.path.join('opendss','profiles',obj.key.replace(profile_location,''))
+            if not os.path.exists(os.path.dirname(output_location)):
+                os.makedirs(os.path.dirname(output_location))
+            bucket.download_file(obj.key,output_location)
+
 
     def create_measurement_lists(self,
             percent_voltage=75,
@@ -111,8 +188,6 @@ class FeederSimulator(object):
         reactive_subset = random.sample(self._AllNodeNames,math.floor(len(self._AllNodeNames)*float(percent_voltage)/100))
         with open('reactive_ids.json','w') as fp:
             json.dump(reactive_subset,fp,indent=4)
-    def setup_player(self):
-        dss.run_command('set mode=yearly loadmult=1 number=1 stepsize=1m ')
 
     def snapshot_run(self):
         snapshot_run(dss)
@@ -128,6 +203,8 @@ class FeederSimulator(object):
 
 
     def load_feeder(self):
+        dss.Basic.LegacyModels(True) 
+        dss.run_command("clear")
         result = dss.run_command("redirect " + self._feeder_file)
         if not result == '':
             raise ValueError("Feeder not loaded: "+result)
