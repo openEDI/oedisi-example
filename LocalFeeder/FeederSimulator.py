@@ -53,10 +53,9 @@ def check_node_order(l1, l2):
 
 class FeederConfig(BaseModel):
     name: str
-    feeder_file: str
     use_smartds: bool = False
-    profile_location: str #f'SMART-DS/v1.0/{self._smartds_year}/SFO/{self._smartds_region}' 
-    opendss_location: str #f'SMART-DS/v1.0/{self._smartds_year}/SFO/{self._smartds_region}/scenarios/{self._smartds_scenario}/opendss/{self._smartds_feeder}'
+    profile_location: str 
+    opendss_location: str 
     start_date: str
     number_of_timesteps: float
     run_freq_sec: float = 15*60
@@ -74,6 +73,7 @@ class FeederSimulator(object):
 
         """
         self._feeder_file = None
+        self._simulation_time_step = None
         self._opendss_location = config.opendss_location
         self._profile_location = config.profile_location
         self._use_smartds = config.use_smartds
@@ -89,7 +89,6 @@ class FeederSimulator(object):
         self._start_time = int(time.mktime(strptime(config.start_date, '%Y-%m-%d %H:%M:%S')))
         self._run_freq_sec = config.run_freq_sec
         self._simulation_step = config.start_time_index
-        self._simulation_time_step = self._start_time
         self._number_of_timesteps = config.number_of_timesteps
         self._vmult = 0.001
 
@@ -117,7 +116,7 @@ class FeederSimulator(object):
         self._feeder_file = os.path.join('opendss','Master.dss')
         self._simulation_time_step = '15m'
         for obj in bucket.objects.filter(Prefix=opendss_location):
-            output_location = os.path.join('opendss',obj.key.replace(opendss_location,''))
+            output_location = os.path.join('opendss',obj.key.replace(opendss_location,'').strip('/'))
             if not os.path.exists(os.path.dirname(output_location)):
                 os.makedirs(os.path.dirname(output_location))
             bucket.download_file(obj.key,output_location)
@@ -131,14 +130,14 @@ class FeederSimulator(object):
                 new_row = row.replace('../','')
                 for token in new_row.split(' '):
                     if token.startswith('(file='):
-                        location = token.split('=')[1].strip().strip(')')
+                        location = token.split('=profiles/')[1].strip().strip(')')
                         all_profiles.add(location)
                 modified_loadshapes=modified_loadshapes+new_row
         with open(os.path.join('opendss','LoadShapes.dss'),'w') as fp_loadshapes:
             fp_loadshapes.write(modified_loadshapes)
         for profile in all_profiles:
             s3_location = f'{profile_location}/{profile}'
-            bucket.download_file(s3_location,os.path.join('opendss',profile))
+            bucket.download_file(s3_location,os.path.join('opendss','profiles',profile))
 
     def download_gadal_data(self):
 
@@ -153,13 +152,13 @@ class FeederSimulator(object):
         self._feeder_file = os.path.join('opendss','qsts','master.dss')
         self._simulation_time_step = '15m'
         for obj in bucket.objects.filter(Prefix=opendss_location):
-            output_location = os.path.join('opendss','qsts',obj.key.replace(opendss_location,''))
+            output_location = os.path.join('opendss','qsts',obj.key.replace(opendss_location,'').strip('/'))
             if not os.path.exists(os.path.dirname(output_location)):
                 os.makedirs(os.path.dirname(output_location))
             bucket.download_file(obj.key,output_location)
 
         for obj in bucket.objects.filter(Prefix=profile_location):
-            output_location = os.path.join('opendss','profiles',obj.key.replace(profile_location,''))
+            output_location = os.path.join('opendss','profiles',obj.key.replace(profile_location,'').strip('/'))
             if not os.path.exists(os.path.dirname(output_location)):
                 os.makedirs(os.path.dirname(output_location))
             bucket.download_file(obj.key,output_location)

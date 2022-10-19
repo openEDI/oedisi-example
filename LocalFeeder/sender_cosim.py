@@ -123,8 +123,8 @@ def go_cosim(sim, config: FeederConfig):
     unique_ids = sim._AllNodeNames
     snapshot_run(sim)
 
-    logger.debug("y-matrix")
-    logger.debug(y_matrix)
+    #logger.debug("y-matrix")
+    #logger.debug(y_matrix)
     logger.debug("phases")
     logger.debug(phases)
     logger.debug("base_voltages")
