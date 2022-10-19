@@ -213,7 +213,7 @@ def get_pvSystems(dss):
         datum["name"] = PVname
         datum["bus"] = bus
         datum["phases"] = bus[1:]
-        datum["Pmpp"] = PVkW
+        datum["Pmpp"] = PVpmpp
         datum["pf"] = PVpf
         #datum["kV"] = PVkV
         datum["kW"] = PVkW
@@ -240,11 +240,10 @@ def get_Generator(dss):
         GENname = dss.Generators.Name()
         NumPhase = dss.CktElement.NumPhases()
         bus = dss.CktElement.BusNames()[0]
-        GENkVar = dss.run_command('? ' + GENname + '.kvar')
-        GENkW = dss.run_command('? ' + GENname + '.kW')
-        GENpf = dss.run_command('? ' + GENname + '.pf')
-        GENkVA = dss.run_command('? ' + GENname + '.kVA')
-        GENkV = dss.run_command('? ' + GENname + '.kV')
+        GENkVar = dss.Generators.kvar()
+        GENkW = dss.Generators.kW()
+        GENpf = dss.Generators.PF()
+        GENkV = dss.Generators.kV()
         datum["name"] = GENname
         # datum["bus"] = bus
         bus = bus.split('.')
@@ -259,7 +258,7 @@ def get_Generator(dss):
         datum["kVar"] = dss.Generators.kvar()
         datum["pf"] = GENpf
         datum["kV"] = GENkV
-        datum["kVA"] = GENkVA
+        #datum["kVA"] = GENkVA
         datum["numPhase"] = NumPhase
         datum["numPhases"] = NumPhase
         #datum["power"] = dss.CktElement.Powers()[0:2*NumPhase]
