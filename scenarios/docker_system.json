@@ -37,14 +37,16 @@
             }
         },
         {
-            "name": "local_feeder",
+            "name": "feeder",
             "type": "LocalFeeder",
             "parameters": {
-                "feeder_file": "gadal-ieee123/qsts/master.dss",
+                "name": "ieee123",
+                "use_smartds": false,
+                "profile_location": "gadal_ieee123/profiles",
+                "opendss_location": "gadal_ieee123/qsts",
                 "start_date": "2017-01-01 00:00:00",
+                "number_of_timesteps": 96,
                 "run_freq_sec": 900,
-                "number_of_timesteps": 36,
-                "start_time_index": 0,
                 "topology_output": "../../outputs/topology.json"
             }
         },
@@ -54,7 +56,7 @@
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+                "measurement_file": "../feeder/gadal-ieee123/sensors.json"
             }
         },
         {
@@ -63,7 +65,7 @@
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+                "measurement_file": "../feeder/gadal-ieee123/sensors.json"
             }
         },
         {
@@ -72,7 +74,7 @@
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+                "measurement_file": "../feeder/gadal-ieee123/sensors.json"
             }
         },
         {
@@ -81,7 +83,7 @@
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+                "measurement_file": "../feeder/gadal-ieee123/sensors.json"
             }
         },
         {
@@ -90,44 +92,44 @@
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+                "measurement_file": "../feeder/gadal-ieee123/sensors.json"
             }
         }
 
     ],
     "links": [
         {
-            "source": "local_feeder",
+            "source": "feeder",
             "source_port": "voltages_magnitude",
             "target": "sensor_voltage_magnitude",
             "target_port": "subscription"
         },
         {
-            "source": "local_feeder",
+            "source": "feeder",
             "source_port": "voltages_real",
             "target": "sensor_voltage_real",
             "target_port": "subscription"
         },
         {
-            "source": "local_feeder",
+            "source": "feeder",
             "source_port": "voltages_imag",
             "target": "sensor_voltage_imaginary",
             "target_port": "subscription"
         },
         {
-            "source": "local_feeder",
+            "source": "feeder",
             "source_port": "powers_real",
             "target": "sensor_power_real",
             "target_port": "subscription"
         },
         {
-            "source": "local_feeder",
+            "source": "feeder",
             "source_port": "powers_imag",
             "target": "sensor_power_imaginary",
             "target_port": "subscription"
         },
         {
-            "source": "local_feeder",
+            "source": "feeder",
             "source_port": "topology",
             "target": "state_estimator",
             "target_port": "topology"
@@ -151,13 +153,13 @@
             "target_port": "powers_imaginary"
         },
         {
-            "source": "local_feeder",
+            "source": "feeder",
             "source_port": "voltages_real",
             "target": "recorder_voltage_real",
             "target_port": "subscription"
         },
         {
-            "source": "local_feeder",
+            "source": "feeder",
             "source_port": "voltages_imag",
             "target": "recorder_voltage_imag",
             "target_port": "subscription"
