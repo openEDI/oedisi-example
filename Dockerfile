@@ -11,7 +11,6 @@ WORKDIR /simulation
 
 COPY test_full_systems.py .
 COPY scenarios/docker_system.json docker_system.json
-COPY AWSFeeder AWSFeeder
 COPY LocalFeeder LocalFeeder
 COPY README.md .
 COPY measuring_federate measuring_federate
@@ -19,7 +18,7 @@ COPY wls_federate wls_federate
 COPY recorder recorder
 
 RUN mkdir -p outputs build
-RUN python test_full_systems.py --system docker_system.json
+RUN python test_full_systems.py --system scenarios/docker_system.json
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt

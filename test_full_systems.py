@@ -19,7 +19,7 @@ parser.add_argument(
 parser.add_argument(
     "--system",
     type=str,
-    default="test_system.json",
+    default="scenarios/docker_system.json",
     help="Wiring diagram json to build",
     metavar="PARAM",
 )
