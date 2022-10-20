@@ -12,6 +12,10 @@ import random
 import math
 import logging
 import json
+import sys
+import boto3
+from botocore import UNSIGNED
+from botocore.config import Config
 
 from pydantic import BaseModel
 
@@ -49,12 +53,16 @@ def check_node_order(l1, l2):
 
 class FeederConfig(BaseModel):
     name: str
-    feeder_file: str
+    use_smartds: bool = False
+    profile_location: str 
+    opendss_location: str 
+    sensor_location: str = ''
     start_date: str
     number_of_timesteps: float
     run_freq_sec: float = 15*60
     start_time_index: int = 0
     topology_output: str = "topology.json"
+    use_sparse_admittance = False
 
 
 class FeederSimulator(object):
@@ -65,7 +73,12 @@ class FeederSimulator(object):
         """ Create a ``FeederSimulator`` object
 
         """
-        self._feeder_file = config.feeder_file
+        self._feeder_file = None
+        self._simulation_time_step = None
+        self._opendss_location = config.opendss_location
+        self._profile_location = config.profile_location
+        self._sensor_location = config.sensor_location
+        self._use_smartds = config.use_smartds
 
         self._circuit=None
         self._AllNodeNames=None
@@ -78,15 +91,69 @@ class FeederSimulator(object):
         self._start_time = int(time.mktime(strptime(config.start_date, '%Y-%m-%d %H:%M:%S')))
         self._run_freq_sec = config.run_freq_sec
         self._simulation_step = config.start_time_index
-        self._simulation_time_step = self._start_time
         self._number_of_timesteps = config.number_of_timesteps
         self._vmult = 0.001
 
         self._nodes_index = []
         self._name_index_dict = {}
 
-        self.load_feeder()
-        #self.create_measurement_lists()
+        if self._use_smartds:
+            self.download_data('oedi-data-lake','Master.dss',True)
+            self.load_feeder()
+            self.create_measurement_lists()
+        else:
+            self.download_data('gadal','master.dss')
+            self.load_feeder()
+
+    def download_data(self, bucket_name, master_name, update_loadshape_location=False):
+
+        #Equivalent to --no-sign-request
+        s3_resource = boto3.resource('s3',config=Config(signature_version=UNSIGNED))
+        bucket = s3_resource.Bucket(bucket_name)
+        opendss_location = self._opendss_location
+        profile_location = self._profile_location
+        sensor_location = self._sensor_location
+
+        self._feeder_file = os.path.join('opendss',master_name)
+        self._simulation_time_step = '15m'
+        for obj in bucket.objects.filter(Prefix=opendss_location):
+            output_location = os.path.join('opendss',obj.key.replace(opendss_location,'').strip('/'))
+            if not os.path.exists(os.path.dirname(output_location)):
+                os.makedirs(os.path.dirname(output_location))
+            bucket.download_file(obj.key,output_location)
+
+        modified_loadshapes = ''
+        if not os.path.exists(os.path.join('profiles')):
+            os.makedirs(os.path.join('profiles'))
+        if update_loadshape_location:
+            all_profiles = set()
+            with open(os.path.join('opendss','LoadShapes.dss'),'r') as fp_loadshapes:
+                for row in fp_loadshapes.readlines():
+                    new_row = row.replace('../','')
+                    new_row = new_row.replace('file=','file=../')
+                    for token in new_row.split(' '):
+                        if token.startswith('(file='):
+                            location = token.split('=../profiles/')[1].strip().strip(')')
+                            all_profiles.add(location)
+                    modified_loadshapes=modified_loadshapes+new_row
+            with open(os.path.join('opendss','LoadShapes.dss'),'w') as fp_loadshapes:
+                fp_loadshapes.write(modified_loadshapes)
+            for profile in all_profiles:
+                s3_location = f'{profile_location}/{profile}'
+                bucket.download_file(s3_location,os.path.join('profiles',profile))
+
+        else:
+            for obj in bucket.objects.filter(Prefix=profile_location):
+                output_location = os.path.join('profiles',obj.key.replace(profile_location,'').strip('/'))
+                if not os.path.exists(os.path.dirname(output_location)):
+                    os.makedirs(os.path.dirname(output_location))
+                bucket.download_file(obj.key,output_location)
+
+        if sensor_location != '':
+            output_location = os.path.join('sensors',os.path.basename(sensor_location))
+            if not os.path.exists(os.path.dirname(output_location)):
+                os.makedirs(os.path.dirname(output_location))
+            bucket.download_file(sensor_location,output_location)
 
     def create_measurement_lists(self,
             percent_voltage=75,
@@ -98,21 +165,20 @@ class FeederSimulator(object):
         ):
 
         random.seed(voltage_seed)
+        os.makedirs('sensors')
         voltage_subset = random.sample(self._AllNodeNames,math.floor(len(self._AllNodeNames)*float(percent_voltage)/100))
-        with open('voltage_ids.json','w') as fp:
+        with open(os.path.join('sensors','voltage_ids.json'),'w') as fp:
             json.dump(voltage_subset,fp,indent=4)
 
         random.seed(real_seed)
         real_subset = random.sample(self._AllNodeNames,math.floor(len(self._AllNodeNames)*float(percent_real)/100))
-        with open('real_ids.json','w') as fp:
+        with open(os.path.join('sensors','real_ids.json'),'w') as fp:
             json.dump(real_subset,fp,indent=4)
 
         random.seed(reactive_seed)
         reactive_subset = random.sample(self._AllNodeNames,math.floor(len(self._AllNodeNames)*float(percent_voltage)/100))
-        with open('reactive_ids.json','w') as fp:
+        with open(os.path.join('sensors','reactive_ids.json'),'w') as fp:
             json.dump(reactive_subset,fp,indent=4)
-    def setup_player(self):
-        dss.run_command('set mode=yearly loadmult=1 number=1 stepsize=1m ')
 
     def snapshot_run(self):
         snapshot_run(dss)
@@ -128,6 +194,8 @@ class FeederSimulator(object):
 
 
     def load_feeder(self):
+        dss.Basic.LegacyModels(True) 
+        dss.run_command("clear")
         result = dss.run_command("redirect " + self._feeder_file)
         if not result == '':
             raise ValueError("Feeder not loaded: "+result)
@@ -353,97 +421,6 @@ class FeederSimulator(object):
 
         return res_feeder_voltages
 
-    def set_pv_list(self, list_p, list_q):
-        """
-        List of generator p and qs that need to match the order of gen names
-        :param list_p:
-        :param list_q:
-        :return:
-        """
-        for i, name in enumerate(self._pv_names):
-            dss.run_command('edit PVSystem.' + name + ' kW=' + str(list_p[i]) + ' kVar=' + str(list_q[i]))
-
-    def set_load_list(self, list_p, list_q):
-        """
-        List of load p and qs that need to match the order of load names
-        :param list_p:
-        :param list_q:
-        :return:
-        """
-        for i, name in enumerate(self._load_names):
-            # print('edit Load.' + str(load["name"]) + ' kW=' + str(loadshape_p) + ' kVar=' + str(loadshape_q))
-            dss.run_command('edit Load.' + name + ' kW=' + str(list_p[i]) + ' kVar=' + str(list_q[i]))
-
-    def set_load_time_series(self, df):
-        """
-        Timeseries dataframe of correct frequency with load data
-        :param df:
-        :return:
-        """
-        df_for_current_time = df.loc[self._simulation_step]
-        for load in self._loads:
-            loadshape_p = df_for_current_time[load["name"]]
-            loadshape_q = df_for_current_time[load["name"]+'q']
-            # print('edit Load.' + str(load["name"]) + ' kW=' + str(loadshape_p) + ' kVar=' + str(loadshape_q))
-            dss.run_command('edit Load.' + load["name"] + ' kW=' + str(loadshape_p) + ' kVar=' + str(loadshape_q))
-
-    def set_pv_time_series(self, df):
-        df_for_current_time = df.loc[self._simulation_step]
-        for element in self._pvs:
-            name_ = element["name"]
-            loadshape_p = df_for_current_time[name_]
-            loadshape_q = df_for_current_time[name_ + 'q']
-            # print('edit PVSystem.' + name_ + ' kW=' + str(loadshape_p) + ' kVar=' + str(loadshape_q))
-            dss.run_command('edit PVSystem.' + name_ + ' kW=' + str(loadshape_p) + ' kVar=' + str(loadshape_q))
-
-    def set_gen_time_series(self, df):
-        df_for_current_time = df.loc[self._simulation_step]
-        for element in self._gens:
-            name_ = element["name"]
-            loadshape_p = df_for_current_time[name_]
-            loadshape_q = df_for_current_time[name_ + 'q']
-            # print('edit Generator.' + name_ + ' kW=' + str(loadshape_p) + ' kVar=' + str(loadshape_q))
-            dss.run_command('edit Generator.' + name_ + ' kW=' + str(loadshape_p) + ' kVar=' + str(loadshape_q))
-
-    def set_load_pq_timeseries(self, loadshape_p):
-        # dss.run_command("show voltages LN nodes")
-        # exit(0)
-        df_for_current_time = loadshape_p.loc[self._simulation_step]
-        for load in self._loads:
-            name = load["name"]
-            num_phase = load["numPhases"]
-            dss.run_command('edit Load.' + str(name) + ' kW=' + str(float(load['kW']) * df_for_current_time[name].real)
-                            + ' kVar=' + str(float(load['kVar']) * df_for_current_time[name].imag))
-
-
-    def set_gen_pq_timeseries(self, loadshape_p):
-        df_for_current_time = loadshape_p.loc[self._simulation_step]
-        for gen in self._gens:
-            name = gen["name"]
-            dss.run_command('edit Generator.' + str(name) + ' kW=' + str(float(gen['kW']) * df_for_current_time[name].real)
-                            + ' kVar=' + str(float(gen['kVar']) * df_for_current_time[name].imag))
-
-    def set_pv_pq_timeseries(self, loadshape_p):
-        df_for_current_time = loadshape_p.loc[self._simulation_step]
-        for pvs in self._pvs:
-            name = pvs["name"]
-            dss.run_command('edit PVSystem.' + str(name) + ' kW=' + str(
-                float(pvs['kW']) * df_for_current_time[name].real)
-                            + ' kVar=' + str(float(pvs['kVar']) * df_for_current_time[name].imag))
-
-    def set_load_pq(self, loadshape_p=1. , loadshape_q=1.):
-        #     str(float(load['kW']) * loadshape)
-        for load in self._loads:
-            dss.run_command('edit Load.' + str(load["name"]) + ' kW=' + str(float(load['kW']) * loadshape_p) + ' kVar=' + str(float(load['kVar']) * loadshape_q))
-
-    def set_pv_pq(self, loadshape_p=1., loadshape_q=1.):
-        for pv in self._pvs:
-            dss.run_command('edit PVSystem.' + str(pv["name"]) + ' kW=' + str(float(pv['kW']) * loadshape_p) + ' kvar=' + str(float(pv['kVar']) * loadshape_q))
-
-    def set_gen_pq(self, loadshape_p=1., loadshape_q=1.):
-        for gen in self._gens:
-            dss.run_command('edit Generator.' + str(gen["name"]) + ' kW=' + str(float(gen['kW']) * loadshape_p) + ' kvar=' + str(float(gen['kVar']) * loadshape_q))
-
     def run_command(self, cmd):
         dss.run_command(cmd)
 
@@ -451,23 +428,3 @@ class FeederSimulator(object):
         dss.run_command(f'set mode=yearly loadmult=1 number=1 hour={hour} sec={second} stepsize={self._simulation_time_step} ')
         dss.run_command('solve')
 
-
-    def run_next(self):
-        # snapshot_run(dss)
-        dss.run_command('solve')
-        self._simulation_step += 1
-        self._simulation_time_step += self._run_freq_sec
-
-    def run_next_control(self, load_df, pv_df, gen_df):
-        # snapshot_run(dss)
-        logger.debug(type(load_df) )
-        if type(load_df) == complex:
-            self.set_load_pq(1., 1.)
-            self.set_pv_pq(1., 1.)
-            self.set_gen_pq(1., 1.)
-        else:
-            self.set_load_time_series(load_df)
-            self.set_pv_time_series(pv_df)
-            self.set_gen_time_series(gen_df)
-
-        self.run_next()

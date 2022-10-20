@@ -38,16 +38,15 @@
         },
         {
             "name": "feeder",
-            "type": "AWSFeeder",
+            "type": "LocalFeeder",
             "parameters": {
-		"smartds_region": "P1U",
-                "smartds_feeder": "p1uhs0_1247/p1uhs0_1247--p1udt942/",
-                "smartds_scenario": "solar_medium_batteries_none_timeseries",
-                "smartds_year": "2017",
+                "use_smartds": true,
+                "profile_location": "SMART-DS/v1.0/2017/SFO/P1U/profiles",
+                "opendss_location": "SMART-DS/v1.0/2017/SFO/P1U/scenarios/solar_medium_batteries_none_timeseries/opendss/p1uhs0_1247/p1uhs0_1247--p1udt942",
                 "start_date": "2017-05-01 00:00:00",
-                "increment_value": 900,
                 "number_of_timesteps": 96,
-		"topology_output": "../../outputs/topology.json"
+                "run_freq_sec": 900,
+                "topology_output": "../../outputs/topology.json"
             }
         },
         {
@@ -56,7 +55,7 @@
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "../feeder/voltage_ids.json"
+                "measurement_file": "../feeder/sensors/voltage_ids.json"
             }
         },
         {
@@ -65,7 +64,7 @@
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "../feeder/real_ids.json"
+                "measurement_file": "../feeder/sensors/real_ids.json"
             }
         },
         {
@@ -74,7 +73,7 @@
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "../feeder/reactive_ids.json"
+                "measurement_file": "../feeder/sensors/reactive_ids.json"
             }
         }
 
