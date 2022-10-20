@@ -56,6 +56,7 @@ class FeederConfig(BaseModel):
     use_smartds: bool = False
     profile_location: str 
     opendss_location: str 
+    sensor_location: str = ''
     start_date: str
     number_of_timesteps: float
     run_freq_sec: float = 15*60
@@ -76,6 +77,7 @@ class FeederSimulator(object):
         self._simulation_time_step = None
         self._opendss_location = config.opendss_location
         self._profile_location = config.profile_location
+        self._sensor_location = config.sensor_location
         self._use_smartds = config.use_smartds
 
         self._circuit=None
@@ -110,6 +112,7 @@ class FeederSimulator(object):
         bucket = s3_resource.Bucket(bucket_name)
         opendss_location = self._opendss_location
         profile_location = self._profile_location
+        sensor_location = self._sensor_location
 
         self._feeder_file = os.path.join('opendss',master_name)
         self._simulation_time_step = '15m'
@@ -145,6 +148,13 @@ class FeederSimulator(object):
                 if not os.path.exists(os.path.dirname(output_location)):
                     os.makedirs(os.path.dirname(output_location))
                 bucket.download_file(obj.key,output_location)
+
+        if sensor_location != '':
+            output_location = os.path.join('sensors',os.path.basename(sensor_location))
+            if not os.path.exists(os.path.dirname(output_location)):
+                os.makedirs(os.path.dirname(output_location))
+            bucket.download_file(sensor_location,output_location)
+
     def create_measurement_lists(self,
             percent_voltage=75,
             percent_real=75,
@@ -155,18 +165,19 @@ class FeederSimulator(object):
         ):
 
         random.seed(voltage_seed)
+        os.makedirs('sensors')
         voltage_subset = random.sample(self._AllNodeNames,math.floor(len(self._AllNodeNames)*float(percent_voltage)/100))
-        with open('voltage_ids.json','w') as fp:
+        with open(os.path.join('sensors','voltage_ids.json'),'w') as fp:
             json.dump(voltage_subset,fp,indent=4)
 
         random.seed(real_seed)
         real_subset = random.sample(self._AllNodeNames,math.floor(len(self._AllNodeNames)*float(percent_real)/100))
-        with open('real_ids.json','w') as fp:
+        with open(os.path.join('sensors','real_ids.json'),'w') as fp:
             json.dump(real_subset,fp,indent=4)
 
         random.seed(reactive_seed)
         reactive_subset = random.sample(self._AllNodeNames,math.floor(len(self._AllNodeNames)*float(percent_voltage)/100))
-        with open('reactive_ids.json','w') as fp:
+        with open(os.path.join('sensors','reactive_ids.json'),'w') as fp:
             json.dump(reactive_subset,fp,indent=4)
 
     def snapshot_run(self):

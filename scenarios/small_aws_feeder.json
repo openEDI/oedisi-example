@@ -56,7 +56,7 @@
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "../feeder/voltage_ids.json"
+                "measurement_file": "../feeder/sensors/voltage_ids.json"
             }
         },
         {
@@ -65,7 +65,7 @@
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "../feeder/real_ids.json"
+                "measurement_file": "../feeder/sensors/real_ids.json"
             }
         },
         {
@@ -74,7 +74,7 @@
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "../feeder/reactive_ids.json"
+                "measurement_file": "../feeder/sensors/reactive_ids.json"
             }
         }
 
