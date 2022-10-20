@@ -96,16 +96,14 @@ class FeederSimulator(object):
         self._name_index_dict = {}
 
         if self._use_smartds:
-            self.download_smartds_data()
+            self.download_data('oedi-data-lake','Master.dss',True)
             self.load_feeder()
             self.create_measurement_lists()
         else:
-            self.download_gadal_data()
+            self.download_data('gadal','master.dss')
             self.load_feeder()
 
-    def download_smartds_data(self):
-
-        bucket_name = 'oedi-data-lake'
+    def download_data(self, bucket_name, master_name, update_loadshape_location=False):
 
         #Equivalent to --no-sign-request
         s3_resource = boto3.resource('s3',config=Config(signature_version=UNSIGNED))
@@ -113,7 +111,7 @@ class FeederSimulator(object):
         opendss_location = self._opendss_location
         profile_location = self._profile_location
 
-        self._feeder_file = os.path.join('opendss','Master.dss')
+        self._feeder_file = os.path.join('opendss',master_name)
         self._simulation_time_step = '15m'
         for obj in bucket.objects.filter(Prefix=opendss_location):
             output_location = os.path.join('opendss',obj.key.replace(opendss_location,'').strip('/'))
@@ -122,48 +120,31 @@ class FeederSimulator(object):
             bucket.download_file(obj.key,output_location)
 
         modified_loadshapes = ''
-        all_profiles = set()
-        if not os.path.exists(os.path.join('opendss','profiles')):
-            os.makedirs(os.path.join('opendss','profiles'))
-        with open(os.path.join('opendss','LoadShapes.dss'),'r') as fp_loadshapes:
-            for row in fp_loadshapes.readlines():
-                new_row = row.replace('../','')
-                for token in new_row.split(' '):
-                    if token.startswith('(file='):
-                        location = token.split('=profiles/')[1].strip().strip(')')
-                        all_profiles.add(location)
-                modified_loadshapes=modified_loadshapes+new_row
-        with open(os.path.join('opendss','LoadShapes.dss'),'w') as fp_loadshapes:
-            fp_loadshapes.write(modified_loadshapes)
-        for profile in all_profiles:
-            s3_location = f'{profile_location}/{profile}'
-            bucket.download_file(s3_location,os.path.join('opendss','profiles',profile))
+        if not os.path.exists(os.path.join('profiles')):
+            os.makedirs(os.path.join('profiles'))
+        if update_loadshape_location:
+            all_profiles = set()
+            with open(os.path.join('opendss','LoadShapes.dss'),'r') as fp_loadshapes:
+                for row in fp_loadshapes.readlines():
+                    new_row = row.replace('../','')
+                    new_row = new_row.replace('file=','file=../')
+                    for token in new_row.split(' '):
+                        if token.startswith('(file='):
+                            location = token.split('=../profiles/')[1].strip().strip(')')
+                            all_profiles.add(location)
+                    modified_loadshapes=modified_loadshapes+new_row
+            with open(os.path.join('opendss','LoadShapes.dss'),'w') as fp_loadshapes:
+                fp_loadshapes.write(modified_loadshapes)
+            for profile in all_profiles:
+                s3_location = f'{profile_location}/{profile}'
+                bucket.download_file(s3_location,os.path.join('profiles',profile))
 
-    def download_gadal_data(self):
-
-        bucket_name = 'gadal'
-
-        #Equivalent to --no-sign-request
-        s3_resource = boto3.resource('s3',config=Config(signature_version=UNSIGNED))
-        bucket = s3_resource.Bucket(bucket_name)
-        opendss_location = self._opendss_location
-        profile_location = self._profile_location
-
-        self._feeder_file = os.path.join('opendss','qsts','master.dss')
-        self._simulation_time_step = '15m'
-        for obj in bucket.objects.filter(Prefix=opendss_location):
-            output_location = os.path.join('opendss','qsts',obj.key.replace(opendss_location,'').strip('/'))
-            if not os.path.exists(os.path.dirname(output_location)):
-                os.makedirs(os.path.dirname(output_location))
-            bucket.download_file(obj.key,output_location)
-
-        for obj in bucket.objects.filter(Prefix=profile_location):
-            output_location = os.path.join('opendss','profiles',obj.key.replace(profile_location,'').strip('/'))
-            if not os.path.exists(os.path.dirname(output_location)):
-                os.makedirs(os.path.dirname(output_location))
-            bucket.download_file(obj.key,output_location)
-
-
+        else:
+            for obj in bucket.objects.filter(Prefix=profile_location):
+                output_location = os.path.join('profiles',obj.key.replace(profile_location,'').strip('/'))
+                if not os.path.exists(os.path.dirname(output_location)):
+                    os.makedirs(os.path.dirname(output_location))
+                bucket.download_file(obj.key,output_location)
     def create_measurement_lists(self,
             percent_voltage=75,
             percent_real=75,

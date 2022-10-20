@@ -9,7 +9,11 @@ from pydantic import BaseModel
 from typing import List, Tuple
 import numpy as np
 from datetime import datetime, timedelta
-from gadal.gadal_types.data_types import Complex,Topology,VoltagesReal,VoltagesImaginary,PowersReal,PowersImaginary, AdmittanceMatrix, VoltagesMagnitude, VoltagesAngle, Injection, AdmittanceSparse
+from gadal.gadal_types.data_types import (
+        Complex,Topology,VoltagesReal,VoltagesImaginary,PowersReal,
+        PowersImaginary, AdmittanceMatrix, VoltagesMagnitude, 
+        VoltagesAngle, Injection, AdmittanceSparse
+)
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -98,21 +102,8 @@ def go_cosim(sim, config: FeederConfig):
         )
 
 
-    def get_phase(name):
-        _, end = name.split('.')
-        if end == '1':
-            return 0
-        elif end == '2':
-            return -2*np.pi/3
-        elif end == '3':
-            return 2*np.pi/3
-        else:
-            raise Exception("Cannot parse name")
-
-    phases = list(map(get_phase, sim._AllNodeNames))
     logger.debug("_Vbase_allnode")
     logger.debug(sim._Vbase_allnode)
-    base_voltages = list(sim._Vbase_allnode)
 
     slack_bus = [
         sim._AllNodeNames[i] for i in range(
@@ -123,26 +114,12 @@ def go_cosim(sim, config: FeederConfig):
     unique_ids = sim._AllNodeNames
     snapshot_run(sim)
 
-    #logger.debug("y-matrix")
-    #logger.debug(y_matrix)
-    logger.debug("phases")
-    logger.debug(phases)
-    logger.debug("base_voltages")
-    logger.debug(base_voltages)
     logger.debug("slack_bus")
     logger.debug(slack_bus)
     logger.debug("unique_ids")
     logger.debug(unique_ids)
 
-    base_voltagemagnitude = VoltagesMagnitude(
-           values = [abs(i) for i in base_voltages],
-           ids = unique_ids
-    )
-
-    base_voltageangle = VoltagesAngle(
-           values = phases,
-           ids = unique_ids
-    )
+   
     all_PQs = {}
     all_PQs['load'] = sim.get_PQs_load(static=True) # Return type is PQ_values, PQ_names, PQ_types all with same size
     all_PQs['pv'] = sim.get_PQs_pv(static=True)
@@ -163,6 +140,21 @@ def go_cosim(sim, config: FeederConfig):
     power_real = PowersReal(ids = PQ_names, values = PQ_real, equipment_type = PQ_types)
     power_imaginary = PowersImaginary(ids = PQ_names, values = PQ_imaginary, equipment_type = PQ_types)
     injections = Injection(power_real=power_real, power_imaginary = power_imaginary)
+
+    sim.solve(0,0)
+    feeder_voltages = sim.get_voltages_actual()
+    phases = list(map(get_true_phases, np.angle(feeder_voltages)))
+    base_voltages = list(sim._Vbase_allnode)
+    base_voltagemagnitude = VoltagesMagnitude(
+           values = [abs(i) for i in base_voltages],
+           ids = unique_ids
+    )
+
+    base_voltageangle = VoltagesAngle(
+       values = phases,
+       ids = unique_ids
+    )
+
  
     topology = Topology(
         admittance=admittancematrix,
