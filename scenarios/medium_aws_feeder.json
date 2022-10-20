@@ -40,7 +40,6 @@
             "name": "feeder",
             "type": "LocalFeeder",
             "parameters": {
-                "name": "medium_smartds",
                 "use_smartds": true,
                 "profile_location": "SMART-DS/v1.0/2017/SFO/P6U/profiles",
                 "opendss_location": "SMART-DS/v1.0/2017/SFO/P6U/scenarios/solar_medium_batteries_none_timeseries/opendss/p6uhs10_1247/p6uhs10_1247--p6udt5293",

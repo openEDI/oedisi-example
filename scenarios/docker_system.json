@@ -40,7 +40,6 @@
             "name": "feeder",
             "type": "LocalFeeder",
             "parameters": {
-                "name": "ieee123",
                 "use_smartds": false,
                 "profile_location": "gadal_ieee123/profiles",
                 "opendss_location": "gadal_ieee123/qsts",
