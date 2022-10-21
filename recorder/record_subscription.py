@@ -12,7 +12,7 @@ from gadal.gadal_types.data_types import MeasurementArray
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 class Recorder:
     def __init__(self, name, feather_filename, csv_filename, input_mapping):
@@ -49,40 +49,52 @@ class Recorder:
 
         start = True
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
-
+        logger.debug(f'outside granted time {granted_time}')
+        logger.debug(f'outside max time {h.HELICS_TIME_MAXTIME}')
         with pa.OSFile(self.feather_filename, 'wb') as sink:
+            logger.debug(f'writing to file {self.feather_filename}')
             writer = None
             while granted_time < h.HELICS_TIME_MAXTIME:
+                logger.debug(f'inside granted time {granted_time}')
+                logger.debug(f'inside max time {h.HELICS_TIME_MAXTIME}')
                 logger.info('start time: '+str(datetime.now()))
                 logger.debug(granted_time)
                 # Check that the data is a MeasurementArray type
                 json_data = self.sub.json
-                json_data['time'] = granted_time
-                measurement = MeasurementArray(**self.sub.json)
+                # json_data['time'] = int(granted_time)
+                try:
+                    measurement = MeasurementArray(**self.sub.json)
 
-                measurement_dict = {key: value for key, value in zip(measurement.ids,measurement.values)}
-                measurement_dict['time'] = measurement.time.strftime("%Y-%m-%d %H:%M:%S")
-                logger.debug(measurement.time)
+                    measurement_dict = {key: value for key, value in zip(measurement.ids,measurement.values)}
+                    measurement_dict['time'] = measurement.time.strftime("%Y-%m-%d %H:%M:%S")
+                    logger.debug(measurement.time)
 
-                if start:
-                    schema_elements = [(key, pa.float64()) for key in measurement.ids]
-                    schema_elements.append(('time',pa.string()))
-                    schema = pa.schema(schema_elements)
-                    writer = pa.ipc.new_file(sink, schema)
-                    start = False
-                cnt = 0
+                    if start:
+                        schema_elements = [(key, pa.float64()) for key in measurement.ids]
+                        schema_elements.append(('time',pa.string()))
+                        schema = pa.schema(schema_elements)
+                        writer = pa.ipc.new_file(sink, schema)
+                        start = False
+                    cnt = 0
 
-                writer.write_batch(pa.RecordBatch.from_pylist([
-                    measurement_dict
-                ]))
+                    writer.write_batch(pa.RecordBatch.from_pylist([
+                        measurement_dict
+                    ]))
 
-                granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
-                logger.info('end time: '+str(datetime.now()))
-
+                    granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
+                    logger.info('end time: '+str(datetime.now()))
+                except:
+                    print(f"there was an error in creating the recorder file somewhere above!!!")
+                    granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
+                    logger.info('end time: '+str(datetime.now()))
+                    pass
             if writer is not None:
                 writer.close()
-        data = pd.read_feather(self.feather_filename)
-        data.to_csv(self.csv_filename, header=True, index=False)
+        try:
+            data = pd.read_feather(self.feather_filename)
+            data.to_csv(self.csv_filename, header=True, index=False)
+        except:
+            print(f" recorder file has not been created, something has happened check!!!")
         self.destroy()
 
     def destroy(self):
@@ -96,6 +108,9 @@ if __name__ == "__main__":
     with open("static_inputs.json") as f:
         config = json.load(f)
         name = config["name"]
+        logger.info(f"name {name}")
+        logger.info(f"feather file name {config['feather_filename']}")
+
         feather_path = config["feather_filename"]
         csv_path = config["csv_filename"]
 

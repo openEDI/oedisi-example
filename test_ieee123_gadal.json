@@ -45,7 +45,8 @@
                 "run_freq_sec": 900,
                 "number_of_timesteps": 36,
                 "start_time_index": 0,
-                "deltat": 60
+                "deltat": 60,
+                "flex_load_input_file": "flex_load_info.json"
             }
         },
         {

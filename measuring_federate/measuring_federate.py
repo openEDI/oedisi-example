@@ -19,6 +19,11 @@ class MeasurementConfig(BaseModel):
     random_percent: float
 
 
+class LabelledArray(BaseModel):
+    values: List[float]
+    ids: List[str]
+    units: List[str]
+
 def get_indices(labelled_array, indices):
     "Get list of indices in the topology for each index of the labelled array"
     inv_map = {v: i for i, v in enumerate(indices)}
@@ -93,8 +98,15 @@ class MeasurementRelay:
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
         while granted_time < h.HELICS_TIME_MAXTIME:
             logger.info('start time: '+str(datetime.now()))
+            logger.info(f'sub measurement {self.sub_measurement.json}')
+            # self.sub_measurement_new = LabelledArrayNew.parse_obj(self.sub_measurement.json)
+
             json_data = self.sub_measurement.json
             measurement = MeasurementArray(**json_data)
+
+            # json_data = self.sub_measurement_new.json
+            # measurement = MeasurementArray(**json_data)
+
 
             with open(self.measurement_file,'r') as fp:
                 self.measurement = json.load(fp)

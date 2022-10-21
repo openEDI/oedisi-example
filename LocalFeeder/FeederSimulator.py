@@ -258,8 +258,8 @@ class FeederSimulator(object):
             self._opf_node_order, dss, self._opf_pvs_df)
 
 
-    # def set_opf_control_vars(self):
-    #     opf_dss_functions.set_feeder_control_vars(self, dss)
+    def set_opf_control_vars(self):
+        opf_dss_functions.set_feeder_control_vars(self, dss)
 
     def get_y_matrix(self):
         get_y_matrix_file(dss)
@@ -274,9 +274,6 @@ class FeederSimulator(object):
         self._nodes_index = [self._AllNodeNames.index(ii) for ii in self._AllNodeNames]
         self._name_index_dict = {ii: self._AllNodeNames.index(ii) for ii in self._AllNodeNames}
         print(self._AllNodeNames)
-
-        ## For y-matrix pu
-        self.setup_vbase()
 
         self._expect_max_name_load_dict = {}
         self._expect_max_load_power = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
@@ -295,16 +292,21 @@ class FeederSimulator(object):
                 self._source_indexes.append(self._AllNodeNames.index(Bus.upper() + '.' + str(phase)))
         logger.debug("Voltage Sources")
         logger.debug(self._source_indexes)
-
-        self.setup_vbase()
-
-    def get_y_matrix(self):
-        get_y_matrix_file(dss)
         Ymatrix = parse_Ymatrix('base_ysparse.csv', self._node_number)
         new_order = self._circuit.YNodeOrder()
         permute = np.array(permutation(new_order, self._AllNodeNames))
-        #inv_permute = np.array(permutation(self._AllNodeNames, new_order))
+        self.setup_vbase()
         return coo_matrix((Ymatrix.data, (permute[Ymatrix.row], permute[Ymatrix.col])), shape=Ymatrix.shape)
+
+    # def get_y_matrix(self):
+    #     self._AllNodeNames = self._circuit.YNodeOrder()
+    #     self._node_number = len(self._AllNodeNames)
+    #     get_y_matrix_file(dss)
+    #     Ymatrix = parse_Ymatrix('base_ysparse.csv', self._node_number)
+    #     new_order = self._circuit.YNodeOrder()
+    #     permute = np.array(permutation(new_order, self._AllNodeNames))
+    #     #inv_permute = np.array(permutation(self._AllNodeNames, new_order))
+    #     return coo_matrix((Ymatrix.data, (permute[Ymatrix.row], permute[Ymatrix.col])), shape=Ymatrix.shape)
 
 
     def setup_vbase(self):

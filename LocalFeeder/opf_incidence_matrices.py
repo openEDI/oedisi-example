@@ -317,7 +317,7 @@ def get_caps_incidence_matrix(node_order, dssobj, capbk_df):
         temp = dssobj.CktElement.BusNames()
         connected_bus = re.search(find, temp[0]).group(0)
         phase_order = dssobj.CktElement.NodeOrder()
-        for i in range(0, len(phase_order) - 1):
+        for i in range(0, int(len(phase_order)/2)):
             current_node = [connected_bus + '.' + str(phase_order[i])]
             node_idx.append([node_order.index(i) for i in current_node][0])
             cap_load_nodes.append(current_node)

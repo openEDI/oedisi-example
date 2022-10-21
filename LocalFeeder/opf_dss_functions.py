@@ -201,11 +201,11 @@ def get_q_cap_vector(self, dss_obj):
         connected_bus = re.search(find, temp[0]).group(0)
         phase_order = dss_obj.CktElement.NodeOrder()
         kvar_val = abs(dss_obj.CktElement.TotalPowers()[1])
-        for i in range(0, len(phase_order) - 1):
+        for i in range(0, int(len(phase_order)/2)):
             current_node = [connected_bus + '.' + str(phase_order[i])]
             node_idx.append([self._opf_node_order.index(i) for i in current_node][0])
             cap_nodes.append(current_node)
-            q_cap_kVAR.append(kvar_val / (len(phase_order) - 1))
+            q_cap_kVAR.append(kvar_val / (len(phase_order)/2))
 
             # q_cap_kVAR.append(self._opf_capbk_df.iloc[j]['kvar'] / (len(phase_order) - 1))
 

@@ -16,10 +16,7 @@ def bad_type_checker(type, x):
 # We make classes for each component using a type checker
 # AWSFeeder = component_from_json(
 #     "AWSFeeder/component_definition.json", bad_type_checker
-# )
-# LocalFeeder = component_from_json(
-#     "LocalFeeder/component_definition.json", bad_type_checker
-# )
+
 MeasurementComponent = component_from_json(
     "measuring_federate/component_definition.json", bad_type_checker
 )

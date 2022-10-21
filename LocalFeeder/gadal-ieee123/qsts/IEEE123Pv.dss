@@ -1,10 +1,31 @@
 New Tshape.constant_temperature npts=35040 interval=0.25 temp=(file=../profiles/pv_profiles/temperature.csv)
-New PVSystem.7 phases=3 bus1=7 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50 PF=1 yearly=pvshape_7 TYearly=constant_temperature
-New PVSystem.29 phases=3 bus1=29 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50 PF=1 yearly=pvshape_29 TYearly=constant_temperature
-New PVSystem.49 phases=3 bus1=49 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50 PF=1 yearly=pvshape_49 TYearly=constant_temperature
-New PVSystem.55 phases=3 bus1=55 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50 PF=1 yearly=pvshape_55 TYearly=constant_temperature
-New PVSystem.63 phases=3 bus1=63 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50 PF=1 yearly=pvshape_63 TYearly=constant_temperature
-New PVSystem.68 phases=1 bus1=68.1 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50 PF=1 yearly=pvshape_68 TYearly=constant_temperature
-New PVSystem.80 phases=3 bus1=80 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50 PF=1 yearly=pvshape_80 TYearly=constant_temperature
-New PVSystem.87 phases=3 bus1=87 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50 PF=1 yearly=pvshape_87 TYearly=constant_temperature
-New PVSystem.113 phases=1 bus1=113.1 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50 PF=1 yearly=pvshape_113 TYearly=constant_temperature
+!New PVSystem.7 phases=3 bus1=7 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50  yearly=pvshape_7 TYearly=constant_temperature
+!New PVSystem.29 phases=3 bus1=29 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50  yearly=pvshape_29 TYearly=constant_temperature
+!New PVSystem.49 phases=3 bus1=49 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50  yearly=pvshape_49 TYearly=constant_temperature
+!New PVSystem.55 phases=3 bus1=55 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50  yearly=pvshape_55 TYearly=constant_temperature
+!New PVSystem.63 phases=3 bus1=63 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50  yearly=pvshape_63 TYearly=constant_temperature
+New PVSystem.68 phases=1 bus1=68.1 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50  yearly=pvshape_68 TYearly=constant_temperature
+!New PVSystem.80 phases=3 bus1=80 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50  yearly=pvshape_80 TYearly=constant_temperature
+!New PVSystem.87 phases=3 bus1=87 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50  yearly=pvshape_87 TYearly=constant_temperature
+New PVSystem.113 phases=1 bus1=113.1 kV=2.4017771198288433 kVA=50 irrad=1.0 Pmpp=50  yearly=pvshape_113 TYearly=constant_temperature
+New PVSystem.7a phases=1 bus1=7.1 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_7 TYearly=constant_temperature
+New PVSystem.7b phases=1 bus1=7.2 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_7 TYearly=constant_temperature
+New PVSystem.7c phases=1 bus1=7.3 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_7 TYearly=constant_temperature
+New PVSystem.29a phases=1 bus1=29.1 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_29 TYearly=constant_temperature
+New PVSystem.29b phases=1 bus1=29.2 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_29 TYearly=constant_temperature
+New PVSystem.29c phases=1 bus1=29.3 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_29 TYearly=constant_temperature
+New PVSystem.49a phases=1 bus1=49.1 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_49 TYearly=constant_temperature
+New PVSystem.49b phases=1 bus1=49.2 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_49 TYearly=constant_temperature
+New PVSystem.49c phases=1 bus1=49.3 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_49 TYearly=constant_temperature
+New PVSystem.55a phases=1 bus1=55 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_55 TYearly=constant_temperature
+New PVSystem.55b phases=1 bus1=55 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_55 TYearly=constant_temperature
+New PVSystem.55c phases=1 bus1=55 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_55 TYearly=constant_temperature
+New PVSystem.63a phases=1 bus1=63.1 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_63 TYearly=constant_temperature
+New PVSystem.63b phases=1 bus1=63.2 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_63 TYearly=constant_temperature
+New PVSystem.63c phases=1 bus1=63.3 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_63 TYearly=constant_temperature
+New PVSystem.80a phases=1 bus1=80.1 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_80 TYearly=constant_temperature
+New PVSystem.80b phases=1 bus1=80.2 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_80 TYearly=constant_temperature
+New PVSystem.80c phases=1 bus1=80.3 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_80 TYearly=constant_temperature
+New PVSystem.87a phases=1 bus1=87.1 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_87 TYearly=constant_temperature
+New PVSystem.87b phases=1 bus1=87.2 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_87 TYearly=constant_temperature
+New PVSystem.87c phases=1 bus1=87.3 kV=2.4017771198288433 kVA=16.67 irrad=1.0 Pmpp=16.67  yearly=pvshape_87 TYearly=constant_temperature

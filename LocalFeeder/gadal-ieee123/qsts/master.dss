@@ -195,7 +195,9 @@ New Transformer.XFM1  Phases=3   Windings=2 Xhl=2.72
 ! connected to ground (Node 0). Thus, it need not be specified if a Y-connected or L-N connected
 ! capacitor is desired
 
-New Capacitor.C83       Bus1=83      Phases=3     kVAR=600     kV=4.16
+New Capacitor.C83a       Bus1=83.1      Phases=1     kVAR=200     kV=2.402
+New Capacitor.C83b       Bus1=83.2      Phases=1     kVAR=200     kV=2.402
+New Capacitor.C83c       Bus1=83.3      Phases=1     kVAR=200     kV=2.402
 New Capacitor.C88a      Bus1=88.1    Phases=1     kVAR=50      kV=2.402
 New Capacitor.C90b      Bus1=90.2    Phases=1     kVAR=50      kV=2.402
 New Capacitor.C92c      Bus1=92.3    Phases=1     kVAR=50      kV=2.402

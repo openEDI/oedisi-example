@@ -10,12 +10,76 @@ from typing import List, Tuple
 import numpy as np
 from datetime import datetime, timedelta
 from gadal.gadal_types.data_types import Complex,Topology,VoltagesReal,VoltagesImaginary,PowersReal,PowersImaginary, AdmittanceMatrix, VoltagesMagnitude, VoltagesAngle
+from typing import List, Optional
+from dataclasses import dataclass
+import csv
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
 
 test_se = False
+
+class LabelledArray(BaseModel):
+    values: List[float]
+    ids: List[str]
+    units: str
+class GenModelInfo(BaseModel):
+    adj_matrix: List[List[float]]
+    values: List[float]
+    names: List[str]
+
+class PVModelInfo(BaseModel):
+    adj_matrix: List[List[float]]
+    p_values: List[float]
+    q_values: List[float]
+    s_values: List[float]
+    names: List[str]
+
+
+
+@dataclass()
+class OPFControl:
+    sub_powers_flex: Optional[h.HelicsInput]
+    sub_cap_powers_imag: Optional[h.HelicsInput]
+    sub_pv_powers_real: Optional[h.HelicsInput]
+    sub_pv_powers_imag: Optional[h.HelicsInput]
+    sub_tap_values: Optional[h.HelicsInput]
+
+
+def set_powers_flex(sim):
+    if sim.opf_control.sub_powers_flex is not None:
+        sim.opf_flex_loads_vars = LabelledArray.parse_obj(sim.opf_control.sub_powers_flex.json)
+        logger.info(f'Subscribed Flexible Power Curtailment Received from OPF')
+        sim.set_feeder_flex_load()
+
+def set_caps(sim):
+    if sim.opf_control.sub_cap_powers_imag is not None:
+        sim.opf_caps_vars = LabelledArray.parse_obj(sim.opf_control.sub_cap_powers_imag.json)
+        logger.info(f'Subscribed Cap Powers Imag Received from OPF')
+        sim.set_feeder_caps()
+
+def set_pv(sim):
+    if sim.opf_control.sub_pv_powers_real is not None and sim.opf_control.sub_pv_powers_imag is not None:
+        sim.opf_pv_p_vars = LabelledArray.parse_obj(sim.opf_control.sub_pv_powers_real.json)
+        sim.opf_pv_q_vars = LabelledArray.parse_obj(sim.opf_control.sub_pv_powers_imag.json)
+        logger.info(f'Subscribed feeder pv powers received from OPF')
+        sim.set_feeder_pvs()
+
+def set_feeder_taps(sim):
+    if sim.opf_control.sub_tap_values is not None:
+        sim.opf_tap_vars = LabelledArray.parse_obj(sim.opf_control.sub_tap_values.json)
+        logger.info(f'Subscribed tap values received from OPF')
+        sim.set_feeder_taps()
+
+def register_sub_or_none(sim, input_mapping, name, unit="-"):
+    if name in input_mapping:
+        sub = sim.federate.register_subscription(
+            input_mapping[name], unit)
+        logger.info(f'{name} at {input_mapping[name]} values subscription created')
+        return sub
+    else:
+        return None
 
 def numpy_to_y_matrix(array):
     return [
@@ -50,7 +114,15 @@ def get_true_phases(angle):
         logger.debug("error")
 
 
-def go_cosim(sim, config: FeederConfig):
+def destroy(vfed):
+    logger.info('federate getting destroyed')
+    h.helicsFederateDisconnect(vfed)
+    logger.info("Federate disconnected")
+    h.helicsFederateFree(vfed)
+    h.helicsCloseLibrary()
+
+
+def go_cosim(sim, config: FeederConfig, input_mapping):
 
     deltat = config.deltat
     fedinitstring = "--federates=1"
@@ -66,8 +138,8 @@ def go_cosim(sim, config: FeederConfig):
     pub_voltages_real = h.helicsFederateRegisterPublication(vfed, "voltages_real", h.HELICS_DATA_TYPE_STRING, "")
     pub_voltages_imag = h.helicsFederateRegisterPublication(vfed, "voltages_imag", h.HELICS_DATA_TYPE_STRING, "")
     pub_voltages_magnitude = h.helicsFederateRegisterPublication(vfed, "voltages_magnitude", h.HELICS_DATA_TYPE_STRING, "")
-    pub_powers_real = h.helicsFederateRegisterPublication(vfed, "powers_real", h.HELICS_DATA_TYPE_STRING, "")
-    pub_powers_imag = h.helicsFederateRegisterPublication(vfed, "powers_imag", h.HELICS_DATA_TYPE_STRING, "")
+    # pub_powers_real = h.helicsFederateRegisterPublication(vfed, "powers_real", h.HELICS_DATA_TYPE_STRING, "")
+    # pub_powers_imag = h.helicsFederateRegisterPublication(vfed, "powers_imag", h.HELICS_DATA_TYPE_STRING, "")
     pub_topology = h.helicsFederateRegisterPublication(vfed, "topology", h.HELICS_DATA_TYPE_STRING, "")
 
     pub_topology_flow = h.helicsFederateRegisterPublication(vfed, "topology_flow", h.HELICS_DATA_TYPE_STRING, "")
@@ -91,8 +163,7 @@ def go_cosim(sim, config: FeederConfig):
     pub_powers_imag = h.helicsFederateRegisterPublication(vfed, "powers_imag", h.HELICS_DATA_TYPE_STRING, "")
     logger.info(f'imag power publishing created')
 
-    pub_cap_powers_imag = h.helicsFederateRegisterPublication(vfed, "cap_powers_imag", h.HELICS_DATA_TYPE_STRING,
-                                                                   "")
+    pub_cap_powers_imag = h.helicsFederateRegisterPublication(vfed, "cap_powers_imag", h.HELICS_DATA_TYPE_STRING, "")
     logger.info(f'capacitor values publishing created')
 
     pub_pv_powers_real = h.helicsFederateRegisterPublication(vfed, "pv_powers_real", h.HELICS_DATA_TYPE_STRING, "")
@@ -104,12 +175,12 @@ def go_cosim(sim, config: FeederConfig):
     pub_tap_values = h.helicsFederateRegisterPublication(vfed, "tap_values", h.HELICS_DATA_TYPE_STRING, "")
     logger.info(f'tap values publishing created')
 
-    opf_control = OPFControl(
-        sub_powers_flex = register_sub_or_none("opf_flex_powers_real", "W"),
-        sub_cap_powers_imag = register_sub_or_none("opf_cap_powers_imag", "Var"),
-        sub_pv_powers_real = register_sub_or_none("opf_pv_powers_real", "W"),
-        sub_pv_powers_imag = register_sub_or_none("opf_pv_powers_imag", "Var"),
-        sub_tap_values = register_sub_or_none("opf_tap_values"),
+    sim.opf_control = OPFControl(
+        sub_powers_flex = register_sub_or_none(sim, input_mapping,  "opf_flex_powers_real", "W"),
+        sub_cap_powers_imag = register_sub_or_none(sim, input_mapping, "opf_cap_powers_imag", "Var"),
+        sub_pv_powers_real = register_sub_or_none(sim, input_mapping, "opf_pv_powers_real", "W"),
+        sub_pv_powers_imag = register_sub_or_none(sim, input_mapping, "opf_pv_powers_imag", "Var"),
+        sub_tap_values = register_sub_or_none(sim, input_mapping, "opf_tap_values", "-"),
     )
     h.helicsFederateEnterExecutingMode(vfed)
     logger.info(f'Federate Execution Mode Entered')
@@ -130,11 +201,12 @@ def go_cosim(sim, config: FeederConfig):
         else:
             raise Exception("Cannot parse name")
 
-        y_line = numpy_to_y_matrix(sim._y_line)
-        phases = list(map(get_phase, sim._AllNodeNames))
-        logger.debug("_Vbase_allnode")
-        logger.debug(sim._Vbase_allnode)
-        base_voltages = list(sim._Vbase_allnode)
+    y_line = numpy_to_y_matrix(sim._y_line)
+    phases = list(map(get_phase, sim._AllNodeNames))
+    sim.setup_vbase()
+    logger.debug("_Vbase_allnode")
+    logger.debug(sim._Vbase_allnode)
+    base_voltages = list(sim._Vbase_allnode)
 
     slack_bus = [
         sim._AllNodeNames[i] for i in range(
@@ -186,13 +258,20 @@ def go_cosim(sim, config: FeederConfig):
     #     unique_ids=unique_ids
     # )
 
-    topology_flow = Topology(
-        y_matrix=y_line,
-        phases=phases,
-        base_voltages=base_voltages,
-        slack_bus=slack_bus,
-        unique_ids=unique_ids
+    admittanceline = AdmittanceMatrix(
+        admittance_matrix = y_line,
+        ids = unique_ids
     )
+
+    topology_flow = Topology(
+        admittance=admittanceline,
+        base_voltage_angles=base_voltageangle,
+        injections={},
+        base_voltage_magnitudes=base_voltagemagnitude,
+        slack_bus=slack_bus,
+    )
+
+
     taps_info = GenModelInfo(
         adj_matrix=sim._opf_reg_inc_matrix.tolist(),
         values=sim._opf_reg_taps_rated.tolist(),
@@ -222,11 +301,10 @@ def go_cosim(sim, config: FeederConfig):
 
     snapshot_run(sim)
 
-    granted_time = -1
     current_hour = 0
     current_second = 0
     current_index = config.start_time_index
-    granted_time = 0
+    granted_time = -1
     with open('nodenames.csv', 'w') as f:
         wr = csv.writer(f, dialect='excel')
         wr.writerows(sim._AllNodeNames)
@@ -240,6 +318,8 @@ def go_cosim(sim, config: FeederConfig):
     taps_list = []
     cap_reactive_power_list = []
     for request_time in range(0, int(config.number_of_timesteps)):
+        logger.info(f"requested time {request_time}")
+        logger.info(f"number of time steps {config.number_of_timesteps}")
         while granted_time < request_time:
             granted_time = h.helicsFederateRequestTime(vfed, request_time)
 
@@ -261,7 +341,8 @@ def go_cosim(sim, config: FeederConfig):
                 # sim.set_pv_pq(pv_, 0)
                 # sim.solve()
                 # sim.get_opf_system_vecs()
-                sim.solve()
+                sim.solve(current_hour,current_second)
+
                 sim.get_opf_system_vecs()
 
                 feeder_voltages = sim._voltages
@@ -271,66 +352,65 @@ def go_cosim(sim, config: FeederConfig):
                 active_power_pv = sim._p_pV_Y
                 reactive_power_pv = sim._q_pV_Y
                 taps = sim._reg_taps
-                sim.solve(current_hour,current_second)
 
                 feeder_voltages = sim.get_voltages_actual()
-                PQ_node = sim.get_PQs()
-                logger.debug("Feeder Voltages")
-                logger.debug(feeder_voltages)
-                logger.debug("PQ")
-                logger.debug(PQ_node)
+                # PQ_node = sim.get_PQs()
+                # logger.debug("Feeder Voltages")
+                # logger.debug(feeder_voltages)
+                # logger.debug("PQ")
+                # logger.debug(PQ_node)
 
                 logger.info('Publish load ' + str(np.sum(active_power_loads)))
 
                 pub_voltages_real.publish(
-                    LabelledArray(array=list(feeder_voltages.real), unique_ids=sim._opf_node_order).json())
+                    LabelledArray(values=list(feeder_voltages.real), ids=sim._opf_node_order, units='kV').json())
                 logger.info(f'real voltages published')
                 #logger.info(f'length: {len(feeder_voltages.real)}')
                 logger.debug(f'values: {feeder_voltages.real.tolist()}')
                 pub_voltages_imag.publish(
-                    LabelledArray(array=list(feeder_voltages.imag), unique_ids=sim._opf_node_order).json())
+                    LabelledArray(values=list(feeder_voltages.imag), ids=sim._opf_node_order, units='kV').json())
                 logger.info(f'voltages_imag published')
 
-                self.pub_powers_real.publish(
-                    LabelledArray(array=list(active_power_loads), unique_ids=sim._opf_node_order).json())
+                pub_powers_real.publish(
+                    LabelledArray(values=list(active_power_loads), ids=sim._opf_node_order, units='kW').json())
                 logger.info(f'powers_real published')
 
-                self.pub_powers_imag.publish(
-                    LabelledArray(array=list(reactive_power_loads), unique_ids=sim._opf_node_order).json())
+                pub_powers_imag.publish(
+                    LabelledArray(values=list(reactive_power_loads), ids=sim._opf_node_order, units='kVAR').json())
                 logger.info(f'powers_imag published')
 
                 pub_cap_powers_imag.publish(
-                    LabelledArray(array=list(cap_reactive_power), unique_ids=sim._AllNodeNames).json())
+                    LabelledArray(values=list(cap_reactive_power), ids=sim._AllNodeNames, units='kVAR').json())
                 logger.info(f'cap_powers_imag published published')
 
-                pub_pv_powers_real.publish(LabelledArray(array=list(active_power_pv), unique_ids=sim._AllNodeNames).json())
+                pub_pv_powers_real.publish(LabelledArray(values=list(active_power_pv), ids=sim._AllNodeNames, units='kW').json())
                 logger.info(f'pv_powers_real published')
                 logger.debug(f"{list(active_power_pv)}")
 
                 pub_pv_powers_imag.publish(
-                    LabelledArray(array=list(reactive_power_pv), unique_ids=sim._AllNodeNames).json())
+                    LabelledArray(values=list(reactive_power_pv), ids=sim._AllNodeNames, units='kVAR').json())
                 logger.info(f'pv_powers_imag published')
                 logger.debug(f"{list(reactive_power_pv)}")
 
-                pub_tap_values.publish(LabelledArray(array=list(taps), unique_ids=sim._opf_reg_order_names).json())
+                pub_tap_values.publish(LabelledArray(values=list(taps), ids=sim._opf_reg_order_names, units='kW').json())
                 logger.info(f'tap_values published')
 
                 logger.debug("Calculated Power")
                 Cal_power = feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
-                errors = PQ_node + Cal_power
-                PQ_node[:3] = -Cal_power[:3]
+                #errors = PQ_node + Cal_power
+                #PQ_node[:3] = -Cal_power[:3]
                 logger.debug("errors")
-                logger.debug(errors)
+                #logger.debug(errors)
                 power_balance = (feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000)
                 logger.debug(power_balance)
-                indices, = np.nonzero(np.abs(errors) > 1)
-                logger.debug("Indices with error > 1")
-                logger.debug(indices)
-                logger.debug([sim._AllNodeNames[i] for i in indices])
-                logger.debug("Power, Voltages, and Calculated Power at Indices")
-                logger.debug(PQ_node[indices])
-                logger.debug(feeder_voltages[indices])
-                logger.debug(power_balance[indices])
+                #indices, = np.nonzero(np.abs(errors) > 1)
+                # logger.debug("Indices with error > 1")
+                # logger.debug(indices)
+                # logger.debug([sim._AllNodeNames[i] for i in indices])
+                # logger.debug("Power, Voltages, and Calculated Power at Indices")
+                #logger.debug(PQ_node[indices])
+                # logger.debug(feeder_voltages[indices])
+                # logger.debug(power_balance[indices])
 
 
         phases = list(map(get_true_phases, np.angle(feeder_voltages)))
@@ -350,17 +430,18 @@ def go_cosim(sim, config: FeederConfig):
 
         logger.debug('Publish load ' + str(feeder_voltages.real[0]))
         voltage_magnitudes = np.abs(feeder_voltages.real + 1j* feeder_voltages.imag)
-        pub_voltages_magnitude.publish(VoltagesMagnitude(values=list(voltage_magnitudes), ids=sim._AllNodeNames, time = current_timestamp).json())
-        pub_voltages_real.publish(VoltagesReal(values=list(feeder_voltages.real), ids=sim._AllNodeNames, time = current_timestamp).json())
-        pub_voltages_imag.publish(VoltagesImaginary(values=list(feeder_voltages.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
-        pub_powers_real.publish(PowersReal(values=list(PQ_node.real), ids=sim._AllNodeNames, time = current_timestamp).json())
-        pub_powers_imag.publish(PowersImaginary(values=list(PQ_node.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
+        # pub_voltages_magnitude.publish(VoltagesMagnitude(values=list(voltage_magnitudes), ids=sim._AllNodeNames, time = current_timestamp).json())
+        # pub_voltages_real.publish(VoltagesReal(values=list(feeder_voltages.real), ids=sim._AllNodeNames, time = current_timestamp).json())
+        # pub_voltages_imag.publish(VoltagesImaginary(values=list(feeder_voltages.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
+        # pub_powers_real.publish(PowersReal(values=list(PQ_node.real), ids=sim._AllNodeNames, time = current_timestamp).json())
+        # pub_powers_imag.publish(PowersImaginary(values=list(PQ_node.imag), ids=sim._AllNodeNames, time = current_timestamp).json())
+
 
         if ((granted_time - 60) % (60 * 60)) == 0:
-            set_powers_flex(sim, self.opf_control)
-            set_caps(sim, self.opf_control)
-            set_pv(sim, self.opf_control)
-            set_feeder_taps(sim, self.opf_control)
+            set_powers_flex(sim)
+            set_caps(sim)
+            set_pv(sim)
+            set_feeder_taps(sim)
             # set_feeder_caps(dss, cap_Q)
             # set_feeder_pvs(dss, pv_P, pv_Q)
             # set_feeder_taps(dss, tap_vals)
@@ -395,9 +476,8 @@ def go_cosim(sim, config: FeederConfig):
     f = open('cap_reactive_power.csv', 'wb')
     np.savetxt(f, np.array(cap_reactive_power_list), delimiter=",")
     f.close()
-    h.helicsFederateDisconnect(vfed)
-    h.helicsFederateFree(vfed)
-    h.helicsCloseLibrary()
+    logger.info(f'about to destroy federate')
+    destroy(vfed)
 
 
 class FeederCosimConfig(BaseModel):
@@ -407,9 +487,12 @@ class FeederCosimConfig(BaseModel):
 def run():
     with open('static_inputs.json') as f:
         parameters = json.load(f)
+
+    with open("input_mapping.json") as f:
+        input_mapping = json.load(f)
     config = FeederConfig(**parameters)
     sim = setup_sim(config)
-    go_cosim(sim, config)
+    go_cosim(sim, config, input_mapping)
 
 if __name__ == '__main__':
     run()
