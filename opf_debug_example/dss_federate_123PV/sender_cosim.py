@@ -1,4 +1,6 @@
 import logging
+import sys
+print(sys.executable)
 import helics as h
 import opendssdirect as dss
 import pandas as pd

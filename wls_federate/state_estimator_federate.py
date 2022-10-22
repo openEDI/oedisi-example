@@ -248,10 +248,13 @@ class StateEstimatorFederate:
         logger.info("Entering execution mode")
 
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
+        logger.info(f'granted time: {granted_time}')
+        logger.info(f'HELICS_TIME_MAXTIME: {h.HELICS_TIME_MAXTIME}')
 
         self.initial_ang = None
         self.initial_V = None
         while granted_time < h.HELICS_TIME_MAXTIME:
+            logger.info(f'inside granted time: {granted_time}')
 
             topology = Topology.parse_obj(self.sub_topology.json)
             if not self.sub_voltages_magnitude.is_updated():
@@ -301,6 +304,7 @@ class StateEstimatorFederate:
                 ids=topology.admittance.ids,
                 time = voltages.time
             ).json())
+            logger.info('published voltage angle and magnitudes')
             logger.info('end time: '+str(datetime.now()))
 
         self.destroy()

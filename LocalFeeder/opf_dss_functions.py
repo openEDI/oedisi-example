@@ -230,6 +230,7 @@ def get_taps_vector(self, dssobj):
         phase_order = dssobj.CktElement.NodeOrder()
         for j in range(0, numphases):
             reg_list.append('Transformer.' + xfrmr_name + '.' + str(phase_order[j]))
+            print(f'tap number {dssobj.RegControls.TapNumber()}')
             reg_taps.append(dssobj.RegControls.TapNumber())
             reg_control_list.append(dssobj.RegControls.Name())
         go = dssobj.RegControls.Next()

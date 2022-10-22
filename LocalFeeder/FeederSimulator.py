@@ -238,7 +238,7 @@ class FeederSimulator(object):
         self._y_matrix, self._Y_LL, self._Y_L0, self._Y_0L, self._Y_0L, self._Y_00 = opf_dss_functions.get_y_matrix(dss, self)
 
         self._y_line = opf_dss_functions.line_flow_from_nodes_matrix(self)
-
+        logger.info(f"size of line flow matrix {np.size(self._y_line)}")
 
     def get_opf_incidence_matrices(self):
         """
@@ -580,8 +580,10 @@ class FeederSimulator(object):
 
     def set_feeder_flex_load(self):
         if self.opf_flex_loads_vars is not None:
-            powers_P_values = self.opf_flex_loads_vars.array
-            powers_P_list = self.opf_flex_loads_vars.unique_ids
+            # powers_P_values = self.opf_flex_loads_vars.array
+            # powers_P_list = self.opf_flex_loads_vars.unique_ids
+            powers_P_values = self.opf_flex_loads_vars
+            powers_P_list = self.opf_flex_loads_ids
             for j in range(0, len(powers_P_values)):
                 load_name = powers_P_list[j]
                 load_kW = powers_P_values[j]/1e3
@@ -592,8 +594,10 @@ class FeederSimulator(object):
 
     def set_feeder_caps(self):
         if self.opf_caps_vars is not None:
-            cap_Q_values = self.opf_caps_vars.array
-            cap_Q_list = self.opf_caps_vars.unique_ids
+            # cap_Q_values = self.opf_caps_vars.array
+            # cap_Q_list = self.opf_caps_vars.unique_ids
+            cap_Q_values = self.opf_caps_vars
+            cap_Q_list = self.opf_caps_ids
             for j in range(0, len(cap_Q_values)):
                 cap_name = cap_Q_list[j]
                 cap_kvar = cap_Q_values[j]/1e3
@@ -607,11 +611,14 @@ class FeederSimulator(object):
 
     def set_feeder_pvs(self):
         if (self.opf_pv_p_vars is not None) and (self.opf_pv_q_vars is not None):
-            pv_P_values = self.opf_pv_p_vars.array
-            pv_Q_values = self.opf_pv_q_vars.array
+            # pv_P_values = self.opf_pv_p_vars.array
+            # pv_Q_values = self.opf_pv_q_vars.array
+            # pv_P_list = self.opf_pv_p_vars.unique_ids
 
+            pv_P_values = self.opf_pv_p_vars
+            pv_Q_values = self.opf_pv_q_vars
+            pv_P_list = self.opf_pv_p_ids
 
-            pv_P_list = self.opf_pv_p_vars.unique_ids
             logger.info(f"PV P values {pv_P_values}")
             logger.info(f"PV Q values {pv_Q_values}")
             logger.info(f"PV Q Info {pv_P_list}")

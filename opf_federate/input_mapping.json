@@ -1,0 +1,18 @@
+{
+  "topology": "local_feeder/topology",
+  "topology_flow": "local_feeder/topology_flow",
+  "tap_info": "local_feeder/tap_info",
+  "cap_info": "local_feeder/cap_info",
+  "pv_info": "local_feeder/pv_info",
+  "flex_info": "local_feeder/flex_info",
+  "voltages_real": "local_feeder/voltages_real",
+  "voltages_imag": "local_feeder/voltages_imag",
+  "powers_real": "local_feeder/powers_real",
+  "powers_imag": "local_feeder/powers_imag",
+  "cap_powers_imag": "local_feeder/cap_powers_imag",
+  "pv_powers_real": "local_feeder/pv_powers_real",
+  "pv_powers_imag": "local_feeder/pv_powers_imag",
+  "tap_values": "local_feeder/tap_values",
+ "voltage_angle": "state_estimator/voltage_angle",
+  "voltage_mag": "state_estimator/voltage_mag"
+}

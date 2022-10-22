@@ -1,0 +1,328 @@
+{
+    "name": "test_state_estimator",
+    "components": [
+        {
+            "name": "recorder_voltage_real",
+            "type": "Recorder",
+            "parameters": {"feather_filename": "data.feather",
+                           "csv_filename": "data.csv"
+            }
+        },
+        {
+            "name": "recorder_voltage_imag",
+            "type": "Recorder",
+            "parameters": {"feather_filename": "data.feather",
+                           "csv_filename": "data.csv"
+            }
+        },
+        {
+            "name": "recorder_voltage_mag",
+            "type": "Recorder",
+            "parameters": {"feather_filename": "data.feather",
+                           "csv_filename": "data.csv"
+            }
+        },
+        {
+            "name": "recorder_voltage_angle",
+            "type": "Recorder",
+            "parameters": {"feather_filename": "data.feather",
+                           "csv_filename": "data.csv"
+            }
+        },
+        {
+            "name": "state_estimator",
+            "type": "StateEstimatorComponent",
+            "parameters": {
+                "algorithm_parameters": {"tol": 1e-5}
+            }
+        },
+        {
+            "name": "local_feeder",
+            "type": "LocalFeeder",
+            "parameters": {
+                "feeder_file": "gadal-ieee123/qsts/master.dss",
+                "start_date": "2017-01-01 00:00:00",
+                "run_freq_sec": 900,
+                "number_of_timesteps": 36,
+                "start_time_index": 0,
+                "deltat": 1,
+                "flex_load_input_file": "flex_load_info.json"
+            }
+        },
+        {
+          "name": "opf",
+          "type": "OPFComponent",
+          "parameters": {
+            "start_date": "2013-08-10 00:00:00",
+            "run_freq_sec": 60,
+            "start_time_index": 1,
+            "number_of_timesteps": 36,
+            "name": "opf",
+            "deltat": 1,
+            "algorithm_settings": {
+              "gradient_descent_setting": {
+                "iter_lim": 1050,
+                "tolerance": 0.1,
+                "step_size": 1
+              }
+            },
+            "method": "central",
+            "metadata": {
+              "method": "name of the OPF method: available are 'gradient_descent,'central"
+            }
+          }
+        },
+        {
+            "name": "sensor_voltage_real",
+            "type": "MeasurementComponent",
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+            }
+        },
+        {
+            "name": "sensor_voltage_magnitude",
+            "type": "MeasurementComponent",
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+            }
+        },
+        {
+            "name": "sensor_voltage_imaginary",
+            "type": "MeasurementComponent",
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+            }
+        },
+        {
+            "name": "sensor_power_real",
+            "type": "MeasurementComponent",
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+            }
+        },
+        {
+            "name": "sensor_power_imaginary",
+            "type": "MeasurementComponent",
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../local_feeder/gadal-ieee123/sensors.json"
+            }
+        }
+
+    ],
+    "links": [
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_magnitude",
+            "target": "sensor_voltage_magnitude",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_real",
+            "target": "sensor_voltage_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_imag",
+            "target": "sensor_voltage_imaginary",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "powers_real",
+            "target": "sensor_power_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "powers_imag",
+            "target": "sensor_power_imaginary",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "topology",
+            "target": "state_estimator",
+            "target_port": "topology"
+        },
+        {
+            "source": "sensor_voltage_magnitude",
+            "source_port": "publication",
+            "target": "state_estimator",
+            "target_port": "voltages_magnitude"
+        },
+        {
+            "source": "sensor_power_real",
+            "source_port": "publication",
+            "target": "state_estimator",
+            "target_port": "powers_real"
+        },
+        {
+            "source": "sensor_power_imaginary",
+            "source_port": "publication",
+            "target": "state_estimator",
+            "target_port": "powers_imaginary"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_real",
+            "target": "recorder_voltage_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_imag",
+            "target": "recorder_voltage_imag",
+            "target_port": "subscription"
+        },
+        {
+            "source": "state_estimator",
+            "source_port": "voltage_angle",
+            "target": "recorder_voltage_angle",
+            "target_port": "subscription"
+        },
+        {
+            "source": "state_estimator",
+            "source_port": "voltage_mag",
+            "target": "recorder_voltage_mag",
+            "target_port": "subscription"
+        },
+        {
+            "source": "state_estimator",
+            "source_port": "voltage_angle",
+            "target": "opf",
+            "target_port": "voltage_angle"
+        },
+        {
+            "source": "state_estimator",
+            "source_port": "voltage_mag",
+            "target": "opf",
+            "target_port": "voltage_mag"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "voltage_angle",
+            "target": "opf",
+            "target_port": "voltage_angle"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "voltage_mag",
+            "target": "opf",
+            "target_port": "voltage_mag"
+        },
+        {
+          "source": "opf",
+          "source_port": "opf_flex_powers_real",
+          "target": "local_feeder",
+          "target_port": "opf_flex_powers_real"
+        },
+        {
+          "source": "opf",
+          "source_port": "opf_cap_powers_imag",
+          "target": "local_feeder",
+          "target_port": "opf_cap_powers_imag"
+        },
+        {
+          "source": "opf",
+          "source_port": "opf_pv_powers_real",
+          "target": "local_feeder",
+          "target_port": "opf_pv_powers_real"
+        },
+        {
+          "source": "opf",
+          "source_port": "opf_pv_powers_imag",
+          "target": "local_feeder",
+          "target_port": "opf_pv_powers_imag"
+        },
+        {
+          "source": "opf",
+          "source_port": "opf_tap_values",
+          "target": "local_feeder",
+          "target_port": "opf_tap_values"
+        },
+        {
+          "source": "local_feeder",
+          "source_port": "topology",
+          "target": "opf",
+          "target_port": "topology"
+        },
+        {
+          "source": "local_feeder",
+          "source_port": "topology_flow",
+          "target": "opf",
+          "target_port": "topology_flow"
+        },
+        {
+          "source": "local_feeder",
+          "source_port": "tap_info",
+          "target": "opf",
+          "target_port": "tap_info"
+        },
+        {
+          "source": "local_feeder",
+          "source_port": "cap_info",
+          "target": "opf",
+          "target_port": "cap_info"
+        },
+        {
+          "source": "local_feeder",
+          "source_port": "pv_info",
+          "target": "opf",
+          "target_port": "pv_info"
+        },
+        {
+          "source": "local_feeder",
+          "source_port": "flex_info",
+          "target": "opf",
+          "target_port": "flex_info"
+        },
+        {
+          "source": "local_feeder",
+          "source_port": "powers_real",
+          "target": "opf",
+          "target_port": "powers_real"
+        },
+        {
+          "source": "local_feeder",
+          "source_port": "powers_imag",
+          "target": "opf",
+          "target_port": "powers_imag"
+        },
+        {
+          "source": "local_feeder",
+          "source_port": "cap_powers_imag",
+          "target": "opf",
+          "target_port": "cap_powers_imag"
+        },
+        {
+          "source": "local_feeder",
+          "source_port": "pv_powers_real",
+          "target": "opf",
+          "target_port": "pv_powers_real"
+        },
+        {
+          "source": "local_feeder",
+          "source_port": "pv_powers_imag",
+          "target": "opf",
+          "target_port": "pv_powers_imag"
+        },
+        {
+          "source": "local_feeder",
+          "source_port": "tap_values",
+          "target": "opf",
+          "target_port": "tap_values"
+        }
+    ]
+}

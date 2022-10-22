@@ -3,6 +3,7 @@ import helics as h
 import opendssdirect as dss
 import pandas as pd
 import json
+import sys
 # from opf_dss_functions import set_feeder_flex_load
 from dss_functions import snapshot_run
 from FeederSimulator import FeederSimulator, FeederConfig
@@ -18,6 +19,7 @@ logger.setLevel(logging.INFO)
 
 test_se = False
 
+logger.debug(sys.executable)
 
 class Complex(BaseModel):
     real: float

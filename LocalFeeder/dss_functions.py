@@ -47,8 +47,8 @@ def get_y_matrix_file(dss):
     dss.run_command('export y triplet base_ysparse.csv')
     dss.run_command('export ynodelist base_nodelist.csv')
     dss.run_command('export summary base_summary.csv')
-    Ysparse = csc_matrix(dss.YMatrix.getYsparse())
-    save_npz('base_ysparse.npz', Ysparse)
+    # Ysparse = csc_matrix(dss.YMatrix.getYsparse())
+    # save_npz('base_ysparse.npz', Ysparse)
 
     # dss.run_command('show Y')
     # dss.run_command('solve mode=snap')

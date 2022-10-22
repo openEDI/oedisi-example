@@ -1,6 +1,6 @@
 {
-    "directory": "opf_federate_123PV",
-    "execute_function": "python opf_federate_123PV.py",
+    "directory": "opf_federate",
+    "execute_function": "python opf_federate.py",
     "static_inputs": [
         {"type": "", "port_id": "start_date"},
         {"type": "", "port_id": "run_freq_sec"},

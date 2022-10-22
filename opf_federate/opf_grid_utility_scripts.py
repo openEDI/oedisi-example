@@ -35,12 +35,18 @@ def matrix_to_array(matrix, rows, cols):
     return array
 
 def unpack_fdrvals_mats(opfobj):
-    opfobj.y_matrix = np.array(opfobj.topology.y_matrix)
+    # opfobj.y_matrix = np.array(opfobj.topology.y_matrix)
+
+    # opfobj.y_matrix = np.array(opfobj.topology)
 
     opfobj.y_matrix = y_matrix_to_complex_array(opfobj.y_matrix,
                                                 opfobj.y_matrix.shape[0],
                                                 opfobj.y_matrix.shape[1])
-    opfobj.y_line = np.array(opfobj.topology_flow.y_matrix)
+
+    # opfobj.y_line = np.array(opfobj.topology_flow)
+
+    # opfobj.y_line = np.array(opfobj.topology_flow.y_matrix)
+
     opfobj.y_line = y_matrix_to_complex_array(opfobj.y_line,
                                               opfobj.y_line.shape[0],
                                               opfobj.y_line.shape[1])
@@ -55,7 +61,7 @@ def unpack_fdrvals_mats(opfobj):
 
 def unpack_fdrvals_vecs(opfobj):
 
-    opfobj.voltages = np.array(opfobj.voltages_real.array) + 1j * np.array(opfobj.voltages_imag.array)
+    opfobj.voltages = np.array(opfobj.voltages_real) + 1j * np.array(opfobj.voltages_imag)
     opfobj.vL = opfobj.voltages[3:]
     opfobj.v0 = opfobj.voltages[0:3]
     opfobj.vL_abs_dss = np.abs(opfobj.vL)
@@ -82,13 +88,13 @@ def unpack_fdrvals_vecs(opfobj):
                                                   len(opfobj.tap_info.adj_matrix),
                                                   len(opfobj.tap_info.adj_matrix[0]))
 
-    opfobj.pL = np.array(opfobj.powers_P.array)[3:]
-    opfobj.qL = np.array(opfobj.powers_Q.array)[3:]
+    opfobj.pL = np.array(opfobj.powers_P)[3:]
+    opfobj.qL = np.array(opfobj.powers_Q)[3:]
     opfobj.p_flex_load_init = opfobj.flex_load_inc_matrix.T.dot(opfobj.pL)
-    opfobj.cap_bank_init = opfobj.cap_load_inc_matrix.T.dot(np.array(opfobj.cap_Q.array)[3:])
-    opfobj.pv_p_init = opfobj.pv_inc_matrix.T.dot(np.array(opfobj.pv_P.array)[3:])
-    opfobj.pv_q_init = opfobj.pv_inc_matrix.T.dot(np.array(opfobj.pv_Q.array)[3:])
-    opfobj.reg_taps_init = np.array(opfobj.tap_vals.array)
+    opfobj.cap_bank_init = opfobj.cap_load_inc_matrix.T.dot(np.array(opfobj.cap_Q)[3:])
+    opfobj.pv_p_init = opfobj.pv_inc_matrix.T.dot(np.array(opfobj.pv_P)[3:])
+    opfobj.pv_q_init = opfobj.pv_inc_matrix.T.dot(np.array(opfobj.pv_Q)[3:])
+    opfobj.reg_taps_init = np.array(opfobj.tap_vals)
 
 
 
