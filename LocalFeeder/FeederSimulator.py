@@ -118,13 +118,11 @@ class FeederSimulator(object):
         self._simulation_time_step = '15m'
         for obj in bucket.objects.filter(Prefix=opendss_location):
             output_location = os.path.join('opendss',obj.key.replace(opendss_location,'').strip('/'))
-            if not os.path.exists(os.path.dirname(output_location)):
-                os.makedirs(os.path.dirname(output_location))
+            os.makedirs(os.path.dirname(output_location), exist_ok=True)
             bucket.download_file(obj.key,output_location)
 
         modified_loadshapes = ''
-        if not os.path.exists(os.path.join('profiles')):
-            os.makedirs(os.path.join('profiles'))
+        os.makedirs(os.path.join('profiles'), exist_ok=True)
         if update_loadshape_location:
             all_profiles = set()
             with open(os.path.join('opendss','LoadShapes.dss'),'r') as fp_loadshapes:
@@ -145,8 +143,7 @@ class FeederSimulator(object):
         else:
             for obj in bucket.objects.filter(Prefix=profile_location):
                 output_location = os.path.join('profiles',obj.key.replace(profile_location,'').strip('/'))
-                if not os.path.exists(os.path.dirname(output_location)):
-                    os.makedirs(os.path.dirname(output_location))
+                os.makedirs(os.path.dirname(output_location), exist_ok=True)
                 bucket.download_file(obj.key,output_location)
 
         if sensor_location != '':
@@ -165,7 +162,7 @@ class FeederSimulator(object):
         ):
 
         random.seed(voltage_seed)
-        os.makedirs('sensors')
+        os.makedirs('sensors', exist_ok=True)
         voltage_subset = random.sample(self._AllNodeNames,math.floor(len(self._AllNodeNames)*float(percent_voltage)/100))
         with open(os.path.join('sensors','voltage_ids.json'),'w') as fp:
             json.dump(voltage_subset,fp,indent=4)
