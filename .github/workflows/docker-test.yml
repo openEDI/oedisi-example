@@ -11,9 +11,6 @@ jobs:
         python-version: ['3.10']
     steps:
     - uses: actions/checkout@v2
-      with:
-        submodules: true
-        token: ${{ secrets.CI_TOKEN }}
     - name: build docker container
       shell: bash
       run: |
