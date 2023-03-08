@@ -84,7 +84,7 @@ def get_vnom2(dss):
 
     V = np.ones(len(Vnom) // 2, dtype=np.complex_)
     for i in range(len(V)):
-        V[i] = np.complex(Vnom[2 * i], Vnom[2 * i + 1])
+        V[i] = complex(Vnom[2 * i], Vnom[2 * i + 1])
     vnom_dict = {AllNodeNames[ii].upper(): V[ii] for ii in range(len(V))}
     return V, vnom_dict
 
@@ -100,7 +100,7 @@ def get_vnom(dss):
     base = bases[-1] / math.sqrt(3)
     V = np.ones(len(Vnom) // 2, dtype=np.complex_)
     for i in range(len(V)):
-        V[i] = np.complex(Vnom[2 * i], Vnom[2 * i + 1]) / (base * 1000)
+        V[i] = complex(Vnom[2 * i], Vnom[2 * i + 1]) / (base * 1000)
 
     vnom_dict = {AllNodeNames[ii].upper(): V[ii] for ii in range(len(V))}
     dss.run_command('BatchEdit Load..* enabled=yes')

@@ -277,7 +277,7 @@ class FeederSimulator(object):
                     PQ_load[index] += power/len(ld['phases'])
                 else:
                     power = dss.CktElement.Powers()
-                    PQ_load[index] += np.complex(power[2 * ii], power[2 * ii + 1])
+                    PQ_load[index] += complex(power[2 * ii], power[2 * ii + 1])
                 PQ_names[index] = name
                 PQ_types[index] = 'Load'
 
@@ -302,7 +302,7 @@ class FeederSimulator(object):
                     PQ_PV[index] += power/(len(bus)-1)
                 else:
                     power = dss.CktElement.Powers()
-                    PQ_PV[index] += np.complex(power[2 * ii], power[2 * ii + 1])
+                    PQ_PV[index] += complex(power[2 * ii], power[2 * ii + 1])
                 PQ_names[index] = name
                 PQ_types[index] = 'PVSystem'
         return PQ_PV,PQ_names,PQ_types
@@ -324,7 +324,7 @@ class FeederSimulator(object):
                     PQ_gen[index] += power/(len(bus)-1)
                 else:
                     power = dss.CktElement.Powers()
-                    PQ_gen[index] += np.complex(power[2 * ii], power[2 * ii + 1])
+                    PQ_gen[index] += complex(power[2 * ii], power[2 * ii + 1])
                 PQ_names[index] = name
                 PQ_types[index] = 'Generator'
         return PQ_gen,PQ_names,PQ_types
@@ -343,7 +343,7 @@ class FeederSimulator(object):
                     power = complex(0,-1*cap['kVar']) #-1 because it's injected into the grid
                     PQ_cap[index] += power/cap["numPhases"]
                 else:
-                    PQ_cap[index] = np.complex(0,cap["power"][2 * ii + 1])
+                    PQ_cap[index] = complex(0,cap["power"][2 * ii + 1])
                 PQ_names[index] = name
                 PQ_types[index] = 'Capacitor'
 
