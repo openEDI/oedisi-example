@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
 
+
 class Recorder:
     def __init__(self, name, feather_filename, csv_filename, input_mapping):
         self.rng = np.random.default_rng(12345)
@@ -35,9 +36,7 @@ class Recorder:
         logger.info("Value federate created")
 
         # Register the publication #
-        self.sub = self.vfed.register_subscription(
-            input_mapping["subscription"], ""
-        )
+        self.sub = self.vfed.register_subscription(input_mapping["subscription"], "")
         self.feather_filename = feather_filename
         self.csv_filename = csv_filename
 
@@ -50,34 +49,39 @@ class Recorder:
         start = True
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
 
-        with pa.OSFile(self.feather_filename, 'wb') as sink:
+        with pa.OSFile(self.feather_filename, "wb") as sink:
             writer = None
             while granted_time < h.HELICS_TIME_MAXTIME:
-                logger.info('start time: '+str(datetime.now()))
+                logger.info("start time: " + str(datetime.now()))
                 logger.debug(granted_time)
                 # Check that the data is a MeasurementArray type
                 json_data = self.sub.json
-                json_data['time'] = granted_time
+                json_data["time"] = granted_time
                 measurement = MeasurementArray(**self.sub.json)
 
-                measurement_dict = {key: value for key, value in zip(measurement.ids,measurement.values)}
-                measurement_dict['time'] = measurement.time.strftime("%Y-%m-%d %H:%M:%S")
+                measurement_dict = {
+                    key: value
+                    for key, value in zip(measurement.ids, measurement.values)
+                }
+                measurement_dict["time"] = measurement.time.strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
                 logger.debug(measurement.time)
 
                 if start:
                     schema_elements = [(key, pa.float64()) for key in measurement.ids]
-                    schema_elements.append(('time',pa.string()))
+                    schema_elements.append(("time", pa.string()))
                     schema = pa.schema(schema_elements)
                     writer = pa.ipc.new_file(sink, schema)
                     start = False
                 cnt = 0
 
-                writer.write_batch(pa.RecordBatch.from_pylist([
-                    measurement_dict
-                ]))
+                writer.write_batch(pa.RecordBatch.from_pylist([measurement_dict]))
 
-                granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
-                logger.info('end time: '+str(datetime.now()))
+                granted_time = h.helicsFederateRequestTime(
+                    self.vfed, h.HELICS_TIME_MAXTIME
+                )
+                logger.info("end time: " + str(datetime.now()))
 
             if writer is not None:
                 writer.close()

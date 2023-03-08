@@ -12,11 +12,13 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
 
+
 class MeasurementConfig(BaseModel):
     name: str
     gaussian_variance: float
     measurement_file: str
     random_percent: float
+    run_freq_time_step: float = 1.0
 
 
 def get_indices(labelled_array, indices):
@@ -29,25 +31,28 @@ def reindex(measurement_array, indices):
     inv_map = {v: i for i, v in enumerate(measurement_array.ids)}
     for i in inv_map:
         logger.debug(i)
-    return MeasurementArray(values=[
-        measurement_array.values[inv_map[i]] for i in indices
-    ], ids=indices, units = measurement_array.units, equipment_type = measurement_array.equipment_type, time = measurement_array.time)
+    return MeasurementArray(
+        values=[measurement_array.values[inv_map[i]] for i in indices],
+        ids=indices,
+        units=measurement_array.units,
+        equipment_type=measurement_array.equipment_type,
+        time=measurement_array.time,
+    )
 
 
 def apply(f, measurement_array):
     return MeasurementArray(
         values=list(map(f, measurement_array.values)),
         ids=measurement_array.ids,
-        units = measurement_array.units,
-        equipment_type = measurement_array.equipment_type,
-        time = measurement_array.time
+        units=measurement_array.units,
+        equipment_type=measurement_array.equipment_type,
+        time=measurement_array.time,
     )
 
 
 class MeasurementRelay:
     def __init__(self, config: MeasurementConfig, input_mapping):
         self.rng = np.random.default_rng(12345)
-        deltat = 0.01
         # deltat = 60.
 
         # Create Federate Info object that describes the federate properties #
@@ -58,7 +63,7 @@ class MeasurementRelay:
         logger.debug(config.name)
 
         h.helicsFederateInfoSetTimeProperty(
-            fedinfo, h.helics_property_time_delta, deltat
+            fedinfo, h.helics_property_time_delta, config.run_freq_time_step
         )
 
         self.vfed = h.helicsCreateValueFederate(config.name, fedinfo)
@@ -69,7 +74,7 @@ class MeasurementRelay:
             input_mapping["subscription"], ""
         )
 
-        #TODO: find better way to determine what the name of this federate instance is than looking at the subscription
+        # TODO: find better way to determine what the name of this federate instance is than looking at the subscription
         self.pub_measurement = self.vfed.register_publication(
             "publication", h.HELICS_DATA_TYPE_STRING, ""
         )
@@ -82,7 +87,7 @@ class MeasurementRelay:
         new_array = reindex(measurement_array, unique_ids)
         return apply(
             lambda x: x + self.rng.normal(scale=np.sqrt(self.gaussian_variance)),
-            new_array
+            new_array,
         )
 
     def run(self):
@@ -92,11 +97,11 @@ class MeasurementRelay:
 
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
         while granted_time < h.HELICS_TIME_MAXTIME:
-            logger.info('start time: '+str(datetime.now()))
+            logger.info("start time: " + str(datetime.now()))
             json_data = self.sub_measurement.json
             measurement = MeasurementArray(**json_data)
 
-            with open(self.measurement_file,'r') as fp:
+            with open(self.measurement_file, "r") as fp:
                 self.measurement = json.load(fp)
             measurement_transformed = self.transform(measurement, self.measurement)
             logger.debug("measured transformed")
@@ -105,7 +110,7 @@ class MeasurementRelay:
             self.pub_measurement.publish(measurement_transformed.json())
 
             granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
-            logger.info('end time: '+str(datetime.now()))
+            logger.info("end time: " + str(datetime.now()))
 
         self.destroy()
 
