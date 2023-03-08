@@ -1,0 +1,6 @@
+{
+    "Recorder": "recorder/component_definition.json",
+    "LocalFeeder": "LocalFeeder/component_definition.json",
+    "MeasurementComponent": "measuring_federate/component_definition.json",
+    "StateEstimatorComponent": "wls_federate/component_definition.json"
+}
