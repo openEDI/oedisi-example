@@ -29,7 +29,7 @@ lookup = {
     "": "1.2.3",
 }
 
-
+# dss.run_command("CalcV") # shorthand for CalcVoltageBases
 def get_y_matrix_file(dss):
     # dss.Circuit.SetActiveClass("Vsource")
     #
@@ -65,8 +65,40 @@ def get_y_matrix_file(dss):
     Ysparse = csc_matrix(dss.YMatrix.getYsparse())
     save_npz("base_ysparse.npz", Ysparse)
 
+    dss.run_command("Batchedit Load..* enabled=yes")
+    dss.run_command("Batchedit Vsource..* enabled=yes")
+    dss.run_command("Batchedit Isource..* enabled=yes")
+    dss.run_command("Batchedit Generator..* enabled=yes")
+    dss.run_command("Batchedit PVsystem..* enabled=yes")
+    dss.run_command("Batchedit Capacitor..* enabled=yes")
+    dss.run_command("Batchedit Storage..* enabled=no")
+    dss.run_command("CalcVoltageBases")
+    dss.run_command("solve mode=snapshot")
+
+
     # dss.run_command('show Y')
     # dss.run_command('solve mode=snap')
+
+def get_y_matrix_directly(dss):
+    dss.run_command("batchedit transformer..* wdg=2 tap=1")
+    dss.run_command("batchedit regcontrol..* enabled=false")
+    dss.run_command("batchedit vsource..* enabled=false")
+    dss.run_command("batchedit isource..* enabled=false")
+    dss.run_command("batchedit load..* enabled=false")
+    dss.run_command("batchedit generator..* enabled=false")
+    dss.run_command("batchedit pvsystem..* enabled=false")
+    dss.run_command("Batchedit Capacitor..* enabled=false")
+    dss.run_command("batchedit storage..* enabled=false")
+    dss.run_command("CalcVoltageBases")
+    dss.run_command("set maxiterations=20")
+    # solve
+    dss.run_command("solve")
+    return csc_matrix(dss.YMatrix.getYsparse())
+
+
+def get_y_matrix_calcv(dss):
+    dss.run_command("CalcVoltageBases")
+    return csc_matrix(dss.YMatrix.getYsparse())
 
 
 def get_vnom2(dss):

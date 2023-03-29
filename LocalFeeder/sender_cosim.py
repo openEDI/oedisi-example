@@ -8,7 +8,9 @@ from FeederSimulator import FeederSimulator, FeederConfig, CommandList
 from pydantic import BaseModel
 import numpy as np
 from datetime import datetime, timedelta
+from typing import List, Any
 from gadal.gadal_types.data_types import (
+    MeasurementArray,
     Topology,
     VoltagesReal,
     VoltagesImaginary,
@@ -20,6 +22,9 @@ from gadal.gadal_types.data_types import (
     Injection,
     AdmittanceSparse,
 )
+from dataclasses import dataclass
+import xarray as xr
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -66,6 +71,144 @@ def get_true_phases(angle):
         logger.debug("error")
 
 
+def xarray_to_dict(data):
+    ids = list(data.bus.data)
+    return {
+        "values": list(data.data.real),
+        "ids": ids,
+    }
+
+def xarray_to_powers(data, **kwargs):
+    powersreal = PowersReal(**xarray_to_dict(data.real), **kwargs)
+    powersimag = PowersImaginary(**xarray_to_dict(data.imag), **kwargs)
+    return powersreal, powersimag
+
+
+def concat_powers(*ps: List[MeasurementArray]):
+    equipment_type = None
+    if all((p.equipment_type is not None for p in ps)):
+        equipment_type = [e for p in ps for e in p.equipment_type]
+
+    accuracy = None
+    if all((p.accuracy is not None for p in ps)):
+        accuracy = [e for p in ps for e in p.accuracy]
+
+    assert all(ps[0].units == p.units for p in ps)
+
+    bad_data_threshold = None
+    if all((p.bad_data_threshold is not None for p in ps)):
+        bad_data_threshold = [e for p in ps for e in p.bad_data_threshold]
+
+    assert all(ps[0].time == p.time for p in ps)
+
+    return ps[0].__class__(
+        values = [v for p in ps for v in p.values],
+        ids = [id for p in ps for id in p.ids],
+        units = ps[0].units,
+        equipment_type = equipment_type,
+        accuracy = accuracy,
+        bad_data_threshold = bad_data_threshold,
+        time = ps[0].time
+    )
+
+
+def get_powers(PQ_load, PQ_PV, PQ_gen, PQ_cap):
+    n_nodes = len(PQ_load)
+    PQ_load_real, PQ_load_imag = xarray_to_powers(PQ_load, equipment_type=["Load"]*n_nodes)
+    PQ_PV_real, PQ_PV_imag = xarray_to_powers(PQ_PV, equipment_type=["PVSystem"]*n_nodes)
+    PQ_gen_real, PQ_gen_imag = xarray_to_powers(PQ_gen, equipment_type=["Generator"]*n_nodes)
+    PQ_cap_real, PQ_cap_imag = xarray_to_powers(PQ_cap, equipment_type=["Capacitor"]*n_nodes)
+
+    power_real = concat_powers(PQ_load_real, PQ_PV_real, PQ_gen_real, PQ_cap_real)
+    power_imag = concat_powers(PQ_load_imag, PQ_PV_imag, PQ_gen_imag, PQ_cap_imag)
+    return power_real, power_imag
+
+
+@dataclass
+class InitialData:
+    Y: Any
+    topology: Topology
+
+
+def get_initial_data(sim, config):
+    Y = sim.get_y_matrix()
+    unique_ids = sim._AllNodeNames
+
+    if config.use_sparse_admittance:
+        admittancematrix = sparse_to_admittance_sparse(Y, unique_ids)
+    else:
+        admittancematrix = AdmittanceMatrix(
+            admittance_matrix=numpy_to_y_matrix(Y.toarray()), ids=unique_ids
+        )
+
+    slack_bus = [
+        sim._AllNodeNames[i]
+        for i in range(sim._source_indexes[0], sim._source_indexes[-1] + 1)
+    ]
+
+    unique_ids = sim._AllNodeNames
+    snapshot_run(sim)
+
+    PQ_load = sim.get_PQs_load(static=True)
+    PQ_PV = sim.get_PQs_pv(static=True)
+    PQ_gen = sim.get_PQs_gen(static=True)
+    PQ_cap = sim.get_PQs_cap(static=True)
+
+    power_real, power_imaginary = get_powers(-PQ_load, -PQ_PV, -PQ_gen, -PQ_cap)
+    injections = Injection(power_real=power_real, power_imaginary=power_imaginary)
+
+    sim.solve(0, 0)
+    feeder_voltages = sim.get_voltages_actual()
+    phases = list(map(get_true_phases, np.angle(feeder_voltages.data)))
+    base_voltages = list(sim._Vbase_allnode)
+    base_voltagemagnitude = VoltagesMagnitude(
+        values=[abs(i) for i in base_voltages],
+        ids=list(feeder_voltages.bus.data)
+    )
+
+    base_voltageangle = VoltagesAngle(values=phases, ids=list(feeder_voltages.bus.data))
+
+    topology = Topology(
+        admittance=admittancematrix,
+        base_voltage_angles=base_voltageangle,
+        injections=injections,
+        base_voltage_magnitudes=base_voltagemagnitude,
+        slack_bus=slack_bus,
+    )
+    return InitialData(Y = Y, topology = topology)
+
+
+@dataclass
+class CurrentData:
+    feeder_voltages: xr.core.dataarray.DataArray
+    PQ_injections_all: xr.core.dataarray.DataArray
+    calculated_power: xr.core.dataarray.DataArray
+
+
+def get_current_data(sim, Y):
+    feeder_voltages = sim.get_voltages_actual()
+    PQ_load = sim.get_PQs_load(static=False)
+    PQ_PV = sim.get_PQs_pv(static=False)
+    PQ_gen = sim.get_PQs_gen(static=False)
+    PQ_cap = sim.get_PQs_cap(static=False)
+
+    PQ_injections_all = PQ_load + PQ_PV + PQ_gen + PQ_cap
+
+    calculated_power = (
+        feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
+    )
+    PQ_injections_all[sim._source_indexes] = -calculated_power[sim._source_indexes]
+    return CurrentData(feeder_voltages = feeder_voltages,
+            PQ_injections_all = PQ_injections_all,
+            calculated_power = calculated_power)
+
+
+def where_power_unbalanced(PQ_injections_all, calculated_power, tol=1):
+    errors = PQ_injections_all + calculated_power
+    (indices,) = np.where(np.abs(errors) > tol)
+    return errors.bus[indices]
+
+
 def go_cosim(sim, config: FeederConfig, input_mapping):
     deltat = 0.01
     fedinitstring = "--federates=1"
@@ -97,88 +240,22 @@ def go_cosim(sim, config: FeederConfig, input_mapping):
         vfed, "topology", h.HELICS_DATA_TYPE_STRING, ""
     )
 
-    P_set_key = (
-        "not_found/change_command"
+    command_set_key = (
+        "unused/change_command"
         if "change_commands" not in input_mapping
         else input_mapping["change_commands"]
     )
-    sub_P_set = vfed.register_subscription(P_set_key, "")
-    sub_P_set.set_default("[]")
-    sub_P_set.option["CONNECTION_OPTIONAL"] = 1
+    sub_command_set = vfed.register_subscription(command_set_key, "")
+    sub_command_set.set_default("[]")
+    sub_command_set.option["CONNECTION_OPTIONAL"] = 1
 
     h.helicsFederateEnterExecutingMode(vfed)
-
-    Y = sim.get_y_matrix()
-    unique_ids = sim._AllNodeNames
-
-    if config.use_sparse_admittance:
-        admittancematrix = sparse_to_admittance_sparse(Y, unique_ids)
-    else:
-        admittancematrix = AdmittanceMatrix(
-            admittance_matrix=numpy_to_y_matrix(Y.toarray()), ids=unique_ids
-        )
-
-    logger.debug("_Vbase_allnode")
-    logger.debug(sim._Vbase_allnode)
-
-    slack_bus = [
-        sim._AllNodeNames[i]
-        for i in range(sim._source_indexes[0], sim._source_indexes[-1] + 1)
-    ]
-
-    unique_ids = sim._AllNodeNames
-    snapshot_run(sim)
-
-    all_PQs = {}
-    # Return type is PQ_values, PQ_names, PQ_types all with same size
-    all_PQs["load"] = sim.get_PQs_load(static=True)
-    all_PQs["pv"] = sim.get_PQs_pv(static=True)
-    all_PQs["gen"] = sim.get_PQs_gen(static=True)
-    all_PQs["cap"] = sim.get_PQs_cap(static=True)
-
-    PQ_real = []
-    PQ_imaginary = []
-    PQ_names = []
-    PQ_types = []
-    for i in range(len(all_PQs["load"][0])):
-        for key in all_PQs:
-            if all_PQs[key][1][i] != "":
-                PQ_real.append(
-                    -1 * all_PQs[key][0][i].real
-                )  # injections are negative singe PQ values are positive
-                PQ_imaginary.append(
-                    -1 * all_PQs[key][0][i].imag
-                )  # injections are negative singe PQ values are positive
-                PQ_names.append(all_PQs[key][1][i])
-                PQ_types.append(all_PQs[key][2][i])
-    power_real = PowersReal(ids=PQ_names, values=PQ_real, equipment_type=PQ_types)
-    power_imaginary = PowersImaginary(
-        ids=PQ_names, values=PQ_imaginary, equipment_type=PQ_types
-    )
-    injections = Injection(power_real=power_real, power_imaginary=power_imaginary)
-
-    sim.solve(0, 0)
-    feeder_voltages = sim.get_voltages_actual()
-    phases = list(map(get_true_phases, np.angle(feeder_voltages)))
-    base_voltages = list(sim._Vbase_allnode)
-    base_voltagemagnitude = VoltagesMagnitude(
-        values=[abs(i) for i in base_voltages], ids=unique_ids
-    )
-
-    base_voltageangle = VoltagesAngle(values=phases, ids=unique_ids)
-
-    topology = Topology(
-        admittance=admittancematrix,
-        base_voltage_angles=base_voltageangle,
-        injections=injections,
-        base_voltage_magnitudes=base_voltagemagnitude,
-        slack_bus=slack_bus,
-    )
+    initial_data = get_initial_data(sim, config)
 
     logger.info("Sending topology and saving to topology.json")
     with open(config.topology_output, "w") as f:
-        f.write(topology.json())
-    pub_topology.publish(topology.json())
+        f.write(initial_data.topology.json())
+    pub_topology.publish(initial_data.topology.json())
 
     granted_time = -1
     for request_time in range(0, int(config.number_of_timesteps)):
@@ -191,97 +268,59 @@ def go_cosim(sim, config: FeederConfig, input_mapping):
         floored_timestamp = datetime.strptime(
             config.start_date, "%Y-%m-%d %H:%M:%S"
         ) + timedelta(seconds=current_index * config.run_freq_sec)
-        logger.info(
-            f"Get Voltages and PQs at {current_index} {granted_time} {request_time}"
-        )
 
-        change_obj_cmds = CommandList.parse_obj(sub_P_set.json)
+        change_obj_cmds = CommandList.parse_obj(sub_command_set.json)
+
         sim.change_obj(change_obj_cmds)
-
-        sim.solve(floored_timestamp.hour, floored_timestamp.second)
-
-        feeder_voltages = sim.get_voltages_actual()
-        all_PQs = {}
-        all_PQs["load"] = sim.get_PQs_load(
-            static=False
-        )  # Return type is PQ_values, PQ_names, PQ_types all with same size
-        all_PQs["pv"] = sim.get_PQs_pv(static=False)
-        all_PQs["gen"] = sim.get_PQs_gen(static=False)
-        all_PQs["cap"] = sim.get_PQs_cap(static=False)
-
-        PQ_injections_all = (
-            all_PQs["load"][0]
-            + all_PQs["pv"][0]
-            + all_PQs["gen"][0]
-            + all_PQs["cap"][0]
+        logger.info(
+            f"Solve at hour {floored_timestamp.hour} second {60*floored_timestamp.minute + floored_timestamp.second}"
         )
+        sim.solve(floored_timestamp.hour, 60*floored_timestamp.minute + floored_timestamp.second)
 
-        logger.debug("Feeder Voltages")
-        logger.debug(feeder_voltages)
-        logger.debug("PQ")
-        logger.debug(PQ_injections_all)
-        logger.debug("Calculated Power")
-        Cal_power = (
-            feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
+        current_data = get_current_data(sim, initial_data.Y)
+        bad_bus_names = where_power_unbalanced(current_data.PQ_injections_all, current_data.calculated_power)
+        if len(bad_bus_names) > 0:
+            raise ValueError(f"""
+            Bad buses at {bad_bus_names.data}
+
+            OpenDSS PQ
+            {current_data.PQ_injections_all.loc[bad_bus_names]}
+
+            PowerBalance PQ
+            {current_data.calculated_power.loc[bad_bus_names]}
+            """)
+
+        logger.debug(
+            f"Publish load {current_data.feeder_voltages.bus.data[0]} {current_data.feeder_voltages.data[0]}"
         )
-        errors = PQ_injections_all + Cal_power
-        sort_errors = np.sort(np.abs(errors))
-        logger.debug("errors")
-        logger.debug(errors)
-        if np.any(sort_errors[:-3] > 1):
-            raise ValueError("Power balance does not hold")
-        PQ_injections_all[sim._source_indexes] = -Cal_power[sim._source_indexes]
-        power_balance = (
-            feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
-        )
-        logger.debug(power_balance)
-        (indices,) = np.nonzero(np.abs(errors) > 1)
-        logger.debug("Indices with error > 1")
-        logger.debug(indices)
-        logger.debug([sim._AllNodeNames[i] for i in indices])
-        logger.debug("Power, Voltages, and Calculated Power at Indices")
-        logger.debug(PQ_injections_all[indices])
-        logger.debug(feeder_voltages[indices])
-        logger.debug(power_balance[indices])
-
-        phases = list(map(get_true_phases, np.angle(feeder_voltages)))
-
-        base_voltageangle = VoltagesAngle(values=phases, ids=unique_ids)
-
-        logger.debug("Publish load " + str(feeder_voltages.real[0]))
-        voltage_magnitudes = np.abs(feeder_voltages.real + 1j * feeder_voltages.imag)
+        voltage_magnitudes = np.abs(current_data.feeder_voltages)
         pub_voltages_magnitude.publish(
             VoltagesMagnitude(
-                values=list(voltage_magnitudes),
-                ids=sim._AllNodeNames,
+                **xarray_to_dict(voltage_magnitudes),
                 time=current_timestamp,
             ).json()
         )
         pub_voltages_real.publish(
             VoltagesReal(
-                values=list(feeder_voltages.real),
-                ids=sim._AllNodeNames,
+                **xarray_to_dict(current_data.feeder_voltages.real),
                 time=current_timestamp,
             ).json()
         )
         pub_voltages_imag.publish(
             VoltagesImaginary(
-                values=list(feeder_voltages.imag),
-                ids=sim._AllNodeNames,
+                **xarray_to_dict(current_data.feeder_voltages.imag),
                 time=current_timestamp,
             ).json()
         )
         pub_powers_real.publish(
             PowersReal(
-                values=list(PQ_injections_all.real),
-                ids=sim._AllNodeNames,
+                **xarray_to_dict(current_data.PQ_injections_all.real),
                 time=current_timestamp,
             ).json()
         )
         pub_powers_imag.publish(
             PowersImaginary(
-                values=list(PQ_injections_all.imag),
-                ids=sim._AllNodeNames,
+                **xarray_to_dict(current_data.PQ_injections_all.imag),
                 time=current_timestamp,
             ).json()
         )

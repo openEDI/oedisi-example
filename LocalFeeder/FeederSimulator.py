@@ -30,6 +30,7 @@ from dss_functions import (
     get_vnom2,
 )
 import dss_functions
+import xarray as xr
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -85,7 +86,7 @@ class FeederSimulator(object):
     """ A simple class that handles publishing the solar forecast
     """
 
-    def __init__(self, config):
+    def __init__(self, config: FeederConfig):
         """ Create a ``FeederSimulator`` object
 
         """
@@ -115,16 +116,21 @@ class FeederSimulator(object):
         self._nodes_index = []
         self._name_index_dict = {}
 
+        self._simulation_time_step = "15m"
         if self._use_smartds:
-            self.download_data("oedi-data-lake", "Master.dss", True)
+            self._feeder_file = os.path.join("opendss", "Master.dss")
+            if not os.path.isfile(os.path.join("opendss", "Master.dss")):
+                self.download_data("oedi-data-lake", "Master.dss", True)
             self.load_feeder()
             self.create_measurement_lists()
         else:
-            self.download_data("gadal", "master.dss")
+            self._feeder_file = os.path.join("opendss", "master.dss")
+            if not os.path.isfile(os.path.join("opendss", "master.dss")):
+                self.download_data("gadal", "master.dss")
             self.load_feeder()
 
     def download_data(self, bucket_name, master_name, update_loadshape_location=False):
-
+        logging.info(f"Downloading from bucket {bucket_name}")
         # Equivalent to --no-sign-request
         s3_resource = boto3.resource("s3", config=Config(signature_version=UNSIGNED))
         bucket = s3_resource.Bucket(bucket_name)
@@ -132,8 +138,6 @@ class FeederSimulator(object):
         profile_location = self._profile_location
         sensor_location = self._sensor_location
 
-        self._feeder_file = os.path.join("opendss", master_name)
-        self._simulation_time_step = "15m"
         for obj in bucket.objects.filter(Prefix=opendss_location):
             output_location = os.path.join(
                 "opendss", obj.key.replace(opendss_location, "").strip("/")
@@ -312,8 +316,7 @@ class FeederSimulator(object):
     def get_PQs_load(self, static=False):
         num_nodes = len(self._name_index_dict.keys())
 
-        PQ_names = ["" for i in range(num_nodes)]
-        PQ_types = ["" for i in range(num_nodes)]
+        PQ_names = self._AllNodeNames
         PQ_load = np.zeros((num_nodes), dtype=np.complex_)
         for ld in get_loads(dss, self._circuit):
             self._circuit.SetActiveElement("Load." + ld["name"])
@@ -326,16 +329,15 @@ class FeederSimulator(object):
                 else:
                     power = dss.CktElement.Powers()
                     PQ_load[index] += complex(power[2 * ii], power[2 * ii + 1])
-                PQ_names[index] = name
-                PQ_types[index] = "Load"
+                assert PQ_names[index] == name
 
-        return PQ_load, PQ_names, PQ_types
+        return xr.DataArray(PQ_load, {"bus": PQ_names})
+
 
     def get_PQs_pv(self, static=False):
         num_nodes = len(self._name_index_dict.keys())
 
-        PQ_names = ["" for i in range(num_nodes)]
-        PQ_types = ["" for i in range(num_nodes)]
+        PQ_names = self._AllNodeNames
         PQ_PV = np.zeros((num_nodes), dtype=np.complex_)
         for PV in get_pvSystems(dss):
             bus = PV["bus"].split(".")
@@ -353,15 +355,13 @@ class FeederSimulator(object):
                 else:
                     power = dss.CktElement.Powers()
                     PQ_PV[index] += complex(power[2 * ii], power[2 * ii + 1])
-                PQ_names[index] = name
-                PQ_types[index] = "PVSystem"
-        return PQ_PV, PQ_names, PQ_types
+                assert PQ_names[index] == name
+        return xr.DataArray(PQ_PV, {"bus": PQ_names})
 
     def get_PQs_gen(self, static=False):
         num_nodes = len(self._name_index_dict.keys())
 
-        PQ_names = ["" for i in range(num_nodes)]
-        PQ_types = ["" for i in range(num_nodes)]
+        PQ_names = self._AllNodeNames
         PQ_gen = np.zeros((num_nodes), dtype=np.complex_)
         for PV in get_Generator(dss):
             bus = PV["bus"]
@@ -377,15 +377,13 @@ class FeederSimulator(object):
                 else:
                     power = dss.CktElement.Powers()
                     PQ_gen[index] += complex(power[2 * ii], power[2 * ii + 1])
-                PQ_names[index] = name
-                PQ_types[index] = "Generator"
-        return PQ_gen, PQ_names, PQ_types
+                assert PQ_names[index] == name
+        return xr.DataArray(PQ_gen, {"bus": PQ_names})
 
     def get_PQs_cap(self, static=False):
         num_nodes = len(self._name_index_dict.keys())
 
-        PQ_names = ["" for i in range(num_nodes)]
-        PQ_types = ["" for i in range(num_nodes)]
+        PQ_names = self._AllNodeNames
         PQ_cap = np.zeros((num_nodes), dtype=np.complex_)
         for cap in get_capacitors(dss):
             for ii in range(cap["numPhases"]):
@@ -398,10 +396,9 @@ class FeederSimulator(object):
                     PQ_cap[index] += power / cap["numPhases"]
                 else:
                     PQ_cap[index] = complex(0, cap["power"][2 * ii + 1])
-                PQ_names[index] = name
-                PQ_types[index] = "Capacitor"
+                assert PQ_names[index] == name
 
-        return PQ_cap, PQ_names, PQ_types
+        return xr.DataArray(PQ_cap, {"bus": PQ_names})
 
     def get_loads(self):
         loads = get_loads(dss, self._circuit)
@@ -418,9 +415,6 @@ class FeederSimulator(object):
                 load_powers.append(complex(load["power"][0], load["power"][1]))
         return self._load_power, load_names, load_powers
 
-    def get_load_sizes(self):
-        return dss_functions.get_load_sizes(dss, self._loads)
-
     def get_voltages_actual(self):
         """
 
@@ -433,47 +427,7 @@ class FeederSimulator(object):
                 self._name_index_dict[voltage_name]
             ] = name_voltage_dict[voltage_name]
 
-        return res_feeder_voltages
-
-    def get_voltages(self):
-        """
-
-        :return per unit voltages:
-        """
-        res_feeder_voltages = np.abs(self.get_voltages_complex())
-        return res_feeder_voltages
-
-    def get_voltages_complex(self):
-        """
-
-        :return per unit voltages:
-        """
-        # voltages = np.array(self._circuit.AllBusVolts())
-        # voltages = voltages[::2] + 1j * voltages[1::2]
-        # assert len(voltages) == len(self._AllNodeNames)
-        # return voltages
-
-        _, name_voltage_dict = get_voltages(self._circuit)
-        # print('Publish load ' + str(temp_feeder_voltages.real[0]))
-        # set_load(dss, data_df['load'], current_time, loads)
-        # feeder_voltages = [0j] * len(self._AllNodeNames)
-        res_feeder_voltages = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
-        # print([name_voltage_dict.keys()][:5])
-        temp_array_pu = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
-        for voltage_name in name_voltage_dict.keys():
-
-            self._circuit.SetActiveBus(voltage_name)
-            # temp1 = dss.Bus.puVmagAngle()
-            temp = dss.Bus.PuVoltage()
-            temp = complex(temp[0], temp[1])
-            temp_array_pu[self._name_index_dict[voltage_name]] = temp
-            res_feeder_voltages[
-                self._name_index_dict[voltage_name]
-            ] = name_voltage_dict[voltage_name] / (
-                self._Vbase_allnode_dict[voltage_name]
-            )
-
-        return res_feeder_voltages
+        return xr.DataArray(res_feeder_voltages, {"bus": list(name_voltage_dict.keys())})
 
     def change_obj(self, change_commands: CommandList):
         """set/get an object property.
