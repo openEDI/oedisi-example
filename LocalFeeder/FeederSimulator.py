@@ -16,20 +16,18 @@ from botocore import UNSIGNED
 from botocore.config import Config
 
 from pydantic import BaseModel
+from scipy.sparse import csc_matrix
+from enum import Enum
 
 from dss_functions import (
-    snapshot_run,
-    parse_Ymatrix,
     get_loads,
     get_pvSystems,
     get_Generator,
     get_capacitors,
     get_voltages,
-    get_y_matrix_file,
     get_vnom,
     get_vnom2,
 )
-import dss_functions
 import xarray as xr
 
 logger = logging.getLogger(__name__)
@@ -82,6 +80,15 @@ class CommandList(BaseModel):
     __root__: List[Command]
 
 
+class OpenDSSState(Enum):
+    UNLOADED = 1
+    LOADED = 2
+    SNAPSHOT_RUN = 3
+    SOLVE_AT_TIME = 4
+    DISABLED_RUN = 5
+    DISABLED_SOLVE = 6
+
+
 class FeederSimulator(object):
     """ A simple class that handles publishing the solar forecast
     """
@@ -90,6 +97,7 @@ class FeederSimulator(object):
         """ Create a ``FeederSimulator`` object
 
         """
+        self._state = OpenDSSState.UNLOADED
         self._feeder_file = None
         self._simulation_time_step = None
         self._opendss_location = config.opendss_location
@@ -120,16 +128,32 @@ class FeederSimulator(object):
         if self._use_smartds:
             self._feeder_file = os.path.join("opendss", "Master.dss")
             if not os.path.isfile(os.path.join("opendss", "Master.dss")):
-                self.download_data("oedi-data-lake", "Master.dss", True)
+                self.download_data("oedi-data-lake")
             self.load_feeder()
             self.create_measurement_lists()
         else:
             self._feeder_file = os.path.join("opendss", "master.dss")
             if not os.path.isfile(os.path.join("opendss", "master.dss")):
-                self.download_data("gadal", "master.dss")
+                self.download_data("gadal")
             self.load_feeder()
 
-    def download_data(self, bucket_name, master_name, update_loadshape_location=False):
+        self.snapshot_run()
+        assert self._state == OpenDSSState.SNAPSHOT_RUN, f"{self._state}"
+
+    def snapshot_run(self):
+        assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
+        dss.run_command('Batchedit Load..* enabled=yes')
+        dss.run_command('Batchedit Vsource..* enabled=yes')
+        dss.run_command('Batchedit Isource..* enabled=yes')
+        dss.run_command('Batchedit Generator..* enabled=yes')
+        dss.run_command('Batchedit PVsystem..* enabled=yes')
+        dss.run_command('Batchedit Capacitor..* enabled=yes')
+        dss.run_command('Batchedit Storage..* enabled=no')
+        dss.run_command('CalcVoltageBases')
+        dss.run_command('solve mode=snapshot')
+        self._state = OpenDSSState.SNAPSHOT_RUN
+
+    def download_data(self, bucket_name, update_loadshape_location=False):
         logging.info(f"Downloading from bucket {bucket_name}")
         # Equivalent to --no-sign-request
         s3_resource = boto3.resource("s3", config=Config(signature_version=UNSIGNED))
@@ -189,7 +213,6 @@ class FeederSimulator(object):
         real_seed=2,
         reactive_seed=3,
     ):
-
         random.seed(voltage_seed)
         os.makedirs("sensors", exist_ok=True)
         voltage_subset = random.sample(
@@ -214,9 +237,6 @@ class FeederSimulator(object):
         )
         with open(os.path.join("sensors", "reactive_ids.json"), "w") as fp:
             json.dump(reactive_subset, fp, indent=4)
-
-    def snapshot_run(self):
-        snapshot_run(dss)
 
     def get_circuit_name(self):
         return self._circuit.Name()
@@ -251,10 +271,34 @@ class FeederSimulator(object):
                 )
 
         self.setup_vbase()
+        self._state = OpenDSSState.LOADED
+
+    def disabled_run(self):
+        assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
+        dss.run_command("batchedit transformer..* wdg=2 tap=1")
+        dss.run_command("batchedit regcontrol..* enabled=false")
+        dss.run_command("batchedit vsource..* enabled=false")
+        dss.run_command("batchedit isource..* enabled=false")
+        dss.run_command("batchedit load..* enabled=false")
+        dss.run_command("batchedit generator..* enabled=false")
+        dss.run_command("batchedit pvsystem..* enabled=false")
+        dss.run_command("Batchedit Capacitor..* enabled=false")
+        dss.run_command("batchedit storage..* enabled=false")
+        dss.run_command("CalcVoltageBases")
+        dss.run_command("set maxiterations=20")
+        # solve
+        dss.run_command("solve")
+        #dss.run_command("export y triplet base_ysparse.csv")
+        #dss.run_command("export ynodelist base_nodelist.csv")
+        #dss.run_command("export summary base_summary.csv")
+        self._state = OpenDSSState.DISABLED_RUN
 
     def get_y_matrix(self):
-        get_y_matrix_file(dss)
-        Ymatrix = parse_Ymatrix("base_ysparse.csv", self._node_number)
+        self.disabled_run()
+        self._state = OpenDSSState.DISABLED_RUN
+
+        Ysparse = csc_matrix(dss.YMatrix.getYsparse())
+        Ymatrix = Ysparse.tocoo()
         new_order = self._circuit.YNodeOrder()
         permute = np.array(permutation(new_order, self._AllNodeNames))
         # inv_permute = np.array(permutation(self._AllNodeNames, new_order))
@@ -271,49 +315,15 @@ class FeederSimulator(object):
             self._Vbase_allnode[ii] = dss.Bus.kVBase() * 1000
             self._Vbase_allnode_dict[node] = self._Vbase_allnode[ii]
 
-    def get_G_H(self, Y11_inv):
-        Vnom = self.get_vnom()
-        # ys=Y11
-        # R = np.linalg.inv(ys).real
-        # X = np.linalg.inv(ys).imag
-        R = Y11_inv.real
-        X = Y11_inv.imag
-        G = (
-            R * np.diag(np.cos(np.angle(Vnom)) / abs(Vnom))
-            - X * np.diag(np.sin(np.angle(Vnom)) / Vnom)
-        ).real
-        H = (
-            X * np.diag(np.cos(np.angle(Vnom)) / abs(Vnom))
-            - R * np.diag(np.sin(np.angle(Vnom)) / Vnom)
-        ).real
-        return Vnom, G, H
-
-    def get_vnom2(self):
-        _Vnom, Vnom_dict = get_vnom2(dss)
-        Vnom = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
-        for voltage_name in Vnom_dict.keys():
-            Vnom[self._name_index_dict[voltage_name]] = Vnom_dict[voltage_name]
-        # Vnom(1: 3) = [];
-        Vnom = np.concatenate(
-            (Vnom[: self._source_indexes[0]], Vnom[self._source_indexes[-1] + 1 :])
-        )
-        return Vnom
-
-    def get_vnom(self):
-        _Vnom, Vnom_dict = get_vnom(dss)
-        Vnom = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
-        # print([name_voltage_dict.keys()][:5])
-        for voltage_name in Vnom_dict.keys():
-            Vnom[self._name_index_dict[voltage_name]] = Vnom_dict[voltage_name]
-        # Vnom(1: 3) = [];
-        logger.debug(Vnom[self._source_indexes[0] : self._source_indexes[-1]])
-        Vnom = np.concatenate(
-            (Vnom[: self._source_indexes[0]], Vnom[self._source_indexes[-1] + 1 :])
-        )
-        Vnom = np.abs(Vnom)
-        return Vnom
+    def _ready_to_load_power(self, static):
+        if static:
+            assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
+        else:
+            assert self._state == OpenDSSState.SOLVE_AT_TIME, f"{self._state}"
 
     def get_PQs_load(self, static=False):
+        self._ready_to_load_power(static)
+
         num_nodes = len(self._name_index_dict.keys())
 
         PQ_names = self._AllNodeNames
@@ -335,6 +345,8 @@ class FeederSimulator(object):
 
 
     def get_PQs_pv(self, static=False):
+        self._ready_to_load_power(static)
+
         num_nodes = len(self._name_index_dict.keys())
 
         PQ_names = self._AllNodeNames
@@ -359,6 +371,8 @@ class FeederSimulator(object):
         return xr.DataArray(PQ_PV, {"bus": PQ_names})
 
     def get_PQs_gen(self, static=False):
+        self._ready_to_load_power(static)
+
         num_nodes = len(self._name_index_dict.keys())
 
         PQ_names = self._AllNodeNames
@@ -381,6 +395,8 @@ class FeederSimulator(object):
         return xr.DataArray(PQ_gen, {"bus": PQ_names})
 
     def get_PQs_cap(self, static=False):
+        self._ready_to_load_power(static)
+
         num_nodes = len(self._name_index_dict.keys())
 
         PQ_names = self._AllNodeNames
@@ -400,26 +416,28 @@ class FeederSimulator(object):
 
         return xr.DataArray(PQ_cap, {"bus": PQ_names})
 
-    def get_loads(self):
-        loads = get_loads(dss, self._circuit)
-        self._load_power = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
-        load_names = []
-        load_powers = []
-        load = loads[0]
-        for load in loads:
-            for phase in load["phases"]:
-                self._load_power[
-                    self._name_index_dict[load["bus1"].upper() + "." + phase]
-                ] = complex(load["power"][0], load["power"][1])
-                load_names.append(load["bus1"].upper() + "." + phase)
-                load_powers.append(complex(load["power"][0], load["power"][1]))
-        return self._load_power, load_names, load_powers
+    def get_base_voltages(self):
+        return xr.DataArray(self._Vbase_allnode, {"bus": self._AllNodeNames})
+
+    def get_disabled_solve_voltages(self):
+        assert self._state == OpenDSSState.DISABLED_SOLVE, f"{self._state}"
+        return self._get_voltages()
+
+    def get_voltages_snapshot(self):
+        assert self._state == OpenDSSState.SNAPSHOT_RUN, f"{self._state}"
+        return self._get_voltages()
 
     def get_voltages_actual(self):
         """
 
         :return voltages in actual values:
         """
+        assert self._state == OpenDSSState.SOLVE_AT_TIME, f"{self._state}"
+        return self._get_voltages()
+
+    def _get_voltages(self):
+        assert (self._state != OpenDSSState.DISABLED_RUN and
+                self._state != OpenDSSState.UNLOADED), f"{self._state}"
         _, name_voltage_dict = get_voltages(self._circuit)
         res_feeder_voltages = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
         for voltage_name in name_voltage_dict.keys():
@@ -446,18 +464,29 @@ class FeederSimulator(object):
         Sample call: self._changeObj([['PVsystem.pv1','kVAr',25,'set']])
         self._changeObj([['PVsystem.pv1','kVAr','None','get']])
         """
-
+        assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
         for entry in change_commands.__root__:
             dss.Circuit.SetActiveElement(
                 entry.obj_name
             )  # make the required element as active element
             dss.CktElement.Properties(entry.obj_property).Val = entry.val
 
-    def run_command(self, cmd):
-        dss.run_command(cmd)
-
-    def solve(self, hour, second):
+    def initial_disabled_solve(self):
+        assert self._state == OpenDSSState.DISABLED_RUN, f"{self._state}"
+        hour = 0; second = 0
         dss.run_command(
             f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second} stepsize={self._simulation_time_step} "
         )
         dss.run_command("solve")
+        self._state = OpenDSSState.DISABLED_SOLVE
+
+    def solve(self, hour, second):
+        # This only works if you are not unloaded and not disabled
+        assert (self._state != OpenDSSState.UNLOADED and
+                self._state != OpenDSSState.DISABLED_RUN), f"{self._state}"
+
+        dss.run_command(
+            f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second} stepsize={self._simulation_time_step} "
+        )
+        dss.run_command("solve")
+        self._state = OpenDSSState.SOLVE_AT_TIME

@@ -3,7 +3,6 @@ import helics as h
 import opendssdirect as dss
 import pandas as pd
 import json
-from dss_functions import snapshot_run
 from FeederSimulator import FeederSimulator, FeederConfig, CommandList
 from pydantic import BaseModel
 import numpy as np
@@ -43,13 +42,6 @@ def sparse_to_admittance_sparse(array, unique_ids):
         to_equipment=[unique_ids[i] for i in array.col],
         admittance_list=[(data.real, data.imag) for data in array.data],
     )
-
-
-def setup_sim(config: FeederConfig):
-    sim = FeederSimulator(config)
-
-    snapshot_run(dss)
-    return sim
 
 
 def get_true_phases(angle):
@@ -146,9 +138,13 @@ def get_initial_data(sim, config):
         for i in range(sim._source_indexes[0], sim._source_indexes[-1] + 1)
     ]
 
-    unique_ids = sim._AllNodeNames
-    snapshot_run(sim)
+    base_voltages = sim.get_base_voltages()
+    base_voltagemagnitude = VoltagesMagnitude(
+        values=list(np.abs(base_voltages).data),
+        ids=list(base_voltages.bus.data)
+    )
 
+    #sim.snapshot_run()
     PQ_load = sim.get_PQs_load(static=True)
     PQ_PV = sim.get_PQs_pv(static=True)
     PQ_gen = sim.get_PQs_gen(static=True)
@@ -157,15 +153,9 @@ def get_initial_data(sim, config):
     power_real, power_imaginary = get_powers(-PQ_load, -PQ_PV, -PQ_gen, -PQ_cap)
     injections = Injection(power_real=power_real, power_imaginary=power_imaginary)
 
-    sim.solve(0, 0)
-    feeder_voltages = sim.get_voltages_actual()
+    sim.initial_disabled_solve()
+    feeder_voltages = sim.get_disabled_solve_voltages()
     phases = list(map(get_true_phases, np.angle(feeder_voltages.data)))
-    base_voltages = list(sim._Vbase_allnode)
-    base_voltagemagnitude = VoltagesMagnitude(
-        values=[abs(i) for i in base_voltages],
-        ids=list(feeder_voltages.bus.data)
-    )
-
     base_voltageangle = VoltagesAngle(values=phases, ids=list(feeder_voltages.bus.data))
 
     topology = Topology(
@@ -342,7 +332,7 @@ def run():
     with open("input_mapping.json") as f:
         input_mapping = json.load(f)
     config = FeederConfig(**parameters)
-    sim = setup_sim(config)
+    sim = FeederSimulator(config)
     go_cosim(sim, config, input_mapping)
 
 

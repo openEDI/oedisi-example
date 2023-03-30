@@ -3,12 +3,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import sender_cosim
 import FeederSimulator
-import dss_functions
 import numpy as np
 import pytest
 import logging
 import pandas as pd
-import opendssdirect as dss
+import xarray as xr
+import plotille
 
 @pytest.fixture()
 def federate_config():
@@ -25,71 +25,125 @@ def federate_config():
     })
 
 
-def test_y_matrices(federate_config):
+def plot_y_matrix(Y):
+    Y_max = np.max(np.abs(Y))
+
+    width = Y.shape[0] // 2
+    height = Y.shape[1] // 4
+    cvs = plotille.Canvas(width, height, mode="rgb")
+    arrayY = np.log(np.abs(Y.toarray())[:(4*height), :(2*width)] + 1)
+    flatY = arrayY.reshape(arrayY.size)
+    max_flatY = flatY.max()
+    cvs.braille_image([int(255 * np.abs(y) / max_flatY) for y in flatY])
+    print(f"Y max: {Y_max}")
+    print(cvs.plot())
+
+
+def test_ordering(federate_config):
     logging.info("Loading sim")
-    sim = sender_cosim.setup_sim(federate_config)
+    sim = FeederSimulator.FeederSimulator(federate_config)
     Y = sim.get_y_matrix()
-    directly = dss_functions.get_y_matrix_directly(dss)
 
-    error_directly = np.max(np.abs(directly - Y))
-    logging.info(f"Error directly: {error_directly}")
-    assert error_directly < 0.1, "Directly is far away"
+    with pytest.raises(AssertionError, match=".*DISABLED_RUN.*"):
+        sim.solve(0,0)
+    with pytest.raises(AssertionError, match=".*DISABLED_RUN.*"):
+        _ = sim.get_voltages_actual()
 
-    directly_calcv = dss_functions.get_y_matrix_calcv(dss)
-    error_calcv = np.max(np.abs(directly_calcv - Y))
-    logging.info(f"Error calcv: {error_calcv}")
-    assert error_calcv < 0.1
-
-    dss_functions.snapshot_run(dss)
-
+    sim.snapshot_run()
+    base_voltages = sim.get_voltages_snapshot()
+    assert np.max(base_voltages) > 100
     Y2 = sim.get_y_matrix()
-    error_Y2 = np.max(np.abs(Y2 - Y))
-    logging.info(f"Error calcv: {error_Y2}")
-    assert error_Y2 < 0.1
+    assert np.max(np.abs(Y - Y2)) < 0.001
 
-    dss_functions.snapshot_run(dss)
+    sim.snapshot_run()
+    sim.solve(0, 0)
+    feeder_voltages = sim.get_voltages_actual()
+    assert np.max(feeder_voltages) > 100
+    with pytest.raises(AssertionError, match=".*SOLVE_AT_TIME.*"):
+        _ = sim.get_voltages_snapshot()
 
-    directly2 = dss_functions.get_y_matrix_directly(dss)
-    error_directly2 = np.max(np.abs(directly2 - Y))
-    logging.info(f"Error directly2: {error_directly2}")
-    assert error_directly2 < 0.1
 
-    dss_functions.snapshot_run(dss)
+def rtheta_to_xy(r, theta):
+    x = np.array(r*np.cos(theta))
+    y = np.array(r*np.sin(theta))
+    return x, y
 
-    directly_calcv2 = dss_functions.get_y_matrix_calcv(dss)
-    error_calcv2 = np.max(np.abs(directly_calcv2 - Y))
-    logging.info(f"Error calcv 2: {error_calcv2}")
-    assert error_calcv2 > 0.1
 
-    sim.solve(0,0)
+def test_voltages(federate_config):
+    logging.info("Loading sim")
+    sim = FeederSimulator.FeederSimulator(federate_config)
+    startup(sim)
 
-    Y2 = sim.get_y_matrix()
-    error_Y2 = np.max(np.abs(Y2 - Y))
-    logging.info(f"Error calcv: {error_Y2}")
-    assert error_Y2 < 0.1
+    # Get Voltages
+    base = sim.get_base_voltages()
+    sim.disabled_run()
+    sim.initial_disabled_solve()
+    disabled_solve = sim.get_disabled_solve_voltages()
+    sim.snapshot_run()
+    snapshot = sim.get_voltages_snapshot()
+    sim.solve(0, 0)
+    actuals = sim.get_voltages_actual()
 
-    sim.solve(0,0)
+    # Plot magnitudes
+    fig = plotille.Figure()
+    fig.width = 60
+    fig.height = 30
+    #fig.set_x_limits(min_=-3, max_=3)
+    fig.set_y_limits(min_=0, max_=2)
+    fig.color_mode = "byte"
+    fig.plot(range(len(base)), np.abs(disabled_solve / base).data, lc=50, label="Disabled")
+    fig.plot(range(len(base)), np.abs(snapshot / base).data, lc=75, label="Snapshot")
+    fig.plot(range(len(base)), np.abs(actuals / base).data, lc=100, label="Actuals")
+    print("\n" + fig.show(legend=True))
 
-    directly2 = dss_functions.get_y_matrix_directly(dss)
-    error_directly2 = np.max(np.abs(directly2 - Y))
-    logging.info(f"Error directly2: {error_directly2}")
-    assert error_directly2 < 0.1
+    # Plot magnitudes
+    fig = plotille.Figure()
+    fig.width = 60
+    fig.height = 30
+    #fig.set_x_limits(min_=-3, max_=3)
+    fig.set_y_limits(min_=0.9, max_=1.1)
+    fig.color_mode = "byte"
+    fig.plot(range(len(base)), np.abs(disabled_solve / base).data, lc=50, label="Disabled")
+    fig.plot(range(len(base)), np.abs(snapshot / base).data, lc=75, label="Snapshot")
+    fig.plot(range(len(base)), np.abs(actuals / base).data, lc=100, label="Actuals")
+    print("\n" + fig.show(legend=True))
 
-    sim.solve(0,0)
+    # Plot angles better
+    r = xr.DataArray(range(len(base)), {"bus": base.bus.data}) + 100
+    fig = plotille.Figure()
+    fig.width = 60
+    fig.height = 30
+    fig.set_x_limits(min_=-400, max_=400)
+    fig.set_y_limits(min_=-400, max_=400)
+    fig.color_mode = "byte"
+    fig.scatter(*rtheta_to_xy(r, np.angle(base)), lc=50, label="Disabled")
+    fig.scatter(*rtheta_to_xy(r, np.angle(snapshot)), lc=75, label="Snapshot")
+    fig.scatter(*rtheta_to_xy(r, np.angle(actuals)), lc=100, label="Actuals")
+    print("\n" + fig.show(legend=True))
 
-    directly_calcv2 = dss_functions.get_y_matrix_calcv(dss)
-    error_calcv2 = np.max(np.abs(directly_calcv2 - Y))
-    logging.info(f"Error calcv 2: {error_calcv2}")
-    assert error_calcv2 < 0.1
+    # Plot angles better
+    r = xr.DataArray(range(len(base)), {"bus": base.bus.data}) + 100
+    fig = plotille.Figure()
+    fig.width = 90
+    fig.height = 30
+    fig.set_x_limits(min_=0, max_=400)
+    fig.set_y_limits(min_=-50, max_=50)
+    fig.color_mode = "byte"
+    fig.scatter(*rtheta_to_xy(r, np.angle(base)), lc=50, label="Disabled")
+    fig.scatter(*rtheta_to_xy(r, np.angle(snapshot)), lc=75, label="Snapshot")
+    fig.scatter(*rtheta_to_xy(r, np.angle(actuals)), lc=100, label="Actuals")
+    print("\n" + fig.show(legend=True))
 
 
 def test_simulation(federate_config):
     logging.info("Loading sim")
-    sim = sender_cosim.setup_sim(federate_config)
+    sim = FeederSimulator.FeederSimulator(federate_config)
     startup(sim)
     Y = sim.get_y_matrix()
+    plot_y_matrix(Y)
     getting_and_concatentating_data(sim)
     initial_data(sim, federate_config)
+    sim.snapshot_run()
     simulation_middle(sim, Y)
 
 
@@ -118,6 +172,35 @@ def getting_and_concatentating_data(sim):
 
 def initial_data(sim, federate_config):
     initial_data = sender_cosim.get_initial_data(sim, federate_config)
+    # Plot magnitudes
+    fig = plotille.Figure()
+    fig.width = 60
+    fig.height = 30
+    #fig.set_x_limits(min_=-3, max_=3)
+    fig.set_y_limits(min_=0, max_=3000)
+    fig.color_mode = "byte"
+    fig.plot(range(len(initial_data.topology.base_voltage_magnitudes.ids)),
+             np.sort(initial_data.topology.base_voltage_magnitudes.values),
+             lc=100, label="Base")
+    print("\n" + fig.show(legend=True))
+
+    # Plot angles better
+    r = np.array(range(len(initial_data.topology.base_voltage_magnitudes.ids))) + 100
+    fig = plotille.Figure()
+    fig.width = 60
+    fig.height = 30
+    fig.set_x_limits(min_=-400, max_=400)
+    fig.set_y_limits(min_=-400, max_=400)
+    fig.color_mode = "byte"
+    fig.scatter(*rtheta_to_xy(r, initial_data.topology.base_voltage_angles.values), lc=50, label="Base")
+    print("\n" + fig.show(legend=True))
+
+    df = pd.DataFrame({"voltages": initial_data.topology.base_voltage_magnitudes.values,
+                       "angles": initial_data.topology.base_voltage_angles.values,
+                       })
+    logging.info(df.describe())
+    df = pd.DataFrame({"injections": initial_data.topology.injections.power_real.values})
+    logging.info(df.describe())
     assert initial_data is not None
 
 
@@ -127,7 +210,8 @@ def simulation_middle(sim, Y):
     sim.solve(0,0)
 
     current_data = sender_cosim.get_current_data(sim, Y)
-    df = pd.DataFrame({"pq": current_data.PQ_injections_all, "voltages": current_data.feeder_voltages})
+    df = pd.DataFrame({"pq": current_data.PQ_injections_all, "voltages": np.abs(current_data.feeder_voltages),
+                       "phases": np.angle(current_data.feeder_voltages)})
     logging.info(df.describe())
     #assert np.max(current_data.PQ_injections_all) > 0.1
     assert np.max(current_data.feeder_voltages) > 50

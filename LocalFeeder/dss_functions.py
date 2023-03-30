@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 from scipy import sparse as sparse
 import cmath
-from scipy.sparse import csc_matrix, save_npz
 
 # from simulator.simulator import node_number
 
@@ -28,77 +27,6 @@ lookup = {
     "s2\ns1": ["2", "1"],
     "": "1.2.3",
 }
-
-# dss.run_command("CalcV") # shorthand for CalcVoltageBases
-def get_y_matrix_file(dss):
-    # dss.Circuit.SetActiveClass("Vsource")
-    #
-    # dss.Circuit.SetActiveElement("source")
-    # batchedit transformer..* wdg=2 tap=1
-    # batchedit regcontrol..* enabled=false
-    # batchedit vsource..* enabled=false
-    # batchedit isource..* enabled=false
-    # batchedit load..* enabled=false
-    # batchedit generator..* enabled=false
-    # batchedit pvsystem..* enabled=false
-    # batchedit storage..* enabled=false
-    # solve
-    # export y triplet base_ysparse.csv
-    # export ynodelist base_nodelist.csv
-    # export summary base_summary.csv
-    dss.run_command("batchedit transformer..* wdg=2 tap=1")
-    dss.run_command("batchedit regcontrol..* enabled=false")
-    dss.run_command("batchedit vsource..* enabled=false")
-    dss.run_command("batchedit isource..* enabled=false")
-    dss.run_command("batchedit load..* enabled=false")
-    dss.run_command("batchedit generator..* enabled=false")
-    dss.run_command("batchedit pvsystem..* enabled=false")
-    dss.run_command("Batchedit Capacitor..* enabled=false")
-    dss.run_command("batchedit storage..* enabled=false")
-    dss.run_command("CalcVoltageBases")
-    dss.run_command("set maxiterations=20")
-    # solve
-    dss.run_command("solve")
-    dss.run_command("export y triplet base_ysparse.csv")
-    dss.run_command("export ynodelist base_nodelist.csv")
-    dss.run_command("export summary base_summary.csv")
-    Ysparse = csc_matrix(dss.YMatrix.getYsparse())
-    save_npz("base_ysparse.npz", Ysparse)
-
-    dss.run_command("Batchedit Load..* enabled=yes")
-    dss.run_command("Batchedit Vsource..* enabled=yes")
-    dss.run_command("Batchedit Isource..* enabled=yes")
-    dss.run_command("Batchedit Generator..* enabled=yes")
-    dss.run_command("Batchedit PVsystem..* enabled=yes")
-    dss.run_command("Batchedit Capacitor..* enabled=yes")
-    dss.run_command("Batchedit Storage..* enabled=no")
-    dss.run_command("CalcVoltageBases")
-    dss.run_command("solve mode=snapshot")
-
-
-    # dss.run_command('show Y')
-    # dss.run_command('solve mode=snap')
-
-def get_y_matrix_directly(dss):
-    dss.run_command("batchedit transformer..* wdg=2 tap=1")
-    dss.run_command("batchedit regcontrol..* enabled=false")
-    dss.run_command("batchedit vsource..* enabled=false")
-    dss.run_command("batchedit isource..* enabled=false")
-    dss.run_command("batchedit load..* enabled=false")
-    dss.run_command("batchedit generator..* enabled=false")
-    dss.run_command("batchedit pvsystem..* enabled=false")
-    dss.run_command("Batchedit Capacitor..* enabled=false")
-    dss.run_command("batchedit storage..* enabled=false")
-    dss.run_command("CalcVoltageBases")
-    dss.run_command("set maxiterations=20")
-    # solve
-    dss.run_command("solve")
-    return csc_matrix(dss.YMatrix.getYsparse())
-
-
-def get_y_matrix_calcv(dss):
-    dss.run_command("CalcVoltageBases")
-    return csc_matrix(dss.YMatrix.getYsparse())
 
 
 def get_vnom2(dss):
@@ -159,52 +87,6 @@ def get_vnom(dss):
     dss.run_command("BatchEdit Generator..* enabled=yes")
     dss.run_command("solve mode=snap")
     return V, vnom_dict
-
-
-def snapshot_run(dss):
-    """ Function used for configuring the daily mode simulation run
-    """
-
-    dss.run_command("Batchedit Load..* enabled=yes")
-    dss.run_command("Batchedit Vsource..* enabled=yes")
-    dss.run_command("Batchedit Isource..* enabled=yes")
-    dss.run_command("Batchedit Generator..* enabled=yes")
-    dss.run_command("Batchedit PVsystem..* enabled=yes")
-    dss.run_command("Batchedit Capacitor..* enabled=yes")
-    dss.run_command("Batchedit Storage..* enabled=no")
-    dss.run_command("CalcVoltageBases")
-    dss.run_command("solve mode=snapshot")
-
-
-def parse_Ymatrix(Ysparse, totalnode_number):
-    """
-    Read platform y maxtrix file. It has no '[', ']' or '='
-    Handels slack nodes positions not at the top-left of the matrix
-    :param Ysparse:
-    :param slack_no:
-    :param totalnode_number:
-    :return: Y00,Y01,Y10,Y11,Y11_sparse,Y11_inv
-    """
-
-    Ymatrix = sparse.lil_matrix((totalnode_number, totalnode_number), dtype=np.complex_)
-
-    with open(Ysparse, "r") as csvfile:
-        reader = csv.reader(csvfile, delimiter=",",)
-        next(reader, None)  # skip the headers
-        for row in reader:
-            row_value = int(row[0])
-            column_value = int(row[1])
-            r = row_value - 1
-            c = column_value - 1
-            g = float(row[2])
-            b = float(row[3])
-            Ymatrix[r, c] = complex(g, b)
-            Ymatrix[c, r] = Ymatrix[r, c]
-
-    from scipy.sparse import load_npz
-
-    Ymatrix_new = load_npz("base_ysparse.npz")
-    return Ymatrix_new.tocoo()
 
 
 def get_loads(dss, circuit):
