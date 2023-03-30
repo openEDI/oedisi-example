@@ -33,6 +33,7 @@ jobs:
       shell: bash -l {0}
       run: |
         pip install matplotlib pyarrow numpy matplotlib pandas
+        pip install git+https://github.com/openEDI/GADAL@v0.2.4#egg=gadal
 
         python post_analysis.py outputs_build
     - name: Archive logs
