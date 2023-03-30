@@ -1,3 +1,4 @@
+
 name: RunExample
 
 on: [push]
@@ -24,17 +25,9 @@ jobs:
       shell: bash -l {0}
       run: |
         pip install -r requirements.txt
-    - name: Run example
+        pip install plotille pytest
+    - name: Run pytest on LocalFeeder
       shell: bash -l {0}
       run: |
-        gadal build --system scenarios/docker_system.json
-        gadal run
-        python post_analysis.py
-    - name: Archive logs
-      uses: actions/upload-artifact@v2
-      if: always()
-      with:
-        name: test_logs
-        path: |
-          *.png
-          build/*.log
+        cd LocalFeeder
+        pytest -s .

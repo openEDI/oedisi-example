@@ -6,24 +6,17 @@ state estimation, and distributed OPF.
 
 # Install and Running Locally
 
-1. Install the GADAL `componentframework` using `python setup.py develop` or using
-`pip install git+ssh://git@github.com/openEDI/GADAL@v0.2.2`.
-
-To run the simulation, you'll need several libraries such as OpenDSSDirect.py and pyarrow.
+1. To run the simulation, you'll need several libraries such as OpenDSSDirect.py and pyarrow.
 ```
 pip install -r requirements.txt
 ```
-For analysis, you'll also need matplotlib.
-```
-pip install matplotlib`
-```
-2. Run `python test_full_systems.py` to initialize the system
-defined in `test_system.json` in a `build` directory.
+2. Run `gadal build --system scenarios/docker_system.json` to initialize the system
+defined in `scenarios/test_system.json` in a `build` directory.
 
 You can specify your own directory with `--system` and your own system json
 with `--system`.
 
-3. Run `helics run --path=build/test_system_runner.json`
+3. Run `gadal run`
 4. Analyze the results using `python post_analysis.py`
 
 This computes some percentage relative errors in magnitude (MAPE) and angle (MAE),
@@ -37,6 +30,11 @@ If the simulation fails, you may **need** to kill the `helics_broker` manually b
 
 When debugging, you should check the `.log` files for errors. Error code `-9` usually occurs
 when it is killed by the broker as opposed to failing directly.
+
+You can use the `gadal` CLI tools to help debug specific components or timing.
+
+- `gadal run-with-pause`
+- `gadal debug-component --foreground feeder`
 
 # Components 
 
@@ -114,13 +112,8 @@ for each component with the right configuration.
 
 # Docker Container
 
-One of the downsides of having `gadal` as a private library at present is that it complicates automated
-installation. We could do this by copying over a tar file, or we can use it by pip installing
-it with an SSH key. Currently, we use an SSH key.
-
-Assuming the github SSH key is in the current directory `gadal_docker_key`, we can build the docker image with
 ```
-docker build --secret id=gadal_github_key,src=gadal_docker_key -t gadal-example:0.0.0 .
+docker build -t gadal-example:0.0.0 .
 ```
 
 To get a docker volume pointed at the right place locally, we have to run more commands

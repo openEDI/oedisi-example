@@ -6,7 +6,6 @@ RUN mkdir -p /root/.ssh
 
 WORKDIR /simulation
 
-COPY test_full_systems.py .
 COPY scenarios/docker_system.json docker_system.json
 COPY components.json .
 COPY LocalFeeder LocalFeeder
