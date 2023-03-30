@@ -1,4 +1,4 @@
-name: RunLocalFeederTests
+name: TestLocalFeeder
 
 on: [push]
 jobs:
@@ -31,4 +31,4 @@ jobs:
         cd LocalFeeder
         pytest -s .
       env:
-        PY_COLORS: "1"
+        PYTEST_ADDOPTS: "--color=yes"
