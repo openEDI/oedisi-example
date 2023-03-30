@@ -204,6 +204,29 @@ def initial_data(sim, federate_config):
     assert initial_data is not None
 
 
+def plot_complex_array(data, label="Voltages"):
+    # Plot magnitudes
+    fig = plotille.Figure()
+    fig.width = 60
+    fig.height = 30
+    #fig.set_x_limits(min_=-3, max_=3)
+    fig.set_y_limits(min_=0, max_=np.max(np.abs(data))*1.1)
+    fig.color_mode = "byte"
+    fig.plot(range(len(data)), np.abs(data), lc=100, label=label)
+    print("\n" + fig.show(legend=True))
+
+    # Plot angles better
+    r = np.array(range(len(data))) + 100
+    fig = plotille.Figure()
+    fig.width = 60
+    fig.height = 30
+    fig.set_x_limits(min_=-400, max_=400)
+    fig.set_y_limits(min_=-400, max_=400)
+    fig.color_mode = "byte"
+    fig.scatter(*rtheta_to_xy(r, np.angle(data)), lc=50, label=label)
+    print("\n" + fig.show(legend=True))
+
+
 def simulation_middle(sim, Y):
     # this one may need to be properly ordered
     logging.info(f"Current directory : {os.getcwd()}")
@@ -213,8 +236,18 @@ def simulation_middle(sim, Y):
     df = pd.DataFrame({"pq": current_data.PQ_injections_all, "voltages": np.abs(current_data.feeder_voltages),
                        "phases": np.angle(current_data.feeder_voltages)})
     logging.info(df.describe())
-    #assert np.max(current_data.PQ_injections_all) > 0.1
+    print("Feeder Voltages")
+    plot_complex_array(current_data.feeder_voltages.data, label="Feeder Voltages")
     assert np.max(current_data.feeder_voltages) > 50
+
+    plot_complex_array(current_data.PQ_injections_all.data, label="PQ injection")
+
+    diff = np.abs(
+        current_data.PQ_injections_all - (- current_data.calculated_power)
+    )*np.exp(1j * (np.angle(current_data.PQ_injections_all) -
+                   np.angle(-current_data.calculated_power)))
+
+    plot_complex_array(diff.data, label="Calculated - Injected")
 
     bad_bus_names = sender_cosim.where_power_unbalanced(current_data.PQ_injections_all, current_data.calculated_power)
     assert len(bad_bus_names) == 0
