@@ -142,15 +142,15 @@ class FeederSimulator(object):
 
     def snapshot_run(self):
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
-        dss.run_command('Batchedit Load..* enabled=yes')
-        dss.run_command('Batchedit Vsource..* enabled=yes')
-        dss.run_command('Batchedit Isource..* enabled=yes')
-        dss.run_command('Batchedit Generator..* enabled=yes')
-        dss.run_command('Batchedit PVsystem..* enabled=yes')
-        dss.run_command('Batchedit Capacitor..* enabled=yes')
-        dss.run_command('Batchedit Storage..* enabled=no')
-        dss.run_command('CalcVoltageBases')
-        dss.run_command('solve mode=snapshot')
+        dss.run_command("Batchedit Load..* enabled=yes")
+        dss.run_command("Batchedit Vsource..* enabled=yes")
+        dss.run_command("Batchedit Isource..* enabled=yes")
+        dss.run_command("Batchedit Generator..* enabled=yes")
+        dss.run_command("Batchedit PVsystem..* enabled=yes")
+        dss.run_command("Batchedit Capacitor..* enabled=yes")
+        dss.run_command("Batchedit Storage..* enabled=no")
+        dss.run_command("CalcVoltageBases")
+        dss.run_command("solve mode=snapshot")
         self._state = OpenDSSState.SNAPSHOT_RUN
 
     def download_data(self, bucket_name, update_loadshape_location=False):
@@ -288,9 +288,9 @@ class FeederSimulator(object):
         dss.run_command("set maxiterations=20")
         # solve
         dss.run_command("solve")
-        #dss.run_command("export y triplet base_ysparse.csv")
-        #dss.run_command("export ynodelist base_nodelist.csv")
-        #dss.run_command("export summary base_summary.csv")
+        # dss.run_command("export y triplet base_ysparse.csv")
+        # dss.run_command("export ynodelist base_nodelist.csv")
+        # dss.run_command("export summary base_summary.csv")
         self._state = OpenDSSState.DISABLED_RUN
 
     def get_y_matrix(self):
@@ -342,7 +342,6 @@ class FeederSimulator(object):
                 assert PQ_names[index] == name
 
         return xr.DataArray(PQ_load, {"bus": PQ_names})
-
 
     def get_PQs_pv(self, static=False):
         self._ready_to_load_power(static)
@@ -436,8 +435,10 @@ class FeederSimulator(object):
         return self._get_voltages()
 
     def _get_voltages(self):
-        assert (self._state != OpenDSSState.DISABLED_RUN and
-                self._state != OpenDSSState.UNLOADED), f"{self._state}"
+        assert (
+            self._state != OpenDSSState.DISABLED_RUN
+            and self._state != OpenDSSState.UNLOADED
+        ), f"{self._state}"
         _, name_voltage_dict = get_voltages(self._circuit)
         res_feeder_voltages = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
         for voltage_name in name_voltage_dict.keys():
@@ -445,7 +446,9 @@ class FeederSimulator(object):
                 self._name_index_dict[voltage_name]
             ] = name_voltage_dict[voltage_name]
 
-        return xr.DataArray(res_feeder_voltages, {"bus": list(name_voltage_dict.keys())})
+        return xr.DataArray(
+            res_feeder_voltages, {"bus": list(name_voltage_dict.keys())}
+        )
 
     def change_obj(self, change_commands: CommandList):
         """set/get an object property.
@@ -473,7 +476,8 @@ class FeederSimulator(object):
 
     def initial_disabled_solve(self):
         assert self._state == OpenDSSState.DISABLED_RUN, f"{self._state}"
-        hour = 0; second = 0
+        hour = 0
+        second = 0
         dss.run_command(
             f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second} stepsize={self._simulation_time_step} "
         )
@@ -482,8 +486,10 @@ class FeederSimulator(object):
 
     def solve(self, hour, second):
         # This only works if you are not unloaded and not disabled
-        assert (self._state != OpenDSSState.UNLOADED and
-                self._state != OpenDSSState.DISABLED_RUN), f"{self._state}"
+        assert (
+            self._state != OpenDSSState.UNLOADED
+            and self._state != OpenDSSState.DISABLED_RUN
+        ), f"{self._state}"
 
         dss.run_command(
             f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second} stepsize={self._simulation_time_step} "

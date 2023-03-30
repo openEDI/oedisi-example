@@ -70,6 +70,7 @@ def xarray_to_dict(data):
         "ids": ids,
     }
 
+
 def xarray_to_powers(data, **kwargs):
     powersreal = PowersReal(**xarray_to_dict(data.real), **kwargs)
     powersimag = PowersImaginary(**xarray_to_dict(data.imag), **kwargs)
@@ -94,22 +95,30 @@ def concat_powers(*ps: List[MeasurementArray]):
     assert all(ps[0].time == p.time for p in ps)
 
     return ps[0].__class__(
-        values = [v for p in ps for v in p.values],
-        ids = [id for p in ps for id in p.ids],
-        units = ps[0].units,
-        equipment_type = equipment_type,
-        accuracy = accuracy,
-        bad_data_threshold = bad_data_threshold,
-        time = ps[0].time
+        values=[v for p in ps for v in p.values],
+        ids=[id for p in ps for id in p.ids],
+        units=ps[0].units,
+        equipment_type=equipment_type,
+        accuracy=accuracy,
+        bad_data_threshold=bad_data_threshold,
+        time=ps[0].time,
     )
 
 
 def get_powers(PQ_load, PQ_PV, PQ_gen, PQ_cap):
     n_nodes = len(PQ_load)
-    PQ_load_real, PQ_load_imag = xarray_to_powers(PQ_load, equipment_type=["Load"]*n_nodes)
-    PQ_PV_real, PQ_PV_imag = xarray_to_powers(PQ_PV, equipment_type=["PVSystem"]*n_nodes)
-    PQ_gen_real, PQ_gen_imag = xarray_to_powers(PQ_gen, equipment_type=["Generator"]*n_nodes)
-    PQ_cap_real, PQ_cap_imag = xarray_to_powers(PQ_cap, equipment_type=["Capacitor"]*n_nodes)
+    PQ_load_real, PQ_load_imag = xarray_to_powers(
+        PQ_load, equipment_type=["Load"] * n_nodes
+    )
+    PQ_PV_real, PQ_PV_imag = xarray_to_powers(
+        PQ_PV, equipment_type=["PVSystem"] * n_nodes
+    )
+    PQ_gen_real, PQ_gen_imag = xarray_to_powers(
+        PQ_gen, equipment_type=["Generator"] * n_nodes
+    )
+    PQ_cap_real, PQ_cap_imag = xarray_to_powers(
+        PQ_cap, equipment_type=["Capacitor"] * n_nodes
+    )
 
     power_real = concat_powers(PQ_load_real, PQ_PV_real, PQ_gen_real, PQ_cap_real)
     power_imag = concat_powers(PQ_load_imag, PQ_PV_imag, PQ_gen_imag, PQ_cap_imag)
@@ -140,11 +149,10 @@ def get_initial_data(sim, config):
 
     base_voltages = sim.get_base_voltages()
     base_voltagemagnitude = VoltagesMagnitude(
-        values=list(np.abs(base_voltages).data),
-        ids=list(base_voltages.bus.data)
+        values=list(np.abs(base_voltages).data), ids=list(base_voltages.bus.data)
     )
 
-    #sim.snapshot_run()
+    # sim.snapshot_run()
     PQ_load = sim.get_PQs_load(static=True)
     PQ_PV = sim.get_PQs_pv(static=True)
     PQ_gen = sim.get_PQs_gen(static=True)
@@ -165,7 +173,7 @@ def get_initial_data(sim, config):
         base_voltage_magnitudes=base_voltagemagnitude,
         slack_bus=slack_bus,
     )
-    return InitialData(Y = Y, topology = topology)
+    return InitialData(Y=Y, topology=topology)
 
 
 @dataclass
@@ -188,9 +196,11 @@ def get_current_data(sim, Y):
         feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
     )
     PQ_injections_all[sim._source_indexes] = -calculated_power[sim._source_indexes]
-    return CurrentData(feeder_voltages = feeder_voltages,
-            PQ_injections_all = PQ_injections_all,
-            calculated_power = calculated_power)
+    return CurrentData(
+        feeder_voltages=feeder_voltages,
+        PQ_injections_all=PQ_injections_all,
+        calculated_power=calculated_power,
+    )
 
 
 def where_power_unbalanced(PQ_injections_all, calculated_power, tol=1):
@@ -265,12 +275,18 @@ def go_cosim(sim, config: FeederConfig, input_mapping):
         logger.info(
             f"Solve at hour {floored_timestamp.hour} second {60*floored_timestamp.minute + floored_timestamp.second}"
         )
-        sim.solve(floored_timestamp.hour, 60*floored_timestamp.minute + floored_timestamp.second)
+        sim.solve(
+            floored_timestamp.hour,
+            60 * floored_timestamp.minute + floored_timestamp.second,
+        )
 
         current_data = get_current_data(sim, initial_data.Y)
-        bad_bus_names = where_power_unbalanced(current_data.PQ_injections_all, current_data.calculated_power)
+        bad_bus_names = where_power_unbalanced(
+            current_data.PQ_injections_all, current_data.calculated_power
+        )
         if len(bad_bus_names) > 0:
-            raise ValueError(f"""
+            raise ValueError(
+                f"""
             Bad buses at {bad_bus_names.data}
 
             OpenDSS PQ
@@ -278,7 +294,8 @@ def go_cosim(sim, config: FeederConfig, input_mapping):
 
             PowerBalance PQ
             {current_data.calculated_power.loc[bad_bus_names]}
-            """)
+            """
+            )
 
         logger.debug(
             f"Publish load {current_data.feeder_voltages.bus.data[0]} {current_data.feeder_voltages.data[0]}"
@@ -286,8 +303,7 @@ def go_cosim(sim, config: FeederConfig, input_mapping):
         voltage_magnitudes = np.abs(current_data.feeder_voltages)
         pub_voltages_magnitude.publish(
             VoltagesMagnitude(
-                **xarray_to_dict(voltage_magnitudes),
-                time=current_timestamp,
+                **xarray_to_dict(voltage_magnitudes), time=current_timestamp,
             ).json()
         )
         pub_voltages_real.publish(
