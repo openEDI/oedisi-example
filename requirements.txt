@@ -9,4 +9,4 @@ pandas
 OpenDSSDirect.py[extras]
 boto3
 xarray
-plotille
+git+https://github.com/openEDI/GADAL@v0.2.4#egg=gadal

@@ -14,8 +14,7 @@ jobs:
     - name: build docker container
       shell: bash
       run: |
-        echo "$SSH_KEY" > gadal_docker_key
-        docker build --secret id=gadal_github_key,src=gadal_docker_key --progress=plain -t gadal-example:0.0.0 .
+        docker build --progress=plain -t gadal-example:0.0.0 .
       env:
         SSH_KEY: ${{secrets.SGIDAL_CLONE_KEY}}
         DOCKER_BUILDKIT: '1'
@@ -34,9 +33,6 @@ jobs:
       shell: bash -l {0}
       run: |
         pip install matplotlib pyarrow numpy matplotlib pandas
-        eval `ssh-agent -s`
-        ssh-add - <<< '${{ secrets.SGIDAL_CLONE_KEY }}'
-        pip install git+ssh://git@github.com/openEDI/GADAL@v0.2.2
 
         python post_analysis.py outputs_build
     - name: Archive logs
