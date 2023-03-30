@@ -15,8 +15,9 @@ COPY wls_federate wls_federate
 COPY recorder recorder
 
 RUN mkdir -p outputs build
-RUN gadal build --system docker_system.json
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
+
+RUN gadal build --system docker_system.json
 ENTRYPOINT ["gadal", "run"]
