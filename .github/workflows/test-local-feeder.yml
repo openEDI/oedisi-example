@@ -32,3 +32,4 @@ jobs:
         pytest -s .
       env:
         PYTEST_ADDOPTS: "--color=yes"
+        PYTHONIOENCODING: UTF-8
