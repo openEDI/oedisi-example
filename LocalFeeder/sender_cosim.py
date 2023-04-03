@@ -152,7 +152,7 @@ def get_initial_data(sim, config):
         values=list(np.abs(base_voltages).data), ids=list(base_voltages.bus.data)
     )
 
-    # sim.snapshot_run()
+    sim.snapshot_run()
     PQ_load = sim.get_PQs_load(static=True)
     PQ_PV = sim.get_PQs_pv(static=True)
     PQ_gen = sim.get_PQs_gen(static=True)
@@ -161,8 +161,7 @@ def get_initial_data(sim, config):
     power_real, power_imaginary = get_powers(-PQ_load, -PQ_PV, -PQ_gen, -PQ_cap)
     injections = Injection(power_real=power_real, power_imaginary=power_imaginary)
 
-    sim.initial_disabled_solve()
-    feeder_voltages = sim.get_disabled_solve_voltages()
+    feeder_voltages = sim.get_voltages_snapshot()
     phases = list(map(get_true_phases, np.angle(feeder_voltages.data)))
     base_voltageangle = VoltagesAngle(values=phases, ids=list(feeder_voltages.bus.data))
 
