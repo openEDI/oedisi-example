@@ -177,7 +177,7 @@ def getting_and_concatentating_data(sim):
     gen_real, gen_imag = sender_cosim.xarray_to_powers(
         PQ_gen, equipment_type=["Generator"] * n_nodes
     )
-    test_real = sender_cosim.concat_powers(pv_real, gen_real)
+    test_real = sender_cosim.concat_measurement_arrays(pv_real, gen_real)
     assert test_real.values[5] == PQ_PV.data[5].real
     assert test_real.ids[5] == PQ_PV.bus.data[5]
     PQ_injections_all = PQ_load + PQ_PV + PQ_gen + PQ_cap

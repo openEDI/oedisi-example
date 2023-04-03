@@ -447,7 +447,7 @@ class FeederSimulator(object):
             self._state != OpenDSSState.DISABLED_RUN
             and self._state != OpenDSSState.UNLOADED
         ), f"{self._state}"
-        _, name_voltage_dict = get_voltages(self._circuit)
+        name_voltage_dict = get_voltages(self._circuit)
         res_feeder_voltages = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
         for voltage_name in name_voltage_dict.keys():
             res_feeder_voltages[
