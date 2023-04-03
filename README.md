@@ -36,7 +36,7 @@ You can use the `gadal` CLI tools to help debug specific components or timing.
 - `gadal run-with-pause`
 - `gadal debug-component --foreground feeder`
 
-# Components 
+# Components
 
 All the required components are defined in folders within this repo. Each component
 pulls types from `gadal.data_types`.

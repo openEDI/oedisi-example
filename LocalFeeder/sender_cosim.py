@@ -1,35 +1,32 @@
-import logging
-import helics as h
-import opendssdirect as dss
-import pandas as pd
 import json
-from FeederSimulator import FeederSimulator, FeederConfig, CommandList
-from pydantic import BaseModel
-import numpy as np
-from datetime import datetime, timedelta
-from typing import List, Any
-from gadal.gadal_types.data_types import (
-    MeasurementArray,
-    Topology,
-    VoltagesReal,
-    VoltagesImaginary,
-    PowersReal,
-    PowersImaginary,
-    AdmittanceMatrix,
-    VoltagesMagnitude,
-    VoltagesAngle,
-    Injection,
-    AdmittanceSparse,
-)
+import logging
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, List
+
+import helics as h
+import numpy as np
 import xarray as xr
-import pandas as pd
+from gadal.gadal_types.data_types import (
+    AdmittanceMatrix,
+    AdmittanceSparse,
+    Injection,
+    MeasurementArray,
+    PowersImaginary,
+    PowersReal,
+    Topology,
+    VoltagesAngle,
+    VoltagesImaginary,
+    VoltagesMagnitude,
+    VoltagesReal,
+)
+from pydantic import BaseModel
+
+from FeederSimulator import CommandList, FeederConfig, FeederSimulator
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.DEBUG)
-
-test_se = False
 
 
 def numpy_to_y_matrix(array):
@@ -77,7 +74,7 @@ def xarray_to_powers(data, **kwargs):
     return powersreal, powersimag
 
 
-def concat_powers(*ps: List[MeasurementArray]):
+def concat_powers(*ps: MeasurementArray):
     equipment_type = None
     if all((p.equipment_type is not None for p in ps)):
         equipment_type = [e for p in ps for e in p.equipment_type]
@@ -272,7 +269,8 @@ def go_cosim(sim, config: FeederConfig, input_mapping):
 
         sim.change_obj(change_obj_cmds)
         logger.info(
-            f"Solve at hour {floored_timestamp.hour} second {60*floored_timestamp.minute + floored_timestamp.second}"
+            f"Solve at hour {floored_timestamp.hour} second"
+            f"{60*floored_timestamp.minute + floored_timestamp.second}"
         )
         sim.solve(
             floored_timestamp.hour,
@@ -297,7 +295,8 @@ def go_cosim(sim, config: FeederConfig, input_mapping):
             )
 
         logger.debug(
-            f"Publish load {current_data.feeder_voltages.bus.data[0]} {current_data.feeder_voltages.data[0]}"
+            f"Publish load {current_data.feeder_voltages.bus.data[0]} "
+            f"{current_data.feeder_voltages.data[0]}"
         )
         voltage_magnitudes = np.abs(current_data.feeder_voltages)
         pub_voltages_magnitude.publish(

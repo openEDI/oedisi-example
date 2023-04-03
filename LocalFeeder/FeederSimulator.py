@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-# import helics as h
-from typing import Any, List
+from typing import Any, List, Dict
 import opendssdirect as dss
 import numpy as np
 import time
@@ -25,8 +24,6 @@ from dss_functions import (
     get_Generator,
     get_capacitors,
     get_voltages,
-    get_vnom,
-    get_vnom2,
 )
 import xarray as xr
 
@@ -67,7 +64,7 @@ class FeederConfig(BaseModel):
     run_freq_sec: float = 15 * 60
     start_time_index: int = 0
     topology_output: str = "topology.json"
-    use_sparse_admittance = False
+    use_sparse_admittance: bool = False
 
 
 class Command(BaseModel):
@@ -109,8 +106,8 @@ class FeederSimulator(object):
         self._AllNodeNames = None
         self._source_indexes = None
         # self._capacitors=[]
-        self._capNames = []
-        self._regNames = []
+        self._capNames: List[str] = []
+        self._regNames: List[str] = []
 
         # timegm(strptime('2019-07-23 14:50:00 GMT', '%Y-%m-%d %H:%M:%S %Z'))
         self._start_time = int(
@@ -121,8 +118,8 @@ class FeederSimulator(object):
         self._number_of_timesteps = config.number_of_timesteps
         self._vmult = 0.001
 
-        self._nodes_index = []
-        self._name_index_dict = {}
+        self._nodes_index: List[int] = []
+        self._name_index_dict: Dict[str, int] = {}
 
         self._simulation_time_step = "15m"
         if self._use_smartds:
@@ -461,11 +458,14 @@ class FeederSimulator(object):
         objVal -- val of the property. If flg is set as 'get', then objVal is not used.
         flg -- Can be 'set' or 'get'
 
-        P.S. In the case of 'get' use a value of 'None' for objVal. The same object i.e.
-        objData that was passed in as input will have the result i.e. objVal will be
-        updated from 'None' to the actual value.
-        Sample call: self._changeObj([['PVsystem.pv1','kVAr',25,'set']])
-        self._changeObj([['PVsystem.pv1','kVAr','None','get']])
+        P.S. In the case of 'get' use a value of 'None' for objVal. The same
+        object i.e. objData that was passed in as input will have the result
+        i.e. objVal will be updated from 'None' to the actual value. Sample
+        call:
+
+        ``self._changeObj([['PVsystem.pv1','kVAr',25,'set']])``
+        ``self._changeObj([['PVsystem.pv1','kVAr','None','get']])``
+
         """
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
         for entry in change_commands.__root__:
@@ -479,7 +479,8 @@ class FeederSimulator(object):
         hour = 0
         second = 0
         dss.run_command(
-            f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second} stepsize={self._simulation_time_step} "
+            f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second}"
+            f"stepsize={self._simulation_time_step}"
         )
         dss.run_command("solve")
         self._state = OpenDSSState.DISABLED_SOLVE
@@ -492,7 +493,8 @@ class FeederSimulator(object):
         ), f"{self._state}"
 
         dss.run_command(
-            f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second} stepsize={self._simulation_time_step} "
+            f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second}"
+            f"stepsize={self._simulation_time_step}"
         )
         dss.run_command("solve")
         self._state = OpenDSSState.SOLVE_AT_TIME

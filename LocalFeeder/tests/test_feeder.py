@@ -1,15 +1,17 @@
-import sys, os
+import logging
+import os
+import sys
+
+import numpy as np
+import pandas as pd
+import plotille
+import pytest
+import xarray as xr
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import sender_cosim
 import FeederSimulator
-import numpy as np
-import pytest
-import logging
-import pandas as pd
-import xarray as xr
-import plotille
+import sender_cosim
 
 
 @pytest.fixture()
