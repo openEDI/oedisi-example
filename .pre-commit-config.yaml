@@ -25,3 +25,7 @@ repos:
     hooks:
     - id: mypy
       additional_dependencies: [pydantic]  # add if use pydantic
+-   repo: https://github.com/pycqa/pydocstyle
+    rev: 6.3.0
+    hooks:
+    -   id: pydocstyle

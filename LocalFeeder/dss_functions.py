@@ -1,74 +1,9 @@
-import logging
+"""OpenDSS functions. Mutates global state, originally from GO-Solar project."""
 import math
-
-import numpy as np
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.DEBUG)
-
-
-def get_vnom2(dss):
-    circuit = dss.Circuit
-    AllNodeNames = circuit.AllNodeNames()
-    # This or DSSCircuit.AllBusVmagPu
-    Vnom = circuit.AllBusMagPu()  # circuit.AllBusVmagPu()
-
-    vmags = circuit.AllBusVMag()
-    Vnom2 = circuit.AllBusVolts()
-    test_Vnom2 = np.array(
-        [complex(Vnom2[i], Vnom2[i + 1]) for i in range(0, len(Vnom2), 2)]
-    )
-    test_Vnom2_dict = {
-        AllNodeNames[ii].upper(): test_Vnom2[ii] for ii in range(len(test_Vnom2))
-    }
-
-    test_vmag_volts_result = np.allclose(vmags, np.abs(test_Vnom2))
-    logger.debug("test_vmag_volts_result", test_vmag_volts_result)
-
-    AllNodeNamesY = circuit.YNodeOrder()
-    yv = circuit.YNodeVArray()
-    test_yv = np.array([complex(yv[i], yv[i + 1]) for i in range(0, len(yv), 2)])
-    test_yv_dict = {AllNodeNamesY[ii]: test_yv[ii] for ii in range(len(test_yv))}
-    test_yv_result = np.allclose(vmags, np.abs(test_yv))
-    logger.debug("test_yv_result", test_yv_result)
-
-    logger.debug("Test dictionary")
-    for i in test_yv_dict.keys():
-        if abs(abs(test_Vnom2_dict[i]) - abs(test_yv_dict[i])) > 0.0001:
-            logger.debug(i, abs(test_Vnom2_dict[i]), abs(test_yv_dict[i]))
-    # for t1, t2 in zip(np.abs(test_Vnom2), np.abs(test_yv)):
-    # np.testing.assert_array_almost_equal(np.abs(test_Vnom2), np.abs(test_yv),decimal=5)
-
-    V = np.ones(len(Vnom) // 2, dtype=np.complex_)
-    for i in range(len(V)):
-        V[i] = complex(Vnom[2 * i], Vnom[2 * i + 1])
-    vnom_dict = {AllNodeNames[ii].upper(): V[ii] for ii in range(len(V))}
-    return V, vnom_dict
-
-
-def get_vnom(dss):
-    dss.run_command("BatchEdit Load..* enabled=no")
-    dss.run_command("BatchEdit Generator..* enabled=no")
-    dss.run_command("solve mode=snap")
-
-    circuit = dss.Circuit
-    AllNodeNames = circuit.AllNodeNames()
-    Vnom = circuit.AllBusVolts()
-    bases = dss.Settings.VoltageBases()
-    base = bases[-1] / math.sqrt(3)
-    V = np.ones(len(Vnom) // 2, dtype=np.complex_)
-    for i in range(len(V)):
-        V[i] = complex(Vnom[2 * i], Vnom[2 * i + 1]) / (base * 1000)
-
-    vnom_dict = {AllNodeNames[ii].upper(): V[ii] for ii in range(len(V))}
-    dss.run_command("BatchEdit Load..* enabled=yes")
-    dss.run_command("BatchEdit Generator..* enabled=yes")
-    dss.run_command("solve mode=snap")
-    return V, vnom_dict
 
 
 def get_loads(dss, circuit):
+    """Get list of load dicts from OpenDSS circuit."""
     data = []
     load_flag = dss.Loads.First()
     dss.Circuit.SetActiveClass("Load")
@@ -105,7 +40,8 @@ def get_loads(dss, circuit):
     return data
 
 
-def get_pvSystems(dss):
+def get_pvsystems(dss):
+    """Get list of PVSystem dicts from OpenDSS circuit."""
     data = []
     PV_flag = dss.PVsystems.First()
     while PV_flag:
@@ -140,7 +76,8 @@ def get_pvSystems(dss):
     return data
 
 
-def get_Generator(dss):
+def get_generators(dss):
+    """Get list of Generator dicts from OpenDSS circuit."""
     data = []
     gen_flag = dss.Generators.First()
     dss.Circuit.SetActiveClass("Generator")
@@ -172,6 +109,7 @@ def get_Generator(dss):
 
 
 def get_capacitors(dss):
+    """Get list of Capacitor dicts from OpenDSS circuit."""
     data = []
     cap_flag = dss.Capacitors.First()
     dss.Circuit.SetActiveClass("Capacitor")
@@ -196,6 +134,7 @@ def get_capacitors(dss):
 
 
 def get_voltages(circuit):
+    """Get dict of names to voltages from OpenDSS circuit."""
     temp_Vbus = circuit.YNodeVArray()
     AllNodeNames = circuit.YNodeOrder()
     node_number = len(AllNodeNames)
@@ -203,26 +142,4 @@ def get_voltages(circuit):
         AllNodeNames[ii]: complex(temp_Vbus[ii * 2], temp_Vbus[ii * 2 + 1])
         for ii in range(node_number)
     }
-    feeder_voltages = np.array(
-        [complex(temp_Vbus[ii * 2], temp_Vbus[ii * 2 + 1]) for ii in range(node_number)]
-    )
-    # voltage_pu = list(map(lambda x: abs(x[0]) / x[1], zip(feeder_voltages, BASEKV)))
-    # print(feeder_voltages)
-    # print(BASEKV)
-    return feeder_voltages, name_voltage_dict
-
-
-def get_load_sizes(dss, loads):
-    load_size_dict = {}
-    for load in loads:
-        bus_phases = load["bus1"] + "." + ".".join(load["phases"])
-        load_size_dict[load["name"]] = {
-            "numPhases": load["numPhases"],
-            "bus": load["bus1"],
-            "bus_phases": bus_phases,
-            "phases": load["phases"],
-            "kVar": load["kVar"],
-            "kV": load["kV"],
-            "kW": load["kW"],
-        }
-    return load_size_dict
+    return name_voltage_dict

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+"""Core class to abstract OpenDSS into Feeder class."""
 from typing import Any, List, Dict
 import opendssdirect as dss
 import numpy as np
@@ -20,8 +20,8 @@ from enum import Enum
 
 from dss_functions import (
     get_loads,
-    get_pvSystems,
-    get_Generator,
+    get_pvsystems,
+    get_generators,
     get_capacitors,
     get_voltages,
 )
@@ -33,8 +33,7 @@ logger.setLevel(logging.INFO)
 
 
 def permutation(from_list, to_list):
-    """
-    Create permutation representing change in from_list to to_list
+    """Create permutation representing change in from_list to to_list.
 
     Specifically, if `permute = permutation(from_list, to_list)`,
     then `permute[i] = j` means that `from_list[i] = to_list[j]`.
@@ -44,16 +43,13 @@ def permutation(from_list, to_list):
 
     You may view the permutation as a function from `from_list` to `to_list`.
     """
-    # return [to_list.find(v) for v in enumerate(from_list)]
     index_map = {v: i for i, v in enumerate(to_list)}
     return [index_map[v] for v in from_list]
 
 
-def check_node_order(l1, l2):
-    logger.debug("check order " + str(l1 == l2))
-
-
 class FeederConfig(BaseModel):
+    """JSON configuration. Special cases S3 sources right now."""
+
     name: str
     use_smartds: bool = False
     profile_location: str
@@ -68,16 +64,27 @@ class FeederConfig(BaseModel):
 
 
 class Command(BaseModel):
+    """JSON Configuration for external object commands.
+
+    obj_name -- name of the object.
+    obj_prop -- name of the property.
+    obj_val -- val of the property.
+    """
+
     obj_name: str
     obj_property: str
     val: Any
 
 
 class CommandList(BaseModel):
+    """List[Command] with JSON parsing."""
+
     __root__: List[Command]
 
 
 class OpenDSSState(Enum):
+    """Enum of all OpenDSSStates traversed in a simulation."""
+
     UNLOADED = 1
     LOADED = 2
     SNAPSHOT_RUN = 3
@@ -87,29 +94,23 @@ class OpenDSSState(Enum):
 
 
 class FeederSimulator(object):
-    """ A simple class that handles publishing the solar forecast
-    """
+    """A simple class that handles publishing the solar forecast."""
+
+    # Private variables initialized later
+    _feeder_file: str
+    _AllNodeNames: List[str]
+    _source_indexes: List[int]
+    _nodes_index: List[int]
+    _name_index_dict: Dict[str, int]
 
     def __init__(self, config: FeederConfig):
-        """ Create a ``FeederSimulator`` object
-
-        """
+        """Create a ``FeederSimulator`` object."""
         self._state = OpenDSSState.UNLOADED
-        self._feeder_file = None
-        self._simulation_time_step = None
         self._opendss_location = config.opendss_location
         self._profile_location = config.profile_location
         self._sensor_location = config.sensor_location
         self._use_smartds = config.use_smartds
 
-        self._circuit = None
-        self._AllNodeNames = None
-        self._source_indexes = None
-        # self._capacitors=[]
-        self._capNames: List[str] = []
-        self._regNames: List[str] = []
-
-        # timegm(strptime('2019-07-23 14:50:00 GMT', '%Y-%m-%d %H:%M:%S %Z'))
         self._start_time = int(
             time.mktime(strptime(config.start_date, "%Y-%m-%d %H:%M:%S"))
         )
@@ -117,9 +118,6 @@ class FeederSimulator(object):
         self._simulation_step = config.start_time_index
         self._number_of_timesteps = config.number_of_timesteps
         self._vmult = 0.001
-
-        self._nodes_index: List[int] = []
-        self._name_index_dict: Dict[str, int] = {}
 
         self._simulation_time_step = "15m"
         if self._use_smartds:
@@ -138,6 +136,10 @@ class FeederSimulator(object):
         assert self._state == OpenDSSState.SNAPSHOT_RUN, f"{self._state}"
 
     def snapshot_run(self):
+        """Run snapshot of simuation without specifying a time.
+
+        Used for initialization.
+        """
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
         dss.run_command("Batchedit Load..* enabled=yes")
         dss.run_command("Batchedit Vsource..* enabled=yes")
@@ -151,6 +153,7 @@ class FeederSimulator(object):
         self._state = OpenDSSState.SNAPSHOT_RUN
 
     def download_data(self, bucket_name, update_loadshape_location=False):
+        """Download data from bucket path."""
         logging.info(f"Downloading from bucket {bucket_name}")
         # Equivalent to --no-sign-request
         s3_resource = boto3.resource("s3", config=Config(signature_version=UNSIGNED))
@@ -205,11 +208,11 @@ class FeederSimulator(object):
         self,
         percent_voltage=75,
         percent_real=75,
-        percent_reactive=75,
         voltage_seed=1,
         real_seed=2,
         reactive_seed=3,
     ):
+        """Initialize list of sensor locations for the measurement federate."""
         random.seed(voltage_seed)
         os.makedirs("sensors", exist_ok=True)
         voltage_subset = random.sample(
@@ -236,15 +239,19 @@ class FeederSimulator(object):
             json.dump(reactive_subset, fp, indent=4)
 
     def get_circuit_name(self):
+        """Get name of current opendss circuit."""
         return self._circuit.Name()
 
     def get_source_indices(self):
+        """Get indcies of slack buses."""
         return self._source_indexes
 
     def get_node_names(self):
+        """Get node names in order."""
         return self._AllNodeNames
 
     def load_feeder(self):
+        """Load feeder once downloaded. Relies on legacy mode."""
         dss.Basic.LegacyModels(True)
         dss.run_command("clear")
         result = dss.run_command("redirect " + self._feeder_file)
@@ -271,6 +278,7 @@ class FeederSimulator(object):
         self._state = OpenDSSState.LOADED
 
     def disabled_run(self):
+        """Disable most elements and solve. Used for most Y-matrix needs."""
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
         dss.run_command("batchedit transformer..* wdg=2 tap=1")
         dss.run_command("batchedit regcontrol..* enabled=false")
@@ -285,12 +293,10 @@ class FeederSimulator(object):
         dss.run_command("set maxiterations=20")
         # solve
         dss.run_command("solve")
-        # dss.run_command("export y triplet base_ysparse.csv")
-        # dss.run_command("export ynodelist base_nodelist.csv")
-        # dss.run_command("export summary base_summary.csv")
         self._state = OpenDSSState.DISABLED_RUN
 
     def get_y_matrix(self):
+        """Calculate Y-matrix as a coo-matrix. Disables some elements."""
         self.disabled_run()
         self._state = OpenDSSState.DISABLED_RUN
 
@@ -298,13 +304,13 @@ class FeederSimulator(object):
         Ymatrix = Ysparse.tocoo()
         new_order = self._circuit.YNodeOrder()
         permute = np.array(permutation(new_order, self._AllNodeNames))
-        # inv_permute = np.array(permutation(self._AllNodeNames, new_order))
         return coo_matrix(
             (Ymatrix.data, (permute[Ymatrix.row], permute[Ymatrix.col])),
             shape=Ymatrix.shape,
         )
 
     def setup_vbase(self):
+        """Load base voltages into feeder."""
         self._Vbase_allnode = np.zeros((self._node_number), dtype=np.complex_)
         self._Vbase_allnode_dict = {}
         for ii, node in enumerate(self._AllNodeNames):
@@ -313,12 +319,14 @@ class FeederSimulator(object):
             self._Vbase_allnode_dict[node] = self._Vbase_allnode[ii]
 
     def _ready_to_load_power(self, static):
+        """Check if opendss state can actually calculate power."""
         if static:
             assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
         else:
             assert self._state == OpenDSSState.SOLVE_AT_TIME, f"{self._state}"
 
     def get_PQs_load(self, static=False):
+        """Get active and reactive power of loads as xarray."""
         self._ready_to_load_power(static)
 
         num_nodes = len(self._name_index_dict.keys())
@@ -341,13 +349,14 @@ class FeederSimulator(object):
         return xr.DataArray(PQ_load, {"bus": PQ_names})
 
     def get_PQs_pv(self, static=False):
+        """Get active and reactive power of PVSystems as xarray."""
         self._ready_to_load_power(static)
 
         num_nodes = len(self._name_index_dict.keys())
 
         PQ_names = self._AllNodeNames
         PQ_PV = np.zeros((num_nodes), dtype=np.complex_)
-        for PV in get_pvSystems(dss):
+        for PV in get_pvsystems(dss):
             bus = PV["bus"].split(".")
             if len(bus) == 1:
                 bus = bus + ["1", "2", "3"]
@@ -367,13 +376,14 @@ class FeederSimulator(object):
         return xr.DataArray(PQ_PV, {"bus": PQ_names})
 
     def get_PQs_gen(self, static=False):
+        """Get active and reactive power of Generators as xarray."""
         self._ready_to_load_power(static)
 
         num_nodes = len(self._name_index_dict.keys())
 
         PQ_names = self._AllNodeNames
         PQ_gen = np.zeros((num_nodes), dtype=np.complex_)
-        for PV in get_Generator(dss):
+        for PV in get_generators(dss):
             bus = PV["bus"]
             self._circuit.SetActiveElement("Generator." + PV["name"])
             for ii in range(len(bus) - 1):
@@ -391,6 +401,7 @@ class FeederSimulator(object):
         return xr.DataArray(PQ_gen, {"bus": PQ_names})
 
     def get_PQs_cap(self, static=False):
+        """Get active and reactive power of Capacitors as xarray."""
         self._ready_to_load_power(static)
 
         num_nodes = len(self._name_index_dict.keys())
@@ -413,21 +424,21 @@ class FeederSimulator(object):
         return xr.DataArray(PQ_cap, {"bus": PQ_names})
 
     def get_base_voltages(self):
+        """Get base voltages xarray. Can be uesd anytime."""
         return xr.DataArray(self._Vbase_allnode, {"bus": self._AllNodeNames})
 
     def get_disabled_solve_voltages(self):
+        """Get voltage xarray when elements are disabled."""
         assert self._state == OpenDSSState.DISABLED_SOLVE, f"{self._state}"
         return self._get_voltages()
 
     def get_voltages_snapshot(self):
+        """Get voltage xarray in snapshot run."""
         assert self._state == OpenDSSState.SNAPSHOT_RUN, f"{self._state}"
         return self._get_voltages()
 
     def get_voltages_actual(self):
-        """
-
-        :return voltages in actual values:
-        """
+        """Get voltages xarray at current time."""
         assert self._state == OpenDSSState.SOLVE_AT_TIME, f"{self._state}"
         return self._get_voltages()
 
@@ -450,22 +461,14 @@ class FeederSimulator(object):
     def change_obj(self, change_commands: CommandList):
         """set/get an object property.
 
-        Input: objData should be a list of lists of the format,
+        Parameters
+        ----------
+        change_commands: CommandList (List[Command])
 
-        objName,objProp,objVal,flg],...]
-        objName -- name of the object.
-        objProp -- name of the property.
-        objVal -- val of the property. If flg is set as 'get', then objVal is not used.
-        flg -- Can be 'set' or 'get'
 
-        P.S. In the case of 'get' use a value of 'None' for objVal. The same
-        object i.e. objData that was passed in as input will have the result
-        i.e. objVal will be updated from 'None' to the actual value. Sample
-        call:
-
-        ``self._changeObj([['PVsystem.pv1','kVAr',25,'set']])``
-        ``self._changeObj([['PVsystem.pv1','kVAr','None','get']])``
-
+        Examples
+        --------
+        ``change_obj(CommandList([Command('PVsystem.pv1','kVAr',25)]))``
         """
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
         for entry in change_commands.__root__:
@@ -475,6 +478,7 @@ class FeederSimulator(object):
             dss.CktElement.Properties(entry.obj_property).Val = entry.val
 
     def initial_disabled_solve(self):
+        """If run is disabled, then we can still solve at 0.0."""
         assert self._state == OpenDSSState.DISABLED_RUN, f"{self._state}"
         hour = 0
         second = 0
@@ -486,7 +490,7 @@ class FeederSimulator(object):
         self._state = OpenDSSState.DISABLED_SOLVE
 
     def solve(self, hour, second):
-        # This only works if you are not unloaded and not disabled
+        """Solve at specified time. Must not be unloaded or disabled."""
         assert (
             self._state != OpenDSSState.UNLOADED
             and self._state != OpenDSSState.DISABLED_RUN

@@ -1,8 +1,10 @@
+"""HELICS wrapper for OpenDSS feeder simulation."""
 import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, List
+from typing import Any, Dict, List
+import numpy.typing as npt
 
 import helics as h
 import numpy as np
@@ -20,7 +22,7 @@ from gadal.gadal_types.data_types import (
     VoltagesMagnitude,
     VoltagesReal,
 )
-from pydantic import BaseModel
+from scipy.sparse import coo_matrix
 
 from FeederSimulator import CommandList, FeederConfig, FeederSimulator
 
@@ -29,11 +31,13 @@ logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.DEBUG)
 
 
-def numpy_to_y_matrix(array):
+def numpy_to_y_matrix(array: npt.NDArray[np.complex64]):
+    """Convert 2d numpy array to list of lists."""
     return [[(element.real, element.imag) for element in row] for row in array]
 
 
-def sparse_to_admittance_sparse(array, unique_ids):
+def sparse_to_admittance_sparse(array: coo_matrix, unique_ids: List[str]):
+    """Convert coo sparse array to AdmittanceSparse type."""
     return AdmittanceSparse(
         from_equipment=[unique_ids[i] for i in array.row],
         to_equipment=[unique_ids[i] for i in array.col],
@@ -42,6 +46,7 @@ def sparse_to_admittance_sparse(array, unique_ids):
 
 
 def get_true_phases(angle):
+    """Round complex angles to predefined set of phases."""
     if np.abs(angle - 0) < 0.2:
         return 0
     elif np.abs(angle - np.pi / 3) < 0.2:
@@ -61,6 +66,7 @@ def get_true_phases(angle):
 
 
 def xarray_to_dict(data):
+    """Convert xarray to dict with values and ids for JSON serialization."""
     ids = list(data.bus.data)
     return {
         "values": list(data.data.real),
@@ -69,12 +75,14 @@ def xarray_to_dict(data):
 
 
 def xarray_to_powers(data, **kwargs):
+    """Conveniently turn xarray into PowersReal and PowersImaginary."""
     powersreal = PowersReal(**xarray_to_dict(data.real), **kwargs)
     powersimag = PowersImaginary(**xarray_to_dict(data.imag), **kwargs)
     return powersreal, powersimag
 
 
-def concat_powers(*ps: MeasurementArray):
+def concat_measurement_arrays(*ps: MeasurementArray):
+    """Concatenate list of measurements into one."""
     equipment_type = None
     if all((p.equipment_type is not None for p in ps)):
         equipment_type = [e for p in ps for e in p.equipment_type]
@@ -103,6 +111,7 @@ def concat_powers(*ps: MeasurementArray):
 
 
 def get_powers(PQ_load, PQ_PV, PQ_gen, PQ_cap):
+    """Turn xararys into PowersReal and PowersImaginary."""
     n_nodes = len(PQ_load)
     PQ_load_real, PQ_load_imag = xarray_to_powers(
         PQ_load, equipment_type=["Load"] * n_nodes
@@ -117,18 +126,25 @@ def get_powers(PQ_load, PQ_PV, PQ_gen, PQ_cap):
         PQ_cap, equipment_type=["Capacitor"] * n_nodes
     )
 
-    power_real = concat_powers(PQ_load_real, PQ_PV_real, PQ_gen_real, PQ_cap_real)
-    power_imag = concat_powers(PQ_load_imag, PQ_PV_imag, PQ_gen_imag, PQ_cap_imag)
+    power_real = concat_measurement_arrays(
+        PQ_load_real, PQ_PV_real, PQ_gen_real, PQ_cap_real
+    )
+    power_imag = concat_measurement_arrays(
+        PQ_load_imag, PQ_PV_imag, PQ_gen_imag, PQ_cap_imag
+    )
     return power_real, power_imag
 
 
 @dataclass
 class InitialData:
+    """Initial data from start of simulation."""
+
     Y: Any
     topology: Topology
 
 
-def get_initial_data(sim, config):
+def get_initial_data(sim: FeederSimulator, config: FeederConfig):
+    """Get and calculate InitialData from simulation."""
     Y = sim.get_y_matrix()
     unique_ids = sim._AllNodeNames
 
@@ -158,8 +174,10 @@ def get_initial_data(sim, config):
     power_real, power_imaginary = get_powers(-PQ_load, -PQ_PV, -PQ_gen, -PQ_cap)
     injections = Injection(power_real=power_real, power_imaginary=power_imaginary)
 
-    feeder_voltages = sim.get_voltages_snapshot()
-    phases = list(map(get_true_phases, np.angle(feeder_voltages.data)))
+    sim.solve(0, 0)
+    feeder_voltages = sim.get_voltages_actual()
+    feeder_angles: npt.NDArray[np.float64] = np.angle(feeder_voltages.data)
+    phases = list(map(get_true_phases, feeder_angles))
     base_voltageangle = VoltagesAngle(values=phases, ids=list(feeder_voltages.bus.data))
 
     topology = Topology(
@@ -174,12 +192,15 @@ def get_initial_data(sim, config):
 
 @dataclass
 class CurrentData:
+    """Current data at time t. ``arr.bus`` gives bus ids."""
+
     feeder_voltages: xr.core.dataarray.DataArray
     PQ_injections_all: xr.core.dataarray.DataArray
     calculated_power: xr.core.dataarray.DataArray
 
 
-def get_current_data(sim, Y):
+def get_current_data(sim: FeederSimulator, Y):
+    """Construct current data from simulation after having solved."""
     feeder_voltages = sim.get_voltages_actual()
     PQ_load = sim.get_PQs_load(static=False)
     PQ_PV = sim.get_PQs_pv(static=False)
@@ -200,12 +221,18 @@ def get_current_data(sim, Y):
 
 
 def where_power_unbalanced(PQ_injections_all, calculated_power, tol=1):
+    """Find errors where PQ_injectinos does not match calculated power."""
     errors = PQ_injections_all + calculated_power
     (indices,) = np.where(np.abs(errors) > tol)
     return errors.bus[indices]
 
 
-def go_cosim(sim, config: FeederConfig, input_mapping):
+def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str, str]):
+    """Run HELICS federate with FeederSimulation.
+
+    TODO: Maybe this should be a class or a coroutine or something cleaner.
+    There are many options.
+    """
     deltat = 0.01
     fedinitstring = "--federates=1"
 
@@ -336,11 +363,8 @@ def go_cosim(sim, config: FeederConfig, input_mapping):
     h.helicsCloseLibrary()
 
 
-class FeederCosimConfig(BaseModel):
-    feeder_config: FeederConfig
-
-
 def run():
+    """Load static_inputs and input_mapping and run JSON."""
     with open("static_inputs.json") as f:
         parameters = json.load(f)
     with open("input_mapping.json") as f:

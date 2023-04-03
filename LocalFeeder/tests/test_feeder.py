@@ -231,7 +231,7 @@ def initial_data(sim, federate_config):
 
 
 def plot_complex_array(data, label="Voltages"):
-    # Plot magnitudes
+    print("Index vs Complex Magnitude")
     fig = plotille.Figure()
     fig.width = 60
     fig.height = 30
@@ -241,13 +241,24 @@ def plot_complex_array(data, label="Voltages"):
     fig.plot(range(len(data)), np.abs(data), lc=100, label=label)
     print("\n" + fig.show(legend=True))
 
-    # Plot angles better
+    print("Index vs Complex Angle (radial plot)")
     r = np.array(range(len(data))) + 100
     fig = plotille.Figure()
     fig.width = 60
     fig.height = 30
     fig.set_x_limits(min_=-400, max_=400)
     fig.set_y_limits(min_=-400, max_=400)
+    fig.color_mode = "byte"
+    fig.scatter(*rtheta_to_xy(r, np.angle(data)), lc=50, label=label)
+    print("\n" + fig.show(legend=True))
+
+    print("Log magnitude with angle (radial plot)")
+    r = np.log(np.array(np.abs(data)) + 1.0)
+    fig = plotille.Figure()
+    fig.width = 60
+    fig.height = 30
+    fig.set_x_limits(min_=-10, max_=10)
+    fig.set_y_limits(min_=-10, max_=10)
     fig.color_mode = "byte"
     fig.scatter(*rtheta_to_xy(r, np.angle(data)), lc=50, label=label)
     print("\n" + fig.show(legend=True))
