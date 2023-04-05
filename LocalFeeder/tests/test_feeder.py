@@ -383,7 +383,7 @@ def test_controls(federate_config):
             __root__=[
                 FeederSimulator.Command(
                     obj_name="PVSystem.113",
-                    obj_property="Ppmp",
+                    obj_property="Pmpp",
                     val=25,  # power_real.values[pv_system_index] / 2,
                 )
             ]
