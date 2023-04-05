@@ -7,11 +7,13 @@ import pandas as pd
 import plotille
 import pytest
 import xarray as xr
+from gadal.gadal_types.data_types import MeasurementArray
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import FeederSimulator
 import sender_cosim
+from sender_cosim import agg_to_ids
 
 
 @pytest.fixture()
@@ -119,7 +121,7 @@ def test_voltages(federate_config):
     print("\n" + fig.show(legend=True))
 
     # Plot angles better
-    r = xr.DataArray(range(len(base)), {"bus": base.bus.data}) + 100
+    r = xr.DataArray(range(len(base)), {"ids": base.ids.data}) + 100
     fig = plotille.Figure()
     fig.width = 60
     fig.height = 30
@@ -132,7 +134,7 @@ def test_voltages(federate_config):
     print("\n" + fig.show(legend=True))
 
     # Plot angles better
-    r = xr.DataArray(range(len(base)), {"bus": base.bus.data}) + 100
+    r = xr.DataArray(range(len(base)), {"ids": base.ids.data}) + 100
     fig = plotille.Figure()
     fig.width = 90
     fig.height = 30
@@ -145,12 +147,28 @@ def test_voltages(federate_config):
     print("\n" + fig.show(legend=True))
 
 
+def test_xarray_translation():
+    x = xr.DataArray(
+        [0 + 1j, 1 + 2j, 2 + 3j, 3 + 4j],
+        dims=("ids",),
+        coords={
+            "ids": ("ids", ["1", "1", "2", "3"]),
+            "equipment_ids": ("ids", ["0", "1", "2", "3"]),
+        },
+    )
+    powerreal, powerimag = sender_cosim.xarray_to_powers(x)
+    assert powerreal.ids == ["1", "1", "2", "3"]
+    assert powerreal.values == [0.0, 1.0, 2.0, 3.0]
+    assert powerimag.values == [1.0, 2.0, 3.0, 4.0]
+
+
 def test_simulation(federate_config):
     logging.info("Loading sim")
     sim = FeederSimulator.FeederSimulator(federate_config)
     startup(sim)
     Y = sim.get_y_matrix()
     plot_y_matrix(Y)
+    sim.snapshot_run()  # You need to re-enable!
     getting_and_concatentating_data(sim)
     initial_data(sim, federate_config)
     sim.snapshot_run()
@@ -179,9 +197,16 @@ def getting_and_concatentating_data(sim):
     )
     test_real = sender_cosim.concat_measurement_arrays(pv_real, gen_real)
     assert test_real.values[5] == PQ_PV.data[5].real
-    assert test_real.ids[5] == PQ_PV.bus.data[5]
-    PQ_injections_all = PQ_load + PQ_PV + PQ_gen + PQ_cap
-    assert np.all(PQ_injections_all.bus == PQ_load.bus)
+    assert test_real.ids[5] == PQ_PV.ids.data[5]
+
+    ids = xr.DataArray(sim._AllNodeNames, coords={"ids": sim._AllNodeNames})
+    PQ_injections_all = (
+        agg_to_ids(PQ_load, ids)
+        + agg_to_ids(PQ_PV, ids)
+        + agg_to_ids(PQ_gen, ids)
+        + agg_to_ids(PQ_cap, ids)
+    )
+    assert sorted(list(PQ_injections_all.ids.data)) == sorted(sim._AllNodeNames)
 
 
 def initial_data(sim, federate_config):
@@ -270,6 +295,9 @@ def simulation_middle(sim, Y):
     sim.solve(0, 0)
 
     current_data = sender_cosim.get_current_data(sim, Y)
+    assert len(current_data.injections.power_real.values) == len(
+        current_data.injections.power_real.ids
+    )
     df = pd.DataFrame(
         {
             "pq": current_data.PQ_injections_all,
@@ -300,3 +328,102 @@ def simulation_middle(sim, Y):
         current_data.PQ_injections_all, current_data.calculated_power
     )
     assert len(bad_bus_names) == 0
+
+
+def equipment_indices_on_measurement_array(
+    measurement_array: MeasurementArray, equipment_type: str
+):
+    return map(
+        lambda iv: iv[0],
+        filter(
+            lambda iv: iv[1] == equipment_type,
+            enumerate(measurement_array.equipment_type),
+        ),
+    )
+
+
+def test_controls(federate_config):
+    logging.info("Loading sim")
+    sim = FeederSimulator.FeederSimulator(federate_config)
+    Y = sim.get_y_matrix()
+    sim.snapshot_run()  # Needed to bring out of disabled state
+    sim.solve(8, 0)
+    sim.just_solve()
+    current_data = sender_cosim.get_current_data(sim, Y)
+    assert len(current_data.injections.power_real.values) == len(
+        current_data.injections.power_real.ids
+    )
+
+    bad_bus_names = sender_cosim.where_power_unbalanced(
+        current_data.PQ_injections_all, current_data.calculated_power
+    )
+    assert len(bad_bus_names) == 0
+
+    # Find first with equipment type = PVSystem
+    power_real = current_data.injections.power_real
+    pv_system_indices = list(
+        equipment_indices_on_measurement_array(power_real, "PVSystem")
+    )
+    max_index = np.argmax(np.abs([power_real.values[i] for i in pv_system_indices]))
+    pv_system_index = pv_system_indices[max_index]
+    pv_system_index = None
+    for i in range(len(power_real.ids)):
+        if power_real.ids[i] == "113.1" and power_real.equipment_type[i] == "PVSystem":
+            pv_system_index = i
+            break
+    assert pv_system_index is not None
+
+    print(
+        f"{power_real.ids[pv_system_index]} {power_real.equipment_type[pv_system_index]}"
+    )
+    # Try setting current power to half of that.
+    assert abs(power_real.values[pv_system_index]) > 0.01
+    sim.change_obj(
+        FeederSimulator.CommandList(
+            __root__=[
+                FeederSimulator.Command(
+                    obj_name="PVSystem.113",
+                    obj_property="Ppmp",
+                    val=25,  # power_real.values[pv_system_index] / 2,
+                )
+            ]
+        )
+    )
+    # dss.Text.Command("PVsystem.113.PF=0.01")
+    # Check properties in AllPropertyNames in CktElement or just Element
+    # Solve and observe current power. It should change.
+    sim.just_solve()
+    new_data = sender_cosim.get_current_data(sim, Y)
+    new_power_real = new_data.injections.power_real
+    print(power_real.values[pv_system_index])
+    print(power_real.ids[pv_system_index])
+    print(new_power_real.values[pv_system_index])
+    print(new_power_real.ids[pv_system_index])
+    assert (
+        np.abs(
+            new_power_real.values[pv_system_index] - power_real.values[pv_system_index]
+        )
+        > 1
+    )
+    (bad_indices,) = np.where(
+        np.abs(np.array(new_power_real.values) - np.array(power_real.values)) > 1
+    )
+
+    for i in bad_indices:
+        print(
+            f"Old: {power_real.equipment_type[i]} {power_real.ids[i]} "
+            f"{power_real.values[i]}"
+        )
+        print(
+            f"New: {new_power_real.equipment_type[i]} {new_power_real.ids[i]} "
+            f"{new_power_real.values[i]}"
+        )
+
+    assert bad_indices == [pv_system_index]
+    # Run another time step. What happens?
+    sim.solve(9, 0)
+    next_data = sender_cosim.get_current_data(sim, Y)
+    next_power_real = next_data.injections.power_real
+    print(f"8,0: {power_real.values[pv_system_index]}")
+    print(f"9,0: {new_power_real.values[pv_system_index]}")
+    print(f"9,0: {next_power_real.values[pv_system_index]}")

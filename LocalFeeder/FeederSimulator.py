@@ -1,31 +1,25 @@
 """Core class to abstract OpenDSS into Feeder class."""
-from typing import Any, List, Dict
-import opendssdirect as dss
-import numpy as np
-import time
-from time import strptime
-from scipy.sparse import coo_matrix
+import json
+import logging
+import math
 import os
 import random
-import math
-import logging
-import json
+import time
+from enum import Enum
+from time import strptime
+from typing import Any, Dict, List
+
 import boto3
+import numpy as np
+import opendssdirect as dss
+import xarray as xr
 from botocore import UNSIGNED
 from botocore.config import Config
-
 from pydantic import BaseModel
-from scipy.sparse import csc_matrix
-from enum import Enum
+from scipy.sparse import coo_matrix, csc_matrix
 
-from dss_functions import (
-    get_loads,
-    get_pvsystems,
-    get_generators,
-    get_capacitors,
-    get_voltages,
-)
-import xarray as xr
+from dss_functions import (get_capacitors, get_generators, get_loads,
+                           get_pvsystems, get_voltages)
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -141,15 +135,15 @@ class FeederSimulator(object):
         Used for initialization.
         """
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
-        dss.run_command("Batchedit Load..* enabled=yes")
-        dss.run_command("Batchedit Vsource..* enabled=yes")
-        dss.run_command("Batchedit Isource..* enabled=yes")
-        dss.run_command("Batchedit Generator..* enabled=yes")
-        dss.run_command("Batchedit PVsystem..* enabled=yes")
-        dss.run_command("Batchedit Capacitor..* enabled=yes")
-        dss.run_command("Batchedit Storage..* enabled=no")
-        dss.run_command("CalcVoltageBases")
-        dss.run_command("solve mode=snapshot")
+        dss.Text.Command("Batchedit Load..* enabled=yes")
+        dss.Text.Command("Batchedit Vsource..* enabled=yes")
+        dss.Text.Command("Batchedit Isource..* enabled=yes")
+        dss.Text.Command("Batchedit Generator..* enabled=yes")
+        dss.Text.Command("Batchedit PVsystem..* enabled=yes")
+        dss.Text.Command("Batchedit Capacitor..* enabled=yes")
+        dss.Text.Command("Batchedit Storage..* enabled=no")
+        dss.Text.Command("CalcVoltageBases")
+        dss.Text.Command("solve mode=snapshot")
         self._state = OpenDSSState.SNAPSHOT_RUN
 
     def download_data(self, bucket_name, update_loadshape_location=False):
@@ -253,8 +247,9 @@ class FeederSimulator(object):
     def load_feeder(self):
         """Load feeder once downloaded. Relies on legacy mode."""
         dss.Basic.LegacyModels(True)
-        dss.run_command("clear")
-        result = dss.run_command("redirect " + self._feeder_file)
+        dss.Text.Command("clear")
+        dss.Text.Command("redirect " + self._feeder_file)
+        result = dss.Text.Result()
         if not result == "":
             raise ValueError("Feeder not loaded: " + result)
         self._circuit = dss.Circuit
@@ -280,19 +275,19 @@ class FeederSimulator(object):
     def disabled_run(self):
         """Disable most elements and solve. Used for most Y-matrix needs."""
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
-        dss.run_command("batchedit transformer..* wdg=2 tap=1")
-        dss.run_command("batchedit regcontrol..* enabled=false")
-        dss.run_command("batchedit vsource..* enabled=false")
-        dss.run_command("batchedit isource..* enabled=false")
-        dss.run_command("batchedit load..* enabled=false")
-        dss.run_command("batchedit generator..* enabled=false")
-        dss.run_command("batchedit pvsystem..* enabled=false")
-        dss.run_command("Batchedit Capacitor..* enabled=false")
-        dss.run_command("batchedit storage..* enabled=false")
-        dss.run_command("CalcVoltageBases")
-        dss.run_command("set maxiterations=20")
+        dss.Text.Command("batchedit transformer..* wdg=2 tap=1")
+        dss.Text.Command("batchedit regcontrol..* enabled=false")
+        dss.Text.Command("batchedit vsource..* enabled=false")
+        dss.Text.Command("batchedit isource..* enabled=false")
+        dss.Text.Command("batchedit load..* enabled=false")
+        dss.Text.Command("batchedit generator..* enabled=false")
+        dss.Text.Command("batchedit pvsystem..* enabled=false")
+        dss.Text.Command("Batchedit Capacitor..* enabled=false")
+        dss.Text.Command("batchedit storage..* enabled=false")
+        dss.Text.Command("CalcVoltageBases")
+        dss.Text.Command("set maxiterations=20")
         # solve
-        dss.run_command("solve")
+        dss.Text.Command("solve")
         self._state = OpenDSSState.DISABLED_RUN
 
     def get_y_matrix(self):
@@ -329,103 +324,152 @@ class FeederSimulator(object):
         """Get active and reactive power of loads as xarray."""
         self._ready_to_load_power(static)
 
-        num_nodes = len(self._name_index_dict.keys())
-
-        PQ_names = self._AllNodeNames
-        PQ_load = np.zeros((num_nodes), dtype=np.complex_)
+        all_node_names = set(self._AllNodeNames)
+        PQs: List[complex] = []
+        node_names: List[str] = []
+        pq_names: List[str] = []
+        # PQ_load = np.zeros((num_nodes), dtype=np.complex_)
         for ld in get_loads(dss, self._circuit):
             self._circuit.SetActiveElement("Load." + ld["name"])
+            current_pq_name = dss.CktElement.Name()
             for ii in range(len(ld["phases"])):
-                name = ld["bus1"].upper() + "." + ld["phases"][ii]
-                index = self._name_index_dict[name]
+                node_name = ld["bus1"].upper() + "." + ld["phases"][ii]
+                assert (
+                    node_name in all_node_names
+                ), f"{node_name} for {current_pq_name} not found"
                 if static:
                     power = complex(ld["kW"], ld["kVar"])
-                    PQ_load[index] += power / len(ld["phases"])
+                    PQs.append(power / len(ld["phases"]))
                 else:
                     power = dss.CktElement.Powers()
-                    PQ_load[index] += complex(power[2 * ii], power[2 * ii + 1])
-                assert PQ_names[index] == name
-
-        return xr.DataArray(PQ_load, {"bus": PQ_names})
+                    PQs.append(complex(power[2 * ii], power[2 * ii + 1]))
+                pq_names.append(current_pq_name)
+                node_names.append(node_name)
+        pq_xr = xr.DataArray(
+            PQs,
+            dims=("eqnode",),
+            coords={
+                "equipment_ids": ("eqnode", pq_names),
+                "ids": ("eqnode", node_names),
+            },
+        )
+        return pq_xr.sortby(pq_xr.ids)
 
     def get_PQs_pv(self, static=False):
         """Get active and reactive power of PVSystems as xarray."""
         self._ready_to_load_power(static)
 
-        num_nodes = len(self._name_index_dict.keys())
-
-        PQ_names = self._AllNodeNames
-        PQ_PV = np.zeros((num_nodes), dtype=np.complex_)
+        all_node_names = set(self._AllNodeNames)
+        PQs: List[complex] = []
+        node_names: List[str] = []
+        pq_names: List[str] = []
         for PV in get_pvsystems(dss):
             bus = PV["bus"].split(".")
             if len(bus) == 1:
                 bus = bus + ["1", "2", "3"]
             self._circuit.SetActiveElement("PVSystem." + PV["name"])
+            current_pq_name = dss.CktElement.Name()
             for ii in range(len(bus) - 1):
-                name = bus[0].upper() + "." + bus[ii + 1]
-                index = self._name_index_dict[name]
+                node_name = bus[0].upper() + "." + bus[ii + 1]
+                assert (
+                    node_name in all_node_names
+                ), f"{node_name} for {current_pq_name} not found"
                 if static:
                     power = complex(
                         -1 * PV["kW"], -1 * PV["kVar"]
                     )  # -1 because injecting
-                    PQ_PV[index] += power / (len(bus) - 1)
+                    PQs.append(power / (len(bus) - 1))
                 else:
                     power = dss.CktElement.Powers()
-                    PQ_PV[index] += complex(power[2 * ii], power[2 * ii + 1])
-                assert PQ_names[index] == name
-        return xr.DataArray(PQ_PV, {"bus": PQ_names})
+                    PQs.append(complex(power[2 * ii], power[2 * ii + 1]))
+                pq_names.append(current_pq_name)
+                node_names.append(node_name)
+        pq_xr = xr.DataArray(
+            PQs,
+            dims=("eqnode",),
+            coords={
+                "equipment_ids": ("eqnode", pq_names),
+                "ids": ("eqnode", node_names),
+            },
+        )
+        return pq_xr.sortby(pq_xr.ids)
 
     def get_PQs_gen(self, static=False):
         """Get active and reactive power of Generators as xarray."""
         self._ready_to_load_power(static)
 
-        num_nodes = len(self._name_index_dict.keys())
-
-        PQ_names = self._AllNodeNames
-        PQ_gen = np.zeros((num_nodes), dtype=np.complex_)
-        for PV in get_generators(dss):
-            bus = PV["bus"]
-            self._circuit.SetActiveElement("Generator." + PV["name"])
+        all_node_names = set(self._AllNodeNames)
+        PQs: List[complex] = []
+        node_names: List[str] = []
+        pq_names: List[str] = []
+        for gen in get_generators(dss):
+            bus = gen["bus"].split(".")
+            if len(bus) == 1:
+                bus = bus + ["1", "2", "3"]
+            self._circuit.SetActiveElement("Generator." + gen["name"])
+            current_pq_name = dss.CktElement.Name()
             for ii in range(len(bus) - 1):
-                name = bus[0].upper() + "." + bus[ii + 1]
-                index = self._name_index_dict[name]
+                node_name = bus[0].upper() + "." + bus[ii + 1]
+                assert (
+                    node_name in all_node_names
+                ), f"{node_name} for {current_pq_name} not found"
                 if static:
                     power = complex(
-                        -1 * PV["kW"], -1 * PV["kVar"]
+                        -1 * gen["kW"], -1 * gen["kVar"]
                     )  # -1 because injecting
-                    PQ_gen[index] += power / (len(bus) - 1)
+                    PQs.append(power / (len(bus) - 1))
                 else:
                     power = dss.CktElement.Powers()
-                    PQ_gen[index] += complex(power[2 * ii], power[2 * ii + 1])
-                assert PQ_names[index] == name
-        return xr.DataArray(PQ_gen, {"bus": PQ_names})
+                    PQs.append(complex(power[2 * ii], power[2 * ii + 1]))
+                pq_names.append(current_pq_name)
+                node_names.append(node_name)
+        pq_xr = xr.DataArray(
+            PQs,
+            dims=("eqnode",),
+            coords={
+                "equipment_ids": ("eqnode", pq_names),
+                "ids": ("eqnode", node_names),
+            },
+        )
+        return pq_xr.sortby(pq_xr.ids)
 
     def get_PQs_cap(self, static=False):
         """Get active and reactive power of Capacitors as xarray."""
         self._ready_to_load_power(static)
 
-        num_nodes = len(self._name_index_dict.keys())
-
-        PQ_names = self._AllNodeNames
-        PQ_cap = np.zeros((num_nodes), dtype=np.complex_)
+        all_node_names = set(self._AllNodeNames)
+        PQs: List[complex] = []
+        node_names: List[str] = []
+        pq_names: List[str] = []
         for cap in get_capacitors(dss):
+            current_pq_name = cap["name"]
             for ii in range(cap["numPhases"]):
-                name = cap["busname"].upper() + "." + cap["busphase"][ii]
-                index = self._name_index_dict[name]
+                node_name = cap["busname"].upper() + "." + cap["busphase"][ii]
+                assert (
+                    node_name in all_node_names
+                ), f"{node_name} for {current_pq_name} not found"
                 if static:
                     power = complex(
                         0, -1 * cap["kVar"]
                     )  # -1 because it's injected into the grid
-                    PQ_cap[index] += power / cap["numPhases"]
+                    PQs.append(power / cap["numPhases"])
                 else:
-                    PQ_cap[index] = complex(0, cap["power"][2 * ii + 1])
-                assert PQ_names[index] == name
-
-        return xr.DataArray(PQ_cap, {"bus": PQ_names})
+                    PQs.append(complex(0, cap["power"][2 * ii + 1]))
+                pq_names.append(current_pq_name)
+                node_names.append(node_name)
+        pq_xr = xr.DataArray(
+            PQs,
+            dims=("eqnode",),
+            coords={
+                "equipment_ids": ("eqnode", pq_names),
+                "ids": ("eqnode", node_names),
+            },
+        )
+        return pq_xr.sortby(pq_xr.ids)
 
     def get_base_voltages(self):
         """Get base voltages xarray. Can be uesd anytime."""
-        return xr.DataArray(self._Vbase_allnode, {"bus": self._AllNodeNames})
+        return xr.DataArray(self._Vbase_allnode, {"ids": self._AllNodeNames})
 
     def get_disabled_solve_voltages(self):
         """Get voltage xarray when elements are disabled."""
@@ -455,7 +499,7 @@ class FeederSimulator(object):
             ] = name_voltage_dict[voltage_name]
 
         return xr.DataArray(
-            res_feeder_voltages, {"bus": list(name_voltage_dict.keys())}
+            res_feeder_voltages, {"ids": list(name_voltage_dict.keys())}
         )
 
     def change_obj(self, change_commands: CommandList):
@@ -468,26 +512,41 @@ class FeederSimulator(object):
 
         Examples
         --------
-        ``change_obj(CommandList([Command('PVsystem.pv1','kVAr',25)]))``
+        ``change_obj(CommandList(__root__ = [Command('PVsystem.pv1','kVAr',25)]))``
         """
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
         for entry in change_commands.__root__:
             dss.Circuit.SetActiveElement(
                 entry.obj_name
             )  # make the required element as active element
-            dss.CktElement.Properties(entry.obj_property).Val = entry.val
+            # dss.CktElement.Properties(entry.obj_property).Val = entry.val
+            # dss.Properties.Value(entry.obj_property, str(entry.val))
+            properties = dss.CktElement.AllPropertyNames()
+            element_name = dss.CktElement.Name()
+            assert entry.obj_property.lower() in map(
+                lambda x: x.lower(), properties
+            ), f"{entry.obj_property} not in {properties} for {element_name}"
+            dss.Text.Command(f"{entry.obj_name}.{entry.obj_property}={entry.val}")
 
     def initial_disabled_solve(self):
         """If run is disabled, then we can still solve at 0.0."""
         assert self._state == OpenDSSState.DISABLED_RUN, f"{self._state}"
         hour = 0
         second = 0
-        dss.run_command(
-            f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second}"
-            f"stepsize={self._simulation_time_step}"
+        dss.Text.Command(
+            f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second} "
+            f"stepsize=0"
         )
-        dss.run_command("solve")
+        dss.Text.Command("solve")
         self._state = OpenDSSState.DISABLED_SOLVE
+
+    def just_solve(self):
+        """Solve without setting time or anything. Useful for commands."""
+        assert (
+            self._state != OpenDSSState.UNLOADED
+            and self._state != OpenDSSState.DISABLED_RUN
+        ), f"{self._state}"
+        dss.Text.Command("solve")
 
     def solve(self, hour, second):
         """Solve at specified time. Must not be unloaded or disabled."""
@@ -496,9 +555,9 @@ class FeederSimulator(object):
             and self._state != OpenDSSState.DISABLED_RUN
         ), f"{self._state}"
 
-        dss.run_command(
-            f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second}"
-            f"stepsize={self._simulation_time_step}"
+        dss.Text.Command(
+            f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second} "
+            f"stepsize=0"
         )
-        dss.run_command("solve")
+        dss.Text.Command("solve")
         self._state = OpenDSSState.SOLVE_AT_TIME

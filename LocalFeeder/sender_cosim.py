@@ -4,24 +4,17 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
-import numpy.typing as npt
 
 import helics as h
 import numpy as np
+import numpy.typing as npt
 import xarray as xr
-from gadal.gadal_types.data_types import (
-    AdmittanceMatrix,
-    AdmittanceSparse,
-    Injection,
-    MeasurementArray,
-    PowersImaginary,
-    PowersReal,
-    Topology,
-    VoltagesAngle,
-    VoltagesImaginary,
-    VoltagesMagnitude,
-    VoltagesReal,
-)
+from gadal.gadal_types.data_types import (AdmittanceMatrix, AdmittanceSparse,
+                                          Injection, MeasurementArray,
+                                          PowersImaginary, PowersReal,
+                                          Topology, VoltagesAngle,
+                                          VoltagesImaginary, VoltagesMagnitude,
+                                          VoltagesReal)
 from scipy.sparse import coo_matrix
 
 from FeederSimulator import CommandList, FeederConfig, FeederSimulator
@@ -67,11 +60,8 @@ def get_true_phases(angle):
 
 def xarray_to_dict(data):
     """Convert xarray to dict with values and ids for JSON serialization."""
-    ids = list(data.bus.data)
-    return {
-        "values": list(data.data.real),
-        "ids": ids,
-    }
+    coords = {key: list(data.coords[key].data) for key in data.coords.keys()}
+    return {"values": list(data.data), **coords}
 
 
 def xarray_to_powers(data, **kwargs):
@@ -112,18 +102,17 @@ def concat_measurement_arrays(*ps: MeasurementArray):
 
 def get_powers(PQ_load, PQ_PV, PQ_gen, PQ_cap):
     """Turn xararys into PowersReal and PowersImaginary."""
-    n_nodes = len(PQ_load)
     PQ_load_real, PQ_load_imag = xarray_to_powers(
-        PQ_load, equipment_type=["Load"] * n_nodes
+        PQ_load, equipment_type=["Load"] * len(PQ_load)
     )
     PQ_PV_real, PQ_PV_imag = xarray_to_powers(
-        PQ_PV, equipment_type=["PVSystem"] * n_nodes
+        PQ_PV, equipment_type=["PVSystem"] * len(PQ_PV)
     )
     PQ_gen_real, PQ_gen_imag = xarray_to_powers(
-        PQ_gen, equipment_type=["Generator"] * n_nodes
+        PQ_gen, equipment_type=["Generator"] * len(PQ_gen)
     )
     PQ_cap_real, PQ_cap_imag = xarray_to_powers(
-        PQ_cap, equipment_type=["Capacitor"] * n_nodes
+        PQ_cap, equipment_type=["Capacitor"] * len(PQ_cap)
     )
 
     power_real = concat_measurement_arrays(
@@ -155,48 +144,61 @@ def get_initial_data(sim: FeederSimulator, config: FeederConfig):
             admittance_matrix=numpy_to_y_matrix(Y.toarray()), ids=unique_ids
         )
 
-    slack_bus = [
+    slack_ids = [
         sim._AllNodeNames[i]
         for i in range(sim._source_indexes[0], sim._source_indexes[-1] + 1)
     ]
 
     base_voltages = sim.get_base_voltages()
     base_voltagemagnitude = VoltagesMagnitude(
-        values=list(np.abs(base_voltages).data), ids=list(base_voltages.bus.data)
+        values=list(np.abs(base_voltages).data), ids=list(base_voltages.ids.data)
     )
 
+    # We have to do snapshot run so we can re-enable things properly.
+    # Technically we don't have to solve.
     sim.snapshot_run()
     PQ_load = sim.get_PQs_load(static=True)
     PQ_PV = sim.get_PQs_pv(static=True)
     PQ_gen = sim.get_PQs_gen(static=True)
     PQ_cap = sim.get_PQs_cap(static=True)
 
+    sim.solve(0, 0)
     power_real, power_imaginary = get_powers(-PQ_load, -PQ_PV, -PQ_gen, -PQ_cap)
     injections = Injection(power_real=power_real, power_imaginary=power_imaginary)
 
-    sim.solve(0, 0)
     feeder_voltages = sim.get_voltages_actual()
     feeder_angles: npt.NDArray[np.float64] = np.angle(feeder_voltages.data)
     phases = list(map(get_true_phases, feeder_angles))
-    base_voltageangle = VoltagesAngle(values=phases, ids=list(feeder_voltages.bus.data))
+    base_voltageangle = VoltagesAngle(values=phases, ids=list(feeder_voltages.ids.data))
 
     topology = Topology(
         admittance=admittancematrix,
         base_voltage_angles=base_voltageangle,
         injections=injections,
         base_voltage_magnitudes=base_voltagemagnitude,
-        slack_bus=slack_bus,
+        slack_bus=slack_ids,
     )
     return InitialData(Y=Y, topology=topology)
 
 
+def agg_to_ids(x: xr.core.dataarray.DataArray, ids):
+    """Aggregate xarray to ids. Specialized to equipment node arrays."""
+    target = xr.zeros_like(ids, dtype=np.float64)
+    if x.shape == (0,):
+        return target
+
+    _, x_grouped = xr.align(ids, x.groupby("ids").sum(), join="left", fill_value=0.0)
+    return x_grouped
+
+
 @dataclass
 class CurrentData:
-    """Current data at time t. ``arr.bus`` gives bus ids."""
+    """Current data at time t. ``arr.ids`` gives bus ids."""
 
     feeder_voltages: xr.core.dataarray.DataArray
     PQ_injections_all: xr.core.dataarray.DataArray
     calculated_power: xr.core.dataarray.DataArray
+    injections: Injection
 
 
 def get_current_data(sim: FeederSimulator, Y):
@@ -207,7 +209,17 @@ def get_current_data(sim: FeederSimulator, Y):
     PQ_gen = sim.get_PQs_gen(static=False)
     PQ_cap = sim.get_PQs_cap(static=False)
 
-    PQ_injections_all = PQ_load + PQ_PV + PQ_gen + PQ_cap
+    # Assumes everything is controllable!
+    power_real, power_imaginary = get_powers(-PQ_load, -PQ_PV, -PQ_gen, -PQ_cap)
+    injections = Injection(power_real=power_real, power_imaginary=power_imaginary)
+
+    ids = xr.DataArray(sim._AllNodeNames, coords={"ids": sim._AllNodeNames})
+    PQ_injections_all = (
+        agg_to_ids(PQ_load, ids)
+        + agg_to_ids(PQ_PV, ids)
+        + agg_to_ids(PQ_gen, ids)
+        + agg_to_ids(PQ_cap, ids)
+    )
 
     calculated_power = (
         feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
@@ -217,6 +229,7 @@ def get_current_data(sim: FeederSimulator, Y):
         feeder_voltages=feeder_voltages,
         PQ_injections_all=PQ_injections_all,
         calculated_power=calculated_power,
+        injections=injections,
     )
 
 
@@ -224,7 +237,7 @@ def where_power_unbalanced(PQ_injections_all, calculated_power, tol=1):
     """Find errors where PQ_injectinos does not match calculated power."""
     errors = PQ_injections_all + calculated_power
     (indices,) = np.where(np.abs(errors) > tol)
-    return errors.bus[indices]
+    return errors.ids[indices]
 
 
 def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str, str]):
@@ -264,7 +277,7 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
     )
 
     command_set_key = (
-        "unused/change_command"
+        "unused/change_commands"
         if "change_commands" not in input_mapping
         else input_mapping["change_commands"]
     )
@@ -322,7 +335,7 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
             )
 
         logger.debug(
-            f"Publish load {current_data.feeder_voltages.bus.data[0]} "
+            f"Publish load {current_data.feeder_voltages.ids.data[0]} "
             f"{current_data.feeder_voltages.data[0]}"
         )
         voltage_magnitudes = np.abs(current_data.feeder_voltages)
