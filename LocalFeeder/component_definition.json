@@ -17,6 +17,7 @@
         {"type": "VoltagesImaginary", "port_id": "voltages_imag"},
         {"type": "PowersReal", "port_id": "powers_real"},
         {"type": "PowersImaginary", "port_id": "powers_imag"},
-        {"type": "Topology", "port_id": "topology"}
+        {"type": "Topology", "port_id": "topology"},
+        {"type": "Injection", "port_id": "injections"}
     ]
 }

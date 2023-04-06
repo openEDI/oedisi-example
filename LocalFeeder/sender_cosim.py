@@ -275,6 +275,9 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
     pub_topology = h.helicsFederateRegisterPublication(
         vfed, "topology", h.HELICS_DATA_TYPE_STRING, ""
     )
+    pub_injections = h.helicsFederateRegisterPublication(
+        vfed, "injections", h.HELICS_DATA_TYPE_STRING, ""
+    )
 
     command_set_key = (
         "unused/change_commands"
@@ -367,6 +370,9 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
                 **xarray_to_dict(current_data.PQ_injections_all.imag),
                 time=current_timestamp,
             ).json()
+        )
+        pub_injections.publish(
+            current_data.injections.json()
         )
 
         logger.info("end time: " + str(datetime.now()))
