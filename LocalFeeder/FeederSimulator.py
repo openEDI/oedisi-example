@@ -85,6 +85,7 @@ class OpenDSSState(Enum):
     SOLVE_AT_TIME = 4
     DISABLED_RUN = 5
     DISABLED_SOLVE = 6
+    DISABLED = 7
 
 
 class FeederSimulator(object):
@@ -272,10 +273,10 @@ class FeederSimulator(object):
         self.setup_vbase()
         self._state = OpenDSSState.LOADED
 
-    def disabled_run(self):
-        """Disable most elements and solve. Used for most Y-matrix needs."""
+    def disable_elements(self):
+        """Disable most elements. Used in disabled_run"""
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
-        dss.Text.Command("batchedit transformer..* wdg=2 tap=1")
+        #dss.Text.Command("batchedit transformer..* wdg=2 tap=1")
         dss.Text.Command("batchedit regcontrol..* enabled=false")
         dss.Text.Command("batchedit vsource..* enabled=false")
         dss.Text.Command("batchedit isource..* enabled=false")
@@ -284,6 +285,12 @@ class FeederSimulator(object):
         dss.Text.Command("batchedit pvsystem..* enabled=false")
         dss.Text.Command("Batchedit Capacitor..* enabled=false")
         dss.Text.Command("batchedit storage..* enabled=false")
+        self._state = OpenDSSState.DISABLED
+
+    def disabled_run(self):
+        """Disable most elements and solve. Used for most Y-matrix needs."""
+        self.disable_elements()
+        assert self._state == OpenDSSState.DISABLED, f"{self._state}"
         dss.Text.Command("CalcVoltageBases")
         dss.Text.Command("set maxiterations=20")
         # solve
@@ -299,6 +306,29 @@ class FeederSimulator(object):
         Ymatrix = Ysparse.tocoo()
         new_order = self._circuit.YNodeOrder()
         permute = np.array(permutation(new_order, self._AllNodeNames))
+        return coo_matrix(
+            (Ymatrix.data, (permute[Ymatrix.row], permute[Ymatrix.col])),
+            shape=Ymatrix.shape,
+        )
+
+    def get_load_y_matrix(self):
+        """Calculate Y-matrix as a coo-matrix. Disables most except load."""
+        assert self._state == OpenDSSState.SOLVE_AT_TIME, f"{self._state}"
+        self.disable_elements()
+        dss.Text.Command("batchedit Load..* enabled=true")
+        dss.Text.Command("CalcVoltageBases")
+        dss.Text.Command("set maxiterations=20")
+        # solve
+        dss.Text.Command("solve")
+
+        Ysparse = csc_matrix(dss.YMatrix.getYsparse())
+        Ymatrix = Ysparse.tocoo()
+        new_order = self._circuit.YNodeOrder()
+        permute = np.array(permutation(new_order, self._AllNodeNames))
+
+        dss.Text.Command("batchedit Load..* enabled=false")
+        self._state = OpenDSSState.DISABLED_RUN
+
         return coo_matrix(
             (Ymatrix.data, (permute[Ymatrix.row], permute[Ymatrix.col])),
             shape=Ymatrix.shape,

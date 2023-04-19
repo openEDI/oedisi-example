@@ -70,6 +70,11 @@ def test_ordering(federate_config):
     with pytest.raises(AssertionError, match=".*SOLVE_AT_TIME.*"):
         _ = sim.get_voltages_snapshot()
 
+    sim.solve(10, 0)
+    Y_load = sim.get_load_y_matrix()
+    plot_y_matrix(Y)
+    plot_y_matrix(Y_load - Y)
+
 
 def rtheta_to_xy(r, theta):
     x = np.array(r * np.cos(theta))
@@ -383,8 +388,8 @@ def test_controls(federate_config):
             __root__=[
                 FeederSimulator.Command(
                     obj_name="PVSystem.113",
-                    obj_property="Pmpp",
-                    val=25,  # power_real.values[pv_system_index] / 2,
+                    obj_property="%Pmpp",
+                    val=5,  # power_real.values[pv_system_index] / 2,
                 )
             ]
         )
@@ -425,5 +430,5 @@ def test_controls(federate_config):
     next_data = sender_cosim.get_current_data(sim, Y)
     next_power_real = next_data.injections.power_real
     print(f"8,0: {power_real.values[pv_system_index]}")
-    print(f"9,0: {new_power_real.values[pv_system_index]}")
+    print(f"8,0: {new_power_real.values[pv_system_index]}")
     print(f"9,0: {next_power_real.values[pv_system_index]}")
