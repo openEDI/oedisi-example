@@ -14,6 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import FeederSimulator
 import sender_cosim
 from sender_cosim import agg_to_ids
+from FeederSimulator import XYCurve, VVCData
 
 
 @pytest.fixture()
@@ -432,3 +433,38 @@ def test_controls(federate_config):
     print(f"8,0: {power_real.values[pv_system_index]}")
     print(f"8,0: {new_power_real.values[pv_system_index]}")
     print(f"9,0: {next_power_real.values[pv_system_index]}")
+
+def test_inv_control(federate_config):
+    logging.info("Loading sim")
+    sim = FeederSimulator.FeederSimulator(federate_config)
+    test_xy_curve = XYCurve(
+        voltage=[0.5, 0.95, 0.98, 1.02, 1.05, 1.5],
+        reactive_response=[1, 1, 0, 0, -1, -1]
+    )
+    test_vvc_data = VVCData(
+        pv_system_to_xy_curve = {
+            "PVSystem.113": test_xy_curve,
+        }
+    )
+
+    Y = sim.get_y_matrix()
+    sim.snapshot_run()  # Needed to bring out of disabled state
+    sim.solve(8, 0)
+
+    old_voltages = sim.get_voltages_actual()
+
+    sim.apply_vvc(test_vvc_data)
+    sim.just_solve()
+
+    new_voltages = sim.get_voltages_actual()
+
+    assert np.sum(
+        new_voltages.loc["PVSystem.113.1"] -
+        old_voltages.loc["PVSystem.113.1"]
+    ) > 0.01*old_voltages.loc["PVSystem.113.1"]
+
+
+    #sim.apply_vvc(test_vvc_data)
+    #old_xy_curve = sim.xy_curve[sim.inv_control["PVSystem.113"]]
+    #sim.apply_vvc(test_vvc_data) # does not fail
+    #assert sim.xy_curve[sim.inv_control["PVSystem.113"]] == old_xy_curve

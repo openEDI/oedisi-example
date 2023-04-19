@@ -76,6 +76,17 @@ class CommandList(BaseModel):
     __root__: List[Command]
 
 
+class XYCurve(BaseModel):
+    voltage: List[float] # p.u. in V
+    reactive_response: List[float] # p.u. in VArs
+
+
+class VVCData(BaseModel):
+    """JSON configuration for configuring a volt-var curve."""
+    xy_curves: List[XYCurve]
+    pv_systems: List[List[str]]
+
+
 class OpenDSSState(Enum):
     """Enum of all OpenDSSStates traversed in a simulation."""
 
@@ -247,6 +258,7 @@ class FeederSimulator(object):
 
     def load_feeder(self):
         """Load feeder once downloaded. Relies on legacy mode."""
+        # Real solution is kvarlimit with kvarmax
         dss.Basic.LegacyModels(True)
         dss.Text.Command("clear")
         dss.Text.Command("redirect " + self._feeder_file)
@@ -557,6 +569,15 @@ class FeederSimulator(object):
                 lambda x: x.lower(), properties
             ), f"{entry.obj_property} not in {properties} for {element_name}"
             dss.Text.Command(f"{entry.obj_name}.{entry.obj_property}={entry.val}")
+
+    def apply_vcc(self, vvc_data: VVCData):
+        self.inv_controls = [] # We should loop through and discover
+        self.xy_curves = [] # We should loop through and discover
+        # Deduplicate xy-curves if necessary.
+        # Create new xy-curves
+        # Unmap existing inv_controls that use pv_systems
+        # Make inv_control for xy curve and assign pv_systems
+        return NotImplemented
 
     def initial_disabled_solve(self):
         """If run is disabled, then we can still solve at 0.0."""
