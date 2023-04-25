@@ -9,4 +9,6 @@ pandas
 OpenDSSDirect.py[extras]==0.7.0
 boto3
 xarray
-git+https://github.com/openEDI/GADAL@v0.2.4#egg=gadal
+fastapi
+uvicorn[standard]
+git+https://github.com/openEDI/GADAL@al/kubernetes

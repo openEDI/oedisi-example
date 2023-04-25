@@ -41,6 +41,10 @@ def permutation(from_list, to_list):
     return [index_map[v] for v in from_list]
 
 
+
+    
+    
+
 class FeederConfig(BaseModel):
     """JSON configuration. Special cases S3 sources right now."""
 
@@ -99,6 +103,7 @@ class OpenDSSState(Enum):
     DISABLED = 7
 
 
+    
 class FeederSimulator(object):
     """A simple class that handles publishing the solar forecast."""
 
@@ -612,3 +617,7 @@ class FeederSimulator(object):
         )
         dss.Text.Command("solve")
         self._state = OpenDSSState.SOLVE_AT_TIME
+
+class FeederMapping(BaseModel):
+    static_inputs : FeederConfig
+    input_mapping : Dict

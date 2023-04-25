@@ -17,7 +17,7 @@ from gadal.gadal_types.data_types import (AdmittanceMatrix, AdmittanceSparse,
                                           VoltagesReal)
 from scipy.sparse import coo_matrix
 
-from FeederSimulator import CommandList, FeederConfig, FeederSimulator
+from FeederSimulator import CommandList, FeederConfig, FeederSimulator, FeederMapping
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -382,16 +382,37 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
     h.helicsCloseLibrary()
 
 
-def run():
+def run(model_configs : FeederMapping):
     """Load static_inputs and input_mapping and run JSON."""
-    with open("static_inputs.json") as f:
-        parameters = json.load(f)
-    with open("input_mapping.json") as f:
-        input_mapping = json.load(f)
-    config = FeederConfig(**parameters)
+    config = model_configs.static_inputs
+    input_mapping = model_configs.input_mapping
     sim = FeederSimulator(config)
     go_cosim(sim, config, input_mapping)
 
+from gadal.gadal_types.mapped_federates import AppPort
+from fastapi import FastAPI, BackgroundTasks
+import socket
+import uvicorn
+
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    hostname = socket.gethostname()
+    host_ip = socket.gethostbyname(hostname)
+    return {"hostname": hostname, "host ip": host_ip}
+
+@app.get("/build/")
+def build_model():
+    ...
+
+@app.post("/run/")
+async def run_feeder(feeder_mapping:FeederMapping, background_tasks: BackgroundTasks):
+    try:
+        background_tasks.add_task(run, feeder_mapping)
+        return {"reply": "success", "error": False}
+    except Exception as e:
+        return {"reply": str(e), "error": True}
 
 if __name__ == "__main__":
-    run()
+    uvicorn.run(app, host="0.0.0.0", port=AppPort.feeder.value)
