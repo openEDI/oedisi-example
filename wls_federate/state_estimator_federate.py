@@ -389,18 +389,41 @@ class StateEstimatorFederate:
         h.helicsFederateFree(self.vfed)
         h.helicsCloseLibrary()
 
-
-if __name__ == "__main__":
-    with open("static_inputs.json") as f:
-        config = json.load(f)
-        federate_name = config["name"]
-        if "algorithm_parameters" in config:
-            parameters = AlgorithmParameters.parse_obj(config["algorithm_parameters"])
-        else:
-            parameters = AlgorithmParameters.parse_obj({})
-
-    with open("input_mapping.json") as f:
-        input_mapping = json.load(f)
+def run(configs: dict):
+    config = configs['static_inputs']
+    input_mapping = configs['input_mapping']
+    
+    federate_name = config["name"]
+    if "algorithm_parameters" in config:
+        parameters = AlgorithmParameters.parse_obj(config["algorithm_parameters"])
+    else:
+        parameters = AlgorithmParameters.parse_obj({})
 
     sfed = StateEstimatorFederate(federate_name, parameters, input_mapping)
     sfed.run()
+
+from gadal.gadal_types.mapped_federates import AppPort
+from fastapi import FastAPI, BackgroundTasks
+import socket
+import uvicorn
+
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    hostname = socket.gethostname()
+    host_ip = socket.gethostbyname(hostname)
+    return {"hostname": hostname, "host ip": host_ip}
+
+
+@app.post("/run/")
+async def run_feeder(configs:dict, background_tasks: BackgroundTasks):
+    try:
+        background_tasks.add_task(run, configs)
+        return {"reply": "success", "error": False}
+    except Exception as e:
+        return {"reply": str(e), "error": True}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=AppPort.wls_federate.value)
+    

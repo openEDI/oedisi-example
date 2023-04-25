@@ -402,9 +402,6 @@ def read_root():
     host_ip = socket.gethostbyname(hostname)
     return {"hostname": hostname, "host ip": host_ip}
 
-@app.get("/build/")
-def build_model():
-    ...
 
 @app.post("/run/")
 async def run_feeder(feeder_mapping:FeederMapping, background_tasks: BackgroundTasks):
