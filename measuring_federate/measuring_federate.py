@@ -2,11 +2,12 @@ import logging
 import helics as h
 import numpy as np
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict
 import scipy.io
 import json
 from datetime import datetime
 from gadal.gadal_types.data_types import MeasurementArray
+
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -20,6 +21,9 @@ class MeasurementConfig(BaseModel):
     random_percent: float
     run_freq_time_step: float = 1.0
 
+class MeasurementMapping(BaseModel):
+    static_inputs : MeasurementConfig
+    input_mapping : Dict
 
 def get_indices(labelled_array, indices):
     "Get list of indices in the topology for each index of the labelled array"
@@ -121,12 +125,33 @@ class MeasurementRelay:
         h.helicsCloseLibrary()
 
 
-if __name__ == "__main__":
-    with open("static_inputs.json") as f:
-        config = MeasurementConfig(**json.load(f))
-
-    with open("input_mapping.json") as f:
-        input_mapping = json.load(f)
-
+def run(model_configs : MeasurementMapping):
+    """Load static_inputs and input_mapping and run JSON."""
+    config = model_configs.static_inputs
+    input_mapping = model_configs.input_mapping
     sfed = MeasurementRelay(config, input_mapping)
     sfed.run()
+
+from gadal.gadal_types.mapped_federates import AppPort
+from fastapi import FastAPI, BackgroundTasks
+import socket
+import uvicorn
+
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    hostname = socket.gethostname()
+    host_ip = socket.gethostbyname(hostname)
+    return {"hostname": hostname, "host ip": host_ip}
+
+@app.post("/run/")
+async def run_feeder(measurement_mapping:MeasurementMapping, background_tasks: BackgroundTasks):
+    try:
+        background_tasks.add_task(run, measurement_mapping)
+        return {"reply": "success", "error": False}
+    except Exception as e:
+        return {"reply": str(e), "error": True}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=AppPort.measuring_federate.value)
