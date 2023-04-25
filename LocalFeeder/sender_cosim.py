@@ -1,5 +1,4 @@
 """HELICS wrapper for OpenDSS feeder simulation."""
-import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -17,7 +16,9 @@ from gadal.gadal_types.data_types import (AdmittanceMatrix, AdmittanceSparse,
                                           VoltagesReal)
 from scipy.sparse import coo_matrix
 
-from FeederSimulator import CommandList, FeederConfig, FeederSimulator, FeederMapping
+from FeederSimulator import CommandList, FeederConfig, FeederSimulator, FeederMapping, WiringConfig
+
+
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -382,12 +383,29 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
     h.helicsCloseLibrary()
 
 
+from gadal.componentframework.system_configuration import generate_runner_config
+from gadal.gadal_tools.cli_tools import get_basic_component
+import os
+
+
 def run(model_configs : FeederMapping):
     """Load static_inputs and input_mapping and run JSON."""
     config = model_configs.static_inputs
     input_mapping = model_configs.input_mapping
     sim = FeederSimulator(config)
     go_cosim(sim, config, input_mapping)
+
+def build(wiring_config:WiringConfig, component_dict: dict):
+    wiring_diagram = wiring_config.wiring_diagram
+    component_dict_of_files = wiring_config.component_dict
+    component_types = {
+        name: get_basic_component(component_file)
+        for name, component_file in component_dict_of_files.items()
+    }
+    runner_config = generate_runner_config(
+        wiring_diagram, component_types
+    )
+    return runner_config
 
 from gadal.gadal_types.mapped_federates import AppPort
 from fastapi import FastAPI, BackgroundTasks
@@ -408,6 +426,14 @@ async def run_feeder(feeder_mapping:FeederMapping, background_tasks: BackgroundT
     try:
         background_tasks.add_task(run, feeder_mapping)
         return {"reply": "success", "error": False}
+    except Exception as e:
+        return {"reply": str(e), "error": True}
+
+@app.post("/build/")
+async def run_feeder(wiring_config:WiringConfig, background_tasks:BackgroundTasks):
+    try:
+        reply = build(wiring_config)
+        return {"reply": reply, "error": False}
     except Exception as e:
         return {"reply": str(e), "error": True}
 

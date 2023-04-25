@@ -621,3 +621,11 @@ class FeederSimulator(object):
 class FeederMapping(BaseModel):
     static_inputs : FeederConfig
     input_mapping : Dict
+
+from gadal.componentframework.system_configuration import (
+    WiringDiagram,
+)
+    
+class WiringConfig(BaseModel):
+    wiring_diagram : WiringDiagram
+    component_dict : Dict
