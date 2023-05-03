@@ -7,7 +7,7 @@ import random
 import time
 from enum import Enum
 from time import strptime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Set
 
 import boto3
 import numpy as np
@@ -15,11 +15,16 @@ import opendssdirect as dss
 import xarray as xr
 from botocore import UNSIGNED
 from botocore.config import Config
-from pydantic import BaseModel
+from pydantic import BaseModel, root_validator
 from scipy.sparse import coo_matrix, csc_matrix
 
-from dss_functions import (get_capacitors, get_generators, get_loads,
-                           get_pvsystems, get_voltages)
+from dss_functions import (
+    get_capacitors,
+    get_generators,
+    get_loads,
+    get_pvsystems,
+    get_voltages,
+)
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -77,14 +82,56 @@ class CommandList(BaseModel):
 
 
 class XYCurve(BaseModel):
-    voltage: List[float] # p.u. in V
-    reactive_response: List[float] # p.u. in VArs
+    voltage: List[float]  # p.u. in V
+    reactive_response: List[float]  # p.u. in VArs
 
 
-class VVCData(BaseModel):
-    """JSON configuration for configuring a volt-var curve."""
-    xy_curves: List[XYCurve]
-    pv_systems: List[List[str]]
+class ReactivePowerSetting(Enum):
+    VARAVAL_WATTS = "VARAVAL_WATTS"
+    VARMAX_VARS = "VARMAX_VARS"
+    VARMAX_WATTS = "VARMAX_WATTS"
+
+
+class InverterControlMode(Enum):
+    voltvar = "VOLTVAR"
+    voltwatt = "VOLTWATT"
+    voltvar_voltwatt = "VV_VW"
+
+
+class VVControl(BaseModel):
+    deltaq_factor: float = 0.7
+    varchangetolerance: float = 0.025
+    voltagechangetolerance: float = 0.0001
+    vv_refreactivepower: ReactivePowerSetting = ReactivePowerSetting.VARAVAL_WATTS
+    voltage: List[float]  # p.u. in V
+    reactive_response: List[float]  # p.u. in VArs
+
+
+class VWControl(BaseModel):
+    deltap_factor: float = 1.0
+    voltage: List[float]  # p.u. in V
+    power_response: List[float]  # p.u. in VArs
+
+
+class InverterControl(BaseModel):
+    pvsystem_list: Optional[List[str]] = None
+    vvcontrol: Optional[VVControl] = None
+    vwcontrol: Optional[VWControl] = None
+    mode: InverterControlMode = InverterControlMode.voltvar
+
+    @root_validator(pre=True)
+    def check_mode(cls, values):
+        if "mode" not in values or (
+            values["mode"] == InverterControlMode.voltvar
+            or values["mode"] == InverterControlMode.voltvar_voltwatt
+        ):
+            assert "vvcontrol" in values and values["vvcontrol"] is not None
+        if "mode" in values and (
+            values["mode"] == InverterControlMode.voltwatt
+            or values["mode"] == InverterControlMode.voltvar_voltwatt
+        ):
+            assert "vwcontrol" in values and values["vwcontrol"] is not None
+        return values
 
 
 class OpenDSSState(Enum):
@@ -108,6 +155,12 @@ class FeederSimulator(object):
     _source_indexes: List[int]
     _nodes_index: List[int]
     _name_index_dict: Dict[str, int]
+    _inverter_to_pvsystems: Dict[str, Set[str]] = {}
+    _pvsystem_to_inverter: Dict[str, str] = {}
+    _pvsystems: Set[str]
+    _inverters: Set[str] = set()
+    _inverter_counter = 0
+    _xycurve_counter = 0
 
     def __init__(self, config: FeederConfig):
         """Create a ``FeederSimulator`` object."""
@@ -140,6 +193,94 @@ class FeederSimulator(object):
 
         self.snapshot_run()
         assert self._state == OpenDSSState.SNAPSHOT_RUN, f"{self._state}"
+
+    def create_inverter(self, pvsystem_set: Set[str]):
+        assert all(
+            pvsystem not in self._pvsystem_to_inverter and pvsystem in self._pvsystems
+            for pvsystem in pvsystem_set
+        ), f"PVsystem(s) {pvsystem_set} is already assigned inverter or may not exist"
+        name = f"InvControl.invgenerated{self._inverter_counter}"
+        # May need PVsystemlist
+        assert all(
+            pv_name.split(".")[0].lower() == "pvsystem" for pv_name in pvsystem_set
+        )
+        if pvsystem_set == self._pvsystems:
+            # This provides more stable behavior in the "default" case.
+            pvlist = ""
+        else:
+            if len(pvsystem_set) != 1:
+                logging.error(
+                    """Controlling mulitple pvsystems manually results in unstable
+                    behavior when the number of phases differ"""
+                )
+            pvlist = ", ".join(pv_name.split(".")[1] for pv_name in pvsystem_set)
+        dss.Text.Command(f"New {name} PVsystemList=[{pvlist}]")
+        self._inverter_counter += 1
+        self._inverters.add(name)
+        for pvsystem in pvsystem_set:
+            self._pvsystem_to_inverter[pvsystem] = name
+        self._inverter_to_pvsystems[name] = pvsystem_set
+        return name
+
+    def create_xy_curve(self, x, y):
+        name = f"XYcurve.xygenerated{self._xycurve_counter}"
+        npts = len(x)
+        assert len(x) == len(y), "Length of curves do not match"
+        x_str = ",".join(str(i) for i in x)
+        y_str = ",".join(str(i) for i in y)
+        dss.Text.Command(f"New {name} npts={npts} Yarray=({y_str}) Xarray=({x_str})")
+        self._xycurve_counter += 1
+        # May need to change this name
+        return name
+
+    def set_properties_to_inverter(self, inverter: str, inv_control: InverterControl):
+        if inv_control.vvcontrol is not None:
+            vvc_curve = self.create_xy_curve(
+                inv_control.vvcontrol.voltage, inv_control.vvcontrol.reactive_response
+            )
+            dss.Text.Command(f"{inverter}.vvc_curve1={vvc_curve.split('.')[1]}")
+            dss.Text.Command(
+                f"{inverter}.deltaQ_factor={inv_control.vvcontrol.deltaq_factor}"
+            )
+            dss.Text.Command(
+                f"{inverter}.VarChangeTolerance={inv_control.vvcontrol.varchangetolerance}"
+            )
+            dss.Text.Command(
+                f"{inverter}.VoltageChangeTolerance={inv_control.vvcontrol.voltagechangetolerance}"
+            )
+            dss.Text.Command(
+                f"{inverter}.VV_RefReactivePower={inv_control.vvcontrol.vv_refreactivepower}"
+            )
+        if inv_control.vwcontrol is not None:
+            vw_curve = self.create_xy_curve(
+                inv_control.vwcontrol.voltage, inv_control.vwcontrol.power_response,
+            )
+            dss.Text.Command(f"{inverter}.voltwatt_curve={vw_curve.split('.')[1]}")
+            dss.Text.Command(
+                f"{inverter}.deltaP_factor={inv_control.vwcontrol.deltap_factor}"
+            )
+        if inv_control.mode == InverterControlMode.voltvar_voltwatt:
+            dss.Text.Command(f"{inverter}.CombiMode = VV_VW")
+        dss.Text.Command(f"{inverter}.Mode = {inv_control.mode.value}")
+
+    def apply_inverter_control(self, inv_control: InverterControl):
+        if inv_control.pvsystem_list is None:
+            pvsystem_set = self._pvsystems
+        else:
+            pvsystem_set = set(inv_control.pvsystem_list)
+        inverter_set = set(
+            self._pvsystem_to_inverter[pvsystem]
+            for pvsystem in pvsystem_set
+            if pvsystem in self._pvsystem_to_inverter
+        )
+        if len(inverter_set) == 1:
+            (inverter,) = inverter_set
+        else:
+            inverter = self.create_inverter(pvsystem_set)
+
+        assert self._inverter_to_pvsystems[inverter] == pvsystem_set
+
+        self.set_properties_to_inverter(inverter, inv_control)
 
     def snapshot_run(self):
         """Run snapshot of simuation without specifying a time.
@@ -283,12 +424,16 @@ class FeederSimulator(object):
                 )
 
         self.setup_vbase()
+
+        self._pvsystems = set()
+        for PV in get_pvsystems(dss):
+            self._pvsystems.add("PVSystem." + PV["name"])
         self._state = OpenDSSState.LOADED
 
     def disable_elements(self):
-        """Disable most elements. Used in disabled_run"""
+        """Disable most elements. Used in disabled_run."""
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
-        #dss.Text.Command("batchedit transformer..* wdg=2 tap=1")
+        # dss.Text.Command("batchedit transformer..* wdg=2 tap=1")
         dss.Text.Command("batchedit regcontrol..* enabled=false")
         dss.Text.Command("batchedit vsource..* enabled=false")
         dss.Text.Command("batchedit isource..* enabled=false")
@@ -569,15 +714,6 @@ class FeederSimulator(object):
                 lambda x: x.lower(), properties
             ), f"{entry.obj_property} not in {properties} for {element_name}"
             dss.Text.Command(f"{entry.obj_name}.{entry.obj_property}={entry.val}")
-
-    def apply_vcc(self, vvc_data: VVCData):
-        self.inv_controls = [] # We should loop through and discover
-        self.xy_curves = [] # We should loop through and discover
-        # Deduplicate xy-curves if necessary.
-        # Create new xy-curves
-        # Unmap existing inv_controls that use pv_systems
-        # Make inv_control for xy curve and assign pv_systems
-        return NotImplemented
 
     def initial_disabled_solve(self):
         """If run is disabled, then we can still solve at 0.0."""
