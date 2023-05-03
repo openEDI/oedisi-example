@@ -155,12 +155,12 @@ class FeederSimulator(object):
     _source_indexes: List[int]
     _nodes_index: List[int]
     _name_index_dict: Dict[str, int]
-    _inverter_to_pvsystems: Dict[str, Set[str]] = {}
-    _pvsystem_to_inverter: Dict[str, str] = {}
+    _inverter_to_pvsystems: Dict[str, Set[str]]
+    _pvsystem_to_inverter: Dict[str, str]
     _pvsystems: Set[str]
-    _inverters: Set[str] = set()
-    _inverter_counter = 0
-    _xycurve_counter = 0
+    _inverters: Set[str]
+    _inverter_counter: int
+    _xycurve_counter: int
 
     def __init__(self, config: FeederConfig):
         """Create a ``FeederSimulator`` object."""
@@ -169,6 +169,12 @@ class FeederSimulator(object):
         self._profile_location = config.profile_location
         self._sensor_location = config.sensor_location
         self._use_smartds = config.use_smartds
+
+        self._inverter_to_pvsystems = {}
+        self._pvsystem_to_inverter = {}
+        self._inverters = set()
+        self._inverter_counter = 0
+        self._xycurve_counter = 0
 
         self._start_time = int(
             time.mktime(strptime(config.start_date, "%Y-%m-%d %H:%M:%S"))
@@ -261,7 +267,8 @@ class FeederSimulator(object):
             )
         if inv_control.mode == InverterControlMode.voltvar_voltwatt:
             dss.Text.Command(f"{inverter}.CombiMode = VV_VW")
-        dss.Text.Command(f"{inverter}.Mode = {inv_control.mode.value}")
+        else:
+            dss.Text.Command(f"{inverter}.Mode = {inv_control.mode.value}")
 
     def apply_inverter_control(self, inv_control: InverterControl):
         if inv_control.pvsystem_list is None:
@@ -278,7 +285,9 @@ class FeederSimulator(object):
         else:
             inverter = self.create_inverter(pvsystem_set)
 
-        assert self._inverter_to_pvsystems[inverter] == pvsystem_set
+        assert (
+            self._inverter_to_pvsystems[inverter] == pvsystem_set
+        ), f"{self._inverter_to_pvsystems[inverter]} does not match {pvsystem_set} for {inverter}"
 
         self.set_properties_to_inverter(inverter, inv_control)
 

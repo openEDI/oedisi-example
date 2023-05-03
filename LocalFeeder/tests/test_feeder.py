@@ -13,7 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import FeederSimulator
 import sender_cosim
-from FeederSimulator import InverterControl, VVControl
+from FeederSimulator import InverterControl, InverterControlMode, VVControl, VWControl
 from sender_cosim import agg_to_ids
 
 
@@ -473,7 +473,88 @@ def test_inv_control(federate_config):
         < 1
     )
 
-    # sim.apply_vvc(test_vvc_data)
-    # old_xy_curve = sim.xy_curve[sim.inv_control["PVSystem.113"]]
-    # sim.apply_vvc(test_vvc_data) # does not fail
-    # assert sim.xy_curve[sim.inv_control["PVSystem.113"]] == old_xy_curve
+    test_inverter_data = InverterControl(
+        pvsystem_list=["PVSystem.113"],
+        vvcontrol=VVControl(
+            voltage=[0.5, 0.945, 0.97, 0.99, 1.045, 1.50],
+            reactive_response=[0, 0, 0, 0, 0, 0],
+        ),
+    )
+
+    sim.apply_inverter_control(test_inverter_data)
+    sim.just_solve()
+
+    nocontrol_voltages = sim.get_voltages_actual()
+
+    assert (
+        float(
+            np.sum(np.abs(old_voltages.loc["113.1"] - nocontrol_voltages.loc["113.1"]))
+        )
+        < 1
+    )
+
+
+def test_inv_control_full(federate_config):
+    logging.info("Loading sim")
+    sim = FeederSimulator.FeederSimulator(federate_config)
+    test_inverter_data = InverterControl(
+        vvcontrol=VVControl(
+            voltage=[0.5, 0.945, 0.97, 0.99, 1.045, 1.50],
+            reactive_response=[1, 1, 1, 1, 1, 1],
+        ),
+    )
+
+    _ = sim.get_y_matrix()
+    sim.snapshot_run()  # Needed to bring out of disabled state
+    sim.solve(8, 0)
+
+    old_voltages = sim.get_voltages_actual()
+
+    sim.apply_inverter_control(test_inverter_data)
+    sim.just_solve()
+
+    new_voltages = sim.get_voltages_actual()
+
+    assert float(
+        np.sum(np.abs(new_voltages.loc["113.1"] - old_voltages.loc["113.1"]))
+    ) > 0.01 * float(np.abs(old_voltages.loc["113.1"]))
+
+    assert float(
+        np.sum(np.abs(new_voltages.loc["87.3"] - old_voltages.loc["87.3"]))
+    ) > 0.01 * float(np.abs(old_voltages.loc["87.3"]))
+
+
+def test_inv_combined_control(federate_config):
+    logging.info("Loading sim")
+    sim = FeederSimulator.FeederSimulator(federate_config)
+
+    _ = sim.get_y_matrix()
+    sim.snapshot_run()  # Needed to bring out of disabled state
+    sim.solve(8, 0)
+
+    old_voltages = sim.get_voltages_actual()
+
+    test_inverter_data = InverterControl(
+        vvcontrol=VVControl(
+            voltage=[0.5, 0.945, 0.97, 0.99, 1.045, 1.50],
+            reactive_response=[1, 1, 1, 1, 1, 1],
+        ),
+        vwcontrol=VWControl(
+            voltage=[0.5, 0.945, 0.97, 0.99, 1.045, 1.50],
+            power_response=[0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+        ),
+        mode=InverterControlMode.voltvar_voltwatt,
+    )
+
+    sim.apply_inverter_control(test_inverter_data)
+    sim.just_solve()
+
+    new_voltages = sim.get_voltages_actual()
+
+    assert float(
+        np.sum(np.abs(new_voltages.loc["113.1"] - old_voltages.loc["113.1"]))
+    ) > 0.01 * float(np.abs(old_voltages.loc["113.1"]))
+
+    assert float(
+        np.sum(np.abs(new_voltages.loc["87.3"] - old_voltages.loc["87.3"]))
+    ) > 0.01 * float(np.abs(old_voltages.loc["87.3"]))
