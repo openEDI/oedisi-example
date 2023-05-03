@@ -16,7 +16,7 @@ from gadal.gadal_types.data_types import (AdmittanceMatrix, AdmittanceSparse,
                                           VoltagesReal)
 from scipy.sparse import coo_matrix
 
-from FeederSimulator import CommandList, FeederConfig, FeederSimulator, FeederMapping, WiringConfig, Broker
+from FeederSimulator import CommandList, FeederConfig, FeederSimulator, FeederMapping, WiringConfig
 
 
 
@@ -254,6 +254,8 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
     fedinfo = h.helicsCreateFederateInfo()
     h.helicsFederateInfoSetCoreName(fedinfo, config.name)
     h.helicsFederateInfoSetCoreTypeFromString(fedinfo, "zmq")
+    h.helicsFederateInfoSetBroker(fedinfo,  config.broker_ip)
+    h.helicsFederateInfoSetBrokerPort(fedinfo, config.broker_port)
     h.helicsFederateInfoSetCoreInitString(fedinfo, fedinitstring)
     h.helicsFederateInfoSetTimeProperty(fedinfo, h.helics_property_time_delta, deltat)
     vfed = h.helicsCreateValueFederate(config.name, fedinfo)

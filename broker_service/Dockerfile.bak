@@ -4,17 +4,15 @@ RUN apt-get update
 RUN apt-get install -y git ssh
 
 
-RUN mkdir LocalFeeder
-COPY  LocalFeeder/* ./LocalFeeder
-COPY  requirements.txt ./LocalFeeder/requirements.txt
-WORKDIR ./LocalFeeder
+RUN mkdir broker_service
+COPY  broker_service/* ./broker_service
+# COPY  requirements.txt ./broker_service/requirements.txt
+WORKDIR ./broker_service
 
 RUN pip install -r requirements.txt
 RUN mkdir -p outputs build
 
-EXPOSE 8765/tcp
-EXPOSE 23404/tcp
-EXPOSE 23405/tcp
+EXPOSE 8769/tcp
 
-CMD ["python", "sender_cosim.py"]
+CMD ["python", "main.py"]
 

@@ -5,8 +5,8 @@ RUN apt-get install -y git ssh
 
 
 RUN mkdir broker_service
-COPY  broker_service/* ./broker_service
-COPY  requirements.txt ./broker_service/requirements.txt
+COPY  * ./broker_service
+# COPY  requirements.txt ./broker_service/requirements.txt
 WORKDIR ./broker_service
 
 RUN pip install -r requirements.txt

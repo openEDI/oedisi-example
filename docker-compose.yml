@@ -1,0 +1,54 @@
+services:
+  borker_service:
+    build:
+        context: ./broker_service/.
+    ports:
+      - "${broker_port}:${broker_port}"
+    networks:
+      custom-network:
+        ipv4_address: "${broker_ip}"
+
+  local_feeder:
+    build:
+        context: ./LocalFeeder/.
+    ports:
+       - "${feeder_port}:${feeder_port}"
+    networks:
+      custom-network:
+        ipv4_address: "${feeder_ip}"
+        
+  # measuring_federate:
+  #   build:
+  #       context: ./measuring_federate/.
+  #   ports:
+  #      - "${measuring_federate_port}:${measuring_federate_port}"
+  #   networks:
+  #     custom-network:
+  #       ipv4_address: "${measuring_federate_ip}"
+        
+  # recorder:
+  #   build:
+  #       context: ./recorder/.
+  #   ports:
+  #      - "${recorder_port}:${recorder_port}"
+  #   networks:
+  #     custom-network:
+  #       ipv4_address: "${recorder_ip}"
+        
+  # wls_federate:
+  #   build:
+  #       context: ./wls_federate/.
+  #   ports:
+  #      - "${wls_federate_port}:${wls_federate_port}"
+  #   networks:
+  #     custom-network:
+  #       ipv4_address: "${wls_federate_ip}"
+
+networks:
+  # The presence of these objects is sufficient to define them
+  custom-network: 
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1

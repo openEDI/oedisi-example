@@ -5,8 +5,8 @@ RUN apt-get install -y git ssh
 
 
 RUN mkdir LocalFeeder
-COPY  LocalFeeder/* ./LocalFeeder
-COPY  requirements.txt ./LocalFeeder/requirements.txt
+COPY  * ./LocalFeeder
+# COPY  requirements.txt ./LocalFeeder/requirements.txt
 WORKDIR ./LocalFeeder
 
 RUN pip install -r requirements.txt

@@ -40,11 +40,6 @@ def permutation(from_list, to_list):
     index_map = {v: i for i, v in enumerate(to_list)}
     return [index_map[v] for v in from_list]
 
-
-
-    
-    
-
 class FeederConfig(BaseModel):
     """JSON configuration. Special cases S3 sources right now."""
 
@@ -59,6 +54,8 @@ class FeederConfig(BaseModel):
     start_time_index: int = 0
     topology_output: str = "topology.json"
     use_sparse_admittance: bool = False
+    broker_ip: str = "localhost"
+    broker_port: int = 23404
 
 
 class Command(BaseModel):
@@ -629,15 +626,4 @@ from gadal.componentframework.system_configuration import (
 class WiringConfig(BaseModel):
     wiring_diagram : WiringDiagram
     component_dict : Dict
-    
-class Broker(BaseModel):
-    num_federates : int = 1
-    is_sub_broker: Optional[bool] = False
-    debug: Optional[bool] = False
-    broker_port : int  = 23404
-    broker_ip: str = "192.168.1.32"
-    core_type: str = "zmq"
-    upstream_broker_ip: Optional[str] = "0.0.0.0"
-    upstream_broker_port: Optional[int] = 23404
-        
     

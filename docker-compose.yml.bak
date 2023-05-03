@@ -1,0 +1,54 @@
+services:
+  borker_service:
+    build:
+        context: ./broker_service/.
+    ports:
+      - "8765:8765"
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.2
+
+  LocalFeeder:
+    build:
+        context: ./LocalFeeder/.
+    ports:
+       - "8769:8769"
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.3
+        
+  measuring_federate:
+    build:
+        context: ./measuring_federate/.
+    ports:
+       - "8766:8766"
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.4
+        
+  recorder:
+    build:
+        context: ./recorder/.
+    ports:
+       - "8768:8768"
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.4
+        
+  wls_federate:
+    build:
+        context: ./wls_federate/.
+    ports:
+       - "8767:8767"
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.4
+
+networks:
+  # The presence of these objects is sufficient to define them
+  custom-network: 
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1
