@@ -9,12 +9,19 @@ import helics as h
 import numpy as np
 import numpy.typing as npt
 import xarray as xr
-from gadal.gadal_types.data_types import (AdmittanceMatrix, AdmittanceSparse,
-                                          Injection, MeasurementArray,
-                                          PowersImaginary, PowersReal,
-                                          Topology, VoltagesAngle,
-                                          VoltagesImaginary, VoltagesMagnitude,
-                                          VoltagesReal)
+from gadal.gadal_types.data_types import (
+    AdmittanceMatrix,
+    AdmittanceSparse,
+    Injection,
+    MeasurementArray,
+    PowersImaginary,
+    PowersReal,
+    Topology,
+    VoltagesAngle,
+    VoltagesImaginary,
+    VoltagesMagnitude,
+    VoltagesReal,
+)
 from scipy.sparse import coo_matrix
 
 from FeederSimulator import CommandList, FeederConfig, FeederSimulator
@@ -371,9 +378,7 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
                 time=current_timestamp,
             ).json()
         )
-        pub_injections.publish(
-            current_data.injections.json()
-        )
+        pub_injections.publish(current_data.injections.json())
 
         logger.info("end time: " + str(datetime.now()))
 
