@@ -1,0 +1,33 @@
+from gadal.gadal_types.mapped_federates import AppPort
+from fastapi import FastAPI, BackgroundTasks
+from broker_config import Broker
+import subprocess
+import uvicorn
+import socket
+
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    hostname = socket.gethostname()
+    host_ip = socket.gethostbyname(hostname)
+    return {"hostname": hostname, "host ip": host_ip}
+    
+@app.post("/run_broker")
+async def run_feeder(broker_config:Broker, background_tasks:BackgroundTasks):
+    try:
+        cmd = f"helics_broker -f {broker_config.num_federates} -t {broker_config.core_type} "
+        if broker_config.debug:
+           cmd +=  "--loglevel=trace "
+        
+        if broker_config.is_sub_broker:
+            cmd += f"--localinterface=0.0.0.0 --localport={broker_config.broker_port} "
+            cmd += f"--brokerport={broker_config.upstream_broker_port} --brokerport={broker_config.upstream_broker_port}"
+        proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+        #reply = proc.stdout.read()
+        return {"reply": cmd, "error": False}
+    except Exception as e:
+        return {"reply": str(e), "error": True}
+        
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=AppPort.broker.value)

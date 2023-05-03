@@ -16,7 +16,7 @@ from gadal.gadal_types.data_types import (AdmittanceMatrix, AdmittanceSparse,
                                           VoltagesReal)
 from scipy.sparse import coo_matrix
 
-from FeederSimulator import CommandList, FeederConfig, FeederSimulator, FeederMapping, WiringConfig
+from FeederSimulator import CommandList, FeederConfig, FeederSimulator, FeederMapping, WiringConfig, Broker
 
 
 
@@ -409,8 +409,9 @@ def build(wiring_config:WiringConfig, component_dict: dict):
 
 from gadal.gadal_types.mapped_federates import AppPort
 from fastapi import FastAPI, BackgroundTasks
-import socket
 import uvicorn
+import socket
+
 
 app = FastAPI()
 
@@ -426,14 +427,6 @@ async def run_feeder(feeder_mapping:FeederMapping, background_tasks: BackgroundT
     try:
         background_tasks.add_task(run, feeder_mapping)
         return {"reply": "success", "error": False}
-    except Exception as e:
-        return {"reply": str(e), "error": True}
-
-@app.post("/build/")
-async def run_feeder(wiring_config:WiringConfig, background_tasks:BackgroundTasks):
-    try:
-        reply = build(wiring_config)
-        return {"reply": reply, "error": False}
     except Exception as e:
         return {"reply": str(e), "error": True}
 
