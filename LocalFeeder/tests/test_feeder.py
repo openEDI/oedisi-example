@@ -306,7 +306,8 @@ def simulation_middle(sim, Y):
     )
     df = pd.DataFrame(
         {
-            "pq": current_data.PQ_injections_all,
+            "p": current_data.PQ_injections_all.real,
+            "q": current_data.PQ_injections_all.imag,
             "voltages": np.abs(current_data.feeder_voltages),
             "phases": np.angle(current_data.feeder_voltages),
         }
