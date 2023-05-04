@@ -664,7 +664,7 @@ class FeederSimulator(object):
 
         Examples
         --------
-        ``change_obj(CommandList(__root__ = [Command('PVsystem.pv1','kVAr',25)]))``
+        ``change_obj([Command('PVsystem.pv1','kVAr',25)])``
         """
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
         for entry in change_commands:

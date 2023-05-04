@@ -386,15 +386,13 @@ def test_controls(federate_config):
     # Try setting current power to half of that.
     assert abs(power_real.values[pv_system_index]) > 0.01
     sim.change_obj(
-        FeederSimulator.CommandList(
-            __root__=[
-                FeederSimulator.Command(
-                    obj_name="PVSystem.113",
-                    obj_property="%Pmpp",
-                    val=5,  # power_real.values[pv_system_index] / 2,
-                )
-            ]
-        )
+        [
+            FeederSimulator.Command(
+                obj_name="PVSystem.113",
+                obj_property="%Pmpp",
+                val=5,  # power_real.values[pv_system_index] / 2,
+            )
+        ]
     )
     # dss.Text.Command("PVsystem.113.PF=0.01")
     # Check properties in AllPropertyNames in CktElement or just Element

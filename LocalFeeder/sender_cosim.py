@@ -24,7 +24,12 @@ from gadal.gadal_types.data_types import (
 )
 from scipy.sparse import coo_matrix
 
-from FeederSimulator import CommandList, FeederConfig, FeederSimulator
+from FeederSimulator import (
+    CommandList,
+    InverterControlList,
+    FeederConfig,
+    FeederSimulator
+)
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -295,6 +300,15 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
     sub_command_set.set_default("[]")
     sub_command_set.option["CONNECTION_OPTIONAL"] = 1
 
+    inv_control_key = (
+        "unused/inv_control"
+        if "" not in input_mapping
+        else input_mapping["inv_control"]
+    )
+    sub_invcontrol = vfed.register_subscription(inv_control_key, "")
+    sub_invcontrol.set_default("[]")
+    sub_invcontrol.option["CONNECTION_OPTIONAL"] = 1
+
     h.helicsFederateEnterExecutingMode(vfed)
     initial_data = get_initial_data(sim, config)
 
@@ -316,8 +330,12 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
         ) + timedelta(seconds=current_index * config.run_freq_sec)
 
         change_obj_cmds = CommandList.parse_obj(sub_command_set.json)
-
         sim.change_obj(change_obj_cmds.__root__)
+
+        inverter_controls = InverterControlList.parse_obj(sub_invcontrol.json)
+        for inv_control in inverter_controls.__root__:
+            sim.apply_inverter_control(inv_control)
+
         logger.info(
             f"Solve at hour {floored_timestamp.hour} second"
             f"{60*floored_timestamp.minute + floored_timestamp.second}"
