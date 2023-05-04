@@ -81,24 +81,25 @@ class CommandList(BaseModel):
     __root__: List[Command]
 
 
-class XYCurve(BaseModel):
-    voltage: List[float]  # p.u. in V
-    reactive_response: List[float]  # p.u. in VArs
-
-
 class ReactivePowerSetting(Enum):
+    """Reactive power setting, almost always VARAVAL_WATTS."""
+
     VARAVAL_WATTS = "VARAVAL_WATTS"
     VARMAX_VARS = "VARMAX_VARS"
     VARMAX_WATTS = "VARMAX_WATTS"
 
 
 class InverterControlMode(Enum):
+    """Inverter control mode."""
+
     voltvar = "VOLTVAR"
     voltwatt = "VOLTWATT"
     voltvar_voltwatt = "VV_VW"
 
 
 class VVControl(BaseModel):
+    """OpenDSS setting for volt-var control."""
+
     deltaq_factor: float = 0.7
     varchangetolerance: float = 0.025
     voltagechangetolerance: float = 0.0001
@@ -108,12 +109,16 @@ class VVControl(BaseModel):
 
 
 class VWControl(BaseModel):
+    """OpenDSS setting for volt-watt control."""
+
     deltap_factor: float = 1.0
     voltage: List[float]  # p.u. in V
     power_response: List[float]  # p.u. in VArs
 
 
 class InverterControl(BaseModel):
+    """InverterControl with volt-var control and/or volt-watt control."""
+
     pvsystem_list: Optional[List[str]] = None
     vvcontrol: Optional[VVControl] = None
     vwcontrol: Optional[VWControl] = None
@@ -121,6 +126,7 @@ class InverterControl(BaseModel):
 
     @root_validator(pre=True)
     def check_mode(cls, values):
+        """Make sure that mode reflects vvcontrol and vwcontrol data."""
         if "mode" not in values or (
             values["mode"] == InverterControlMode.voltvar
             or values["mode"] == InverterControlMode.voltvar_voltwatt
@@ -132,6 +138,12 @@ class InverterControl(BaseModel):
         ):
             assert "vwcontrol" in values and values["vwcontrol"] is not None
         return values
+
+
+class InverterControlList(BaseModel):
+    """List[InverterControl] with JSON parsing."""
+
+    __root__: List[InverterControl]
 
 
 class OpenDSSState(Enum):
@@ -199,97 +211,6 @@ class FeederSimulator(object):
 
         self.snapshot_run()
         assert self._state == OpenDSSState.SNAPSHOT_RUN, f"{self._state}"
-
-    def create_inverter(self, pvsystem_set: Set[str]):
-        assert all(
-            pvsystem not in self._pvsystem_to_inverter and pvsystem in self._pvsystems
-            for pvsystem in pvsystem_set
-        ), f"PVsystem(s) {pvsystem_set} is already assigned inverter or may not exist"
-        name = f"InvControl.invgenerated{self._inverter_counter}"
-        # May need PVsystemlist
-        assert all(
-            pv_name.split(".")[0].lower() == "pvsystem" for pv_name in pvsystem_set
-        )
-        if pvsystem_set == self._pvsystems:
-            # This provides more stable behavior in the "default" case.
-            pvlist = ""
-        else:
-            if len(pvsystem_set) != 1:
-                logging.error(
-                    """Controlling mulitple pvsystems manually results in unstable
-                    behavior when the number of phases differ"""
-                )
-            pvlist = ", ".join(pv_name.split(".")[1] for pv_name in pvsystem_set)
-        dss.Text.Command(f"New {name} PVsystemList=[{pvlist}]")
-        self._inverter_counter += 1
-        self._inverters.add(name)
-        for pvsystem in pvsystem_set:
-            self._pvsystem_to_inverter[pvsystem] = name
-        self._inverter_to_pvsystems[name] = pvsystem_set
-        return name
-
-    def create_xy_curve(self, x, y):
-        name = f"XYcurve.xygenerated{self._xycurve_counter}"
-        npts = len(x)
-        assert len(x) == len(y), "Length of curves do not match"
-        x_str = ",".join(str(i) for i in x)
-        y_str = ",".join(str(i) for i in y)
-        dss.Text.Command(f"New {name} npts={npts} Yarray=({y_str}) Xarray=({x_str})")
-        self._xycurve_counter += 1
-        # May need to change this name
-        return name
-
-    def set_properties_to_inverter(self, inverter: str, inv_control: InverterControl):
-        if inv_control.vvcontrol is not None:
-            vvc_curve = self.create_xy_curve(
-                inv_control.vvcontrol.voltage, inv_control.vvcontrol.reactive_response
-            )
-            dss.Text.Command(f"{inverter}.vvc_curve1={vvc_curve.split('.')[1]}")
-            dss.Text.Command(
-                f"{inverter}.deltaQ_factor={inv_control.vvcontrol.deltaq_factor}"
-            )
-            dss.Text.Command(
-                f"{inverter}.VarChangeTolerance={inv_control.vvcontrol.varchangetolerance}"
-            )
-            dss.Text.Command(
-                f"{inverter}.VoltageChangeTolerance={inv_control.vvcontrol.voltagechangetolerance}"
-            )
-            dss.Text.Command(
-                f"{inverter}.VV_RefReactivePower={inv_control.vvcontrol.vv_refreactivepower}"
-            )
-        if inv_control.vwcontrol is not None:
-            vw_curve = self.create_xy_curve(
-                inv_control.vwcontrol.voltage, inv_control.vwcontrol.power_response,
-            )
-            dss.Text.Command(f"{inverter}.voltwatt_curve={vw_curve.split('.')[1]}")
-            dss.Text.Command(
-                f"{inverter}.deltaP_factor={inv_control.vwcontrol.deltap_factor}"
-            )
-        if inv_control.mode == InverterControlMode.voltvar_voltwatt:
-            dss.Text.Command(f"{inverter}.CombiMode = VV_VW")
-        else:
-            dss.Text.Command(f"{inverter}.Mode = {inv_control.mode.value}")
-
-    def apply_inverter_control(self, inv_control: InverterControl):
-        if inv_control.pvsystem_list is None:
-            pvsystem_set = self._pvsystems
-        else:
-            pvsystem_set = set(inv_control.pvsystem_list)
-        inverter_set = set(
-            self._pvsystem_to_inverter[pvsystem]
-            for pvsystem in pvsystem_set
-            if pvsystem in self._pvsystem_to_inverter
-        )
-        if len(inverter_set) == 1:
-            (inverter,) = inverter_set
-        else:
-            inverter = self.create_inverter(pvsystem_set)
-
-        assert (
-            self._inverter_to_pvsystems[inverter] == pvsystem_set
-        ), f"{self._inverter_to_pvsystems[inverter]} does not match {pvsystem_set} for {inverter}"
-
-        self.set_properties_to_inverter(inverter, inv_control)
 
     def snapshot_run(self):
         """Run snapshot of simuation without specifying a time.
@@ -509,6 +430,40 @@ class FeederSimulator(object):
             self._Vbase_allnode[ii] = dss.Bus.kVBase() * 1000
             self._Vbase_allnode_dict[node] = self._Vbase_allnode[ii]
 
+    def initial_disabled_solve(self):
+        """If run is disabled, then we can still solve at 0.0."""
+        assert self._state == OpenDSSState.DISABLED_RUN, f"{self._state}"
+        hour = 0
+        second = 0
+        dss.Text.Command(
+            f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second} "
+            f"stepsize=0"
+        )
+        dss.Text.Command("solve")
+        self._state = OpenDSSState.DISABLED_SOLVE
+
+    def just_solve(self):
+        """Solve without setting time or anything. Useful for commands."""
+        assert (
+            self._state != OpenDSSState.UNLOADED
+            and self._state != OpenDSSState.DISABLED_RUN
+        ), f"{self._state}"
+        dss.Text.Command("solve")
+
+    def solve(self, hour, second):
+        """Solve at specified time. Must not be unloaded or disabled."""
+        assert (
+            self._state != OpenDSSState.UNLOADED
+            and self._state != OpenDSSState.DISABLED_RUN
+        ), f"{self._state}"
+
+        dss.Text.Command(
+            f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second} "
+            f"stepsize=0"
+        )
+        dss.Text.Command("solve")
+        self._state = OpenDSSState.SOLVE_AT_TIME
+
     def _ready_to_load_power(self, static):
         """Check if opendss state can actually calculate power."""
         if static:
@@ -683,6 +638,7 @@ class FeederSimulator(object):
         return self._get_voltages()
 
     def _get_voltages(self):
+        """Get powers and put in order of self._AllNodeNames."""
         assert (
             self._state != OpenDSSState.DISABLED_RUN
             and self._state != OpenDSSState.UNLOADED
@@ -698,12 +654,12 @@ class FeederSimulator(object):
             res_feeder_voltages, {"ids": list(name_voltage_dict.keys())}
         )
 
-    def change_obj(self, change_commands: CommandList):
+    def change_obj(self, change_commands: List[Command]):
         """set/get an object property.
 
         Parameters
         ----------
-        change_commands: CommandList (List[Command])
+        change_commands: List[Command]
 
 
         Examples
@@ -711,7 +667,7 @@ class FeederSimulator(object):
         ``change_obj(CommandList(__root__ = [Command('PVsystem.pv1','kVAr',25)]))``
         """
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
-        for entry in change_commands.__root__:
+        for entry in change_commands:
             dss.Circuit.SetActiveElement(
                 entry.obj_name
             )  # make the required element as active element
@@ -724,36 +680,145 @@ class FeederSimulator(object):
             ), f"{entry.obj_property} not in {properties} for {element_name}"
             dss.Text.Command(f"{entry.obj_name}.{entry.obj_property}={entry.val}")
 
-    def initial_disabled_solve(self):
-        """If run is disabled, then we can still solve at 0.0."""
-        assert self._state == OpenDSSState.DISABLED_RUN, f"{self._state}"
-        hour = 0
-        second = 0
-        dss.Text.Command(
-            f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second} "
-            f"stepsize=0"
+    def create_inverter(self, pvsystem_set: Set[str]):
+        """Create new inverter from set of pvsystem.
+
+        Parameters
+        ----------
+        pvsystem_set: Set[str]
+             Set of pvsystems to assign to inverter. Currently only 1 or all
+             can be added. This cannot be changed or deleted at present.
+
+        Returns
+        -------
+        name of inverter with ``InvControl.`` prefix: str
+
+        Warnings and Caveats
+        --------------------
+        Using multiple pvsystems will issue a warning, since
+        more OpenDSS nodes can be created, which will break
+        more getter functions.
+
+        New inverters cannot be assigned new lists.
+
+        This only works with the legacy InvControl settings
+        """
+        assert all(
+            pvsystem not in self._pvsystem_to_inverter and pvsystem in self._pvsystems
+            for pvsystem in pvsystem_set
+        ), f"PVsystem(s) {pvsystem_set} is already assigned inverter or may not exist"
+        name = f"InvControl.invgenerated{self._inverter_counter}"
+        # May need PVsystemlist
+        assert all(
+            pv_name.split(".")[0].lower() == "pvsystem" for pv_name in pvsystem_set
         )
-        dss.Text.Command("solve")
-        self._state = OpenDSSState.DISABLED_SOLVE
+        if pvsystem_set == self._pvsystems:
+            # This provides more stable behavior in the "default" case.
+            pvlist = ""
+        else:
+            if len(pvsystem_set) != 1:
+                logging.error(
+                    """Controlling mulitple pvsystems manually results in unstable
+                    behavior when the number of phases differ"""
+                )
+            pvlist = ", ".join(pv_name.split(".")[1] for pv_name in pvsystem_set)
+        dss.Text.Command(f"New {name} PVsystemList=[{pvlist}]")
+        self._inverter_counter += 1
+        self._inverters.add(name)
+        for pvsystem in pvsystem_set:
+            self._pvsystem_to_inverter[pvsystem] = name
+        self._inverter_to_pvsystems[name] = pvsystem_set
+        return name
 
-    def just_solve(self):
-        """Solve without setting time or anything. Useful for commands."""
-        assert (
-            self._state != OpenDSSState.UNLOADED
-            and self._state != OpenDSSState.DISABLED_RUN
-        ), f"{self._state}"
-        dss.Text.Command("solve")
+    def create_xy_curve(self, x, y):
+        """Create xy curve given two lists or arrays of floats.
 
-    def solve(self, hour, second):
-        """Solve at specified time. Must not be unloaded or disabled."""
-        assert (
-            self._state != OpenDSSState.UNLOADED
-            and self._state != OpenDSSState.DISABLED_RUN
-        ), f"{self._state}"
+        Returns
+        -------
+        name : str
+        """
+        name = f"XYcurve.xygenerated{self._xycurve_counter}"
+        npts = len(x)
+        assert len(x) == len(y), "Length of curves do not match"
+        x_str = ",".join(str(i) for i in x)
+        y_str = ",".join(str(i) for i in y)
+        dss.Text.Command(f"New {name} npts={npts} Yarray=({y_str}) Xarray=({x_str})")
+        self._xycurve_counter += 1
+        return name
 
-        dss.Text.Command(
-            f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second} "
-            f"stepsize=0"
+    def set_properties_to_inverter(self, inverter: str, inv_control: InverterControl):
+        """Modify a legacy InvControl object."""
+        if inv_control.vvcontrol is not None:
+            vvc_curve = self.create_xy_curve(
+                inv_control.vvcontrol.voltage, inv_control.vvcontrol.reactive_response
+            )
+            dss.Text.Command(f"{inverter}.vvc_curve1={vvc_curve.split('.')[1]}")
+            dss.Text.Command(
+                f"{inverter}.deltaQ_factor={inv_control.vvcontrol.deltaq_factor}"
+            )
+            dss.Text.Command(
+                f"{inverter}.VarChangeTolerance={inv_control.vvcontrol.varchangetolerance}"
+            )
+            dss.Text.Command(
+                f"{inverter}.VoltageChangeTolerance={inv_control.vvcontrol.voltagechangetolerance}"
+            )
+            dss.Text.Command(
+                f"{inverter}.VV_RefReactivePower={inv_control.vvcontrol.vv_refreactivepower}"
+            )
+        if inv_control.vwcontrol is not None:
+            vw_curve = self.create_xy_curve(
+                inv_control.vwcontrol.voltage, inv_control.vwcontrol.power_response,
+            )
+            dss.Text.Command(f"{inverter}.voltwatt_curve={vw_curve.split('.')[1]}")
+            dss.Text.Command(
+                f"{inverter}.deltaP_factor={inv_control.vwcontrol.deltap_factor}"
+            )
+        if inv_control.mode == InverterControlMode.voltvar_voltwatt:
+            dss.Text.Command(f"{inverter}.CombiMode = VV_VW")
+        else:
+            dss.Text.Command(f"{inverter}.Mode = {inv_control.mode.value}")
+
+    def apply_inverter_control(self, inv_control: InverterControl):
+        """Apply inverter control to OpenDSS.
+
+        Create InvControl if necessary and modifies it.
+
+        Parameters
+        ----------
+        inv_control: InverterControl
+
+        Returns
+        -------
+        name of inverter with ``InvControl.`` prefix: str
+
+        Warnings and Caveats
+        --------------------
+        Using multiple pvsystems will issue a warning, since
+        more OpenDSS nodes can be created, which will break
+        more getter functions.
+
+        New inverters cannot be assigned new lists.
+
+        This only works with the legacy InvControl settings,
+        volt var, volt watt, and volt-var volt-watt combined mode.
+        """
+        if inv_control.pvsystem_list is None:
+            pvsystem_set = self._pvsystems
+        else:
+            pvsystem_set = set(inv_control.pvsystem_list)
+        inverter_set = set(
+            self._pvsystem_to_inverter[pvsystem]
+            for pvsystem in pvsystem_set
+            if pvsystem in self._pvsystem_to_inverter
         )
-        dss.Text.Command("solve")
-        self._state = OpenDSSState.SOLVE_AT_TIME
+        if len(inverter_set) == 1:
+            (inverter,) = inverter_set
+        else:
+            inverter = self.create_inverter(pvsystem_set)
+
+        assert (
+            self._inverter_to_pvsystems[inverter] == pvsystem_set
+        ), f"{self._inverter_to_pvsystems[inverter]} does not match {pvsystem_set} for {inverter}"
+
+        self.set_properties_to_inverter(inverter, inv_control)
+        return inverter

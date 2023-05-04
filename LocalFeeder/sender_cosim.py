@@ -317,7 +317,7 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
 
         change_obj_cmds = CommandList.parse_obj(sub_command_set.json)
 
-        sim.change_obj(change_obj_cmds)
+        sim.change_obj(change_obj_cmds.__root__)
         logger.info(
             f"Solve at hour {floored_timestamp.hour} second"
             f"{60*floored_timestamp.minute + floored_timestamp.second}"
