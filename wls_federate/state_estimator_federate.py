@@ -417,7 +417,7 @@ def read_root():
 
 
 @app.post("/run/")
-async def run_feeder(configs:dict, background_tasks: BackgroundTasks):
+async def run_model(configs:dict, background_tasks: BackgroundTasks):
     try:
         background_tasks.add_task(run, configs)
         return {"reply": "success", "error": False}

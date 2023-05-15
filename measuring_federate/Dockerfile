@@ -5,8 +5,8 @@ RUN apt-get install -y git ssh
 
 
 RUN mkdir measuring_federate
-COPY  measuring_federate/* ./measuring_federate
-COPY  requirements.txt ./measuring_federate/requirements.txt
+COPY  * ./measuring_federate
+#COPY  requirements.txt ./measuring_federate/requirements.txt
 WORKDIR ./measuring_federate
 
 RUN pip install -r requirements.txt

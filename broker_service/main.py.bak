@@ -1,11 +1,36 @@
+from unicodedata import name
 from gadal.gadal_types.mapped_federates import AppPort
 from fastapi import FastAPI, BackgroundTasks
 from broker_config import Broker
+import helics as h
 import subprocess
 import uvicorn
 import socket
+import time
 
 app = FastAPI()
+
+def create_broker(broker_config:Broker):
+    debug_level = "trace" if broker_config.debug else "warning"
+    initstring = "-f {} -n {} --localport={} --localinterface={} --loglevel={}".format(
+        broker_config.num_federates,
+        broker_config.broker_name,
+        broker_config.broker_port,
+        broker_config.broker_ip,
+        debug_level
+        
+    )
+    print(initstring)
+    broker = h.helicsCreateBroker("zmq", "", initstring)
+    count = 0
+    while h.helicsBrokerIsConnected(broker):
+        time.sleep(1)
+        if count % 60 == 0:
+            print("Broker is live")
+        count += 1
+        
+    print("Broker run complete")
+    return 
 
 @app.get("/")
 def read_root():
@@ -16,16 +41,8 @@ def read_root():
 @app.post("/run_broker")
 async def run_feeder(broker_config:Broker, background_tasks:BackgroundTasks):
     try:
-        cmd = f"helics_broker -f {broker_config.num_federates} -t {broker_config.core_type} "
-        if broker_config.debug:
-           cmd +=  "--loglevel=trace "
-        
-        if broker_config.is_sub_broker:
-            cmd += f"--localinterface=0.0.0.0 --localport={broker_config.broker_port} "
-            cmd += f"--brokerport={broker_config.upstream_broker_port} --brokerport={broker_config.upstream_broker_port}"
-        proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-        #reply = proc.stdout.read()
-        return {"reply": cmd, "error": False}
+        background_tasks.add_task(create_broker, broker_config)
+        return {"reply": "sucess", "error": False}
     except Exception as e:
         return {"reply": str(e), "error": True}
         

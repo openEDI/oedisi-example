@@ -1,5 +1,7 @@
 from unicodedata import name
 from gadal.gadal_types.mapped_federates import AppPort
+from gadal.gadal_tools.cli_tools import get_basic_component
+from gadal.componentframework.system_configuration import generate_runner_config, WiringDiagram
 from fastapi import FastAPI, BackgroundTasks
 from broker_config import Broker
 import helics as h
@@ -7,8 +9,28 @@ import subprocess
 import uvicorn
 import socket
 import time
+import os
 
 app = FastAPI()
+
+def build_wiring_diagram(config):
+    components = config.components
+    system = config.system
+    target_directory = os.getcwd()
+    component_types = {
+            name: get_basic_component(component_file)
+            for name, component_file in components.items()
+        }
+
+    wiring_diagram = WiringDiagram.parse_file(system)
+
+    runner_config = generate_runner_config(
+        wiring_diagram, component_types, target_directory=target_directory
+    )
+    
+    with open(f"{target_directory}/system_runner.json", "w") as f:
+        f.write(runner_config.json(indent=2))
+    
 
 def create_broker(broker_config:Broker):
     debug_level = "trace" if broker_config.debug else "warning"
@@ -38,8 +60,8 @@ def read_root():
     host_ip = socket.gethostbyname(hostname)
     return {"hostname": hostname, "host ip": host_ip}
     
-@app.post("/run_broker")
-async def run_feeder(broker_config:Broker, background_tasks:BackgroundTasks):
+@app.post("/run")
+async def run_model(broker_config:Broker, background_tasks:BackgroundTasks):
     try:
         background_tasks.add_task(create_broker, broker_config)
         return {"reply": "sucess", "error": False}

@@ -2,8 +2,7 @@ import logging
 import helics as h
 import numpy as np
 from pydantic import BaseModel
-from typing import List, Dict
-import scipy.io
+from typing import Dict, List
 import json
 from datetime import datetime
 from gadal.gadal_types.data_types import MeasurementArray
@@ -20,10 +19,41 @@ class MeasurementConfig(BaseModel):
     measurement_file: str
     random_percent: float
     run_freq_time_step: float = 1.0
+    broker_ip: str = "10.5.0.2"
+    broker_port: int = 23404
+
+class MappedIO(BaseModel):
+    type: str = ""
+    port_id: str = ""
+
+class InputMapping(BaseModel):
+    static_inputs: List[MappedIO] = [
+            MappedIO(**{
+                "port_id": "gaussian_variance"
+            }),
+            MappedIO(**{
+                "port_id": "measurement_file"
+            }),
+            MappedIO(**{
+                "port_id": "gausrandom_percentsian_variance"
+            })
+        ]
+    dynamic_inputs: List[MappedIO] = [
+            MappedIO(**{
+                "type": "MeasurementArray", 
+                "port_id": "subscription"
+            })
+        ]
+    dynamic_outputs: List[MappedIO] = [
+            MappedIO(**{
+                "type": "MeasurementArray", 
+                "port_id": "publication"
+            })
+        ]
 
 class MeasurementMapping(BaseModel):
     static_inputs : MeasurementConfig
-    input_mapping : Dict
+    input_mapping : InputMapping
 
 def get_indices(labelled_array, indices):
     "Get list of indices in the topology for each index of the labelled array"
@@ -65,6 +95,8 @@ class MeasurementRelay:
         fedinfo.core_type = h.HELICS_CORE_TYPE_ZMQ
         fedinfo.core_init = "--federates=1"
         logger.debug(config.name)
+        h.helicsFederateInfoSetBroker(fedinfo,  config.broker_ip)
+        h.helicsFederateInfoSetBrokerPort(fedinfo, config.broker_port)
 
         h.helicsFederateInfoSetTimeProperty(
             fedinfo, h.helics_property_time_delta, config.run_freq_time_step
@@ -146,7 +178,7 @@ def read_root():
     return {"hostname": hostname, "host ip": host_ip}
 
 @app.post("/run/")
-async def run_feeder(measurement_mapping:MeasurementMapping, background_tasks: BackgroundTasks):
+async def run_model(measurement_mapping:MeasurementMapping, background_tasks: BackgroundTasks):
     try:
         background_tasks.add_task(run, measurement_mapping)
         return {"reply": "success", "error": False}
