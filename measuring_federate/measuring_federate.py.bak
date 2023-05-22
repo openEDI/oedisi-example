@@ -21,6 +21,7 @@ class MeasurementConfig(BaseModel):
     random_percent: float
     run_freq_time_step: float = 1.0
 
+
 class MeasurementMapping(BaseModel):
     static_inputs : MeasurementConfig
     input_mapping : Dict

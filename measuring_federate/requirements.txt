@@ -1,0 +1,11 @@
+helics==3.4.0
+helics-apps==3.4.0
+pydantic
+pyarrow
+scipy
+matplotlib
+numpy
+pandas
+fastapi
+uvicorn
+git+https://github.com/openEDI/GADAL@v0.2.4#egg=gadal
