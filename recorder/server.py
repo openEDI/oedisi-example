@@ -1,5 +1,5 @@
 from gadal.gadal_types.common import BrokerConfig
-from state_estimator_federate import run_simulator
+from record_subscription import run_simulator
 from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel
 from typing import List, Dict

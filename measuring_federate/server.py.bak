@@ -1,20 +1,12 @@
-from FeederSimulator import CommandList, FeederConfig, FeederSimulator, FeederMapping
-from fastapi import FastAPI, BackgroundTasks
-from sender_cosim import go_cosim
 from gadal.gadal_types.data_types import MeasurementArray
-from measuring_federate import MeasurementMapping
+from gadal.gadal_types.common import BrokerConfig
+from measuring_federate import run_simulator
+from fastapi import FastAPI, BackgroundTasks
 import uvicorn
 import socket
 import sys
 
 app = FastAPI()
-
-def run(model_configs : MeasurementMapping):
-    """Load static_inputs and input_mapping and run JSON."""
-    config = model_configs.static_inputs
-    input_mapping = model_configs.input_mapping
-    sfed = MeasurementRelay(config, input_mapping)
-    sfed.run()
 
 @app.get("/")
 def read_root():
@@ -22,11 +14,10 @@ def read_root():
     host_ip = socket.gethostbyname(hostname)
     return {"hostname": hostname, "host ip": host_ip}
 
-
 @app.post("/run/")
-async def run_model(measurement_mapping:MeasurementMapping, background_tasks: BackgroundTasks):
+async def run_model(broker_config:BrokerConfig, background_tasks: BackgroundTasks):
     try:
-        background_tasks.add_task(run, measurement_mapping)
+        background_tasks.add_task(run_simulator, broker_config)
         return {"reply": "success", "error": False}
     except Exception as e:
         return {"reply": str(e), "error": True}

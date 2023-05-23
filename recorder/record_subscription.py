@@ -7,6 +7,8 @@ import csv
 import pyarrow as pa
 from datetime import datetime
 from gadal.gadal_types.data_types import MeasurementArray
+from gadal.gadal_types.common import BrokerConfig
+
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -14,13 +16,17 @@ logger.setLevel(logging.INFO)
 
 
 class Recorder:
-    def __init__(self, name, feather_filename, csv_filename, input_mapping):
+    def __init__(self, name, feather_filename, csv_filename, input_mapping, broker_config:BrokerConfig):
         self.rng = np.random.default_rng(12345)
         deltat = 0.01
         # deltat = 60.
 
         # Create Federate Info object that describes the federate properties #
         fedinfo = h.helicsCreateFederateInfo()
+        
+        h.helicsFederateInfoSetBroker(fedinfo, broker_config.broker_ip)
+        h.helicsFederateInfoSetBrokerPort(fedinfo, broker_config.broker_port)
+        
         fedinfo.core_name = name
         fedinfo.core_type = h.HELICS_CORE_TYPE_ZMQ
         fedinfo.core_init = "--federates=1"
@@ -93,8 +99,7 @@ class Recorder:
         h.helicsFederateFree(self.vfed)
         h.helicsCloseLibrary()
 
-
-if __name__ == "__main__":
+def run_simulator(broker_config:BrokerConfig):
     with open("static_inputs.json") as f:
         config = json.load(f)
         name = config["name"]
@@ -104,5 +109,10 @@ if __name__ == "__main__":
     with open("input_mapping.json") as f:
         input_mapping = json.load(f)
 
-    sfed = Recorder(name, feather_path, csv_path, input_mapping)
+    sfed = Recorder(name, feather_path, csv_path, input_mapping, broker_config)
     sfed.run()
+
+
+if __name__ == "__main__":
+    run_simulator()
+    

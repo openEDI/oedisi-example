@@ -11,4 +11,4 @@ boto3
 xarray
 fastapi
 uvicorn
-git+https://github.com/openEDI/GADAL@v0.2.4#egg=gadal
+git+https://github.com/openEDI/GADAL@al/kubernetes

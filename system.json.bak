@@ -4,7 +4,7 @@
         {
             "name": "feeder",
             "type": "LocalFeeder",
-			"host": "10.5.0.2",
+			"host": "localhost",
 			"port": 5678,
             "parameters": {
                 "use_smartds": false,
@@ -20,7 +20,7 @@
 		{
             "name": "recorder_voltage_real",
             "type": "Recorder",
-			"host": "10.5.0.3",
+			"host": "localhost",
 			"port": 5679,
             "parameters": {"feather_filename": "../../outputs/voltage_real.feather",
                            "csv_filename": "../../outputs/voltage_real.csv"
@@ -29,7 +29,7 @@
         {
             "name": "recorder_voltage_imag",
             "type": "Recorder",
-			"host": "10.5.0.4",
+			"host": "localhost",
 			"port": 5680,
             "parameters": {"feather_filename": "../../outputs/voltage_imag.feather",
                            "csv_filename": "../../outputs/voltage_imag.csv"
@@ -38,7 +38,7 @@
         {
             "name": "recorder_voltage_mag",
             "type": "Recorder",
-			"host": "10.5.0.5",
+			"host": "localhost",
 			"port": 5681,
             "parameters": {"feather_filename": "../../outputs/voltage_mag.feather",
                            "csv_filename": "../../outputs/voltage_mag.csv"
@@ -47,7 +47,7 @@
         {
             "name": "recorder_voltage_angle",
             "type": "Recorder",
-			"host": "10.5.0.6",
+			"host": "localhost",
 			"port": 5682,
             "parameters": {"feather_filename": "../../outputs/voltage_angle.feather",
                            "csv_filename": "../../outputs/voltage_angle.csv"
@@ -56,7 +56,7 @@
         {
             "name": "state_estimator",
             "type": "StateEstimatorComponent",
-			"host": "10.5.0.7",
+			"host": "localhost",
 			"port": 5683,
             "parameters": {
                 "algorithm_parameters": {"tol": 1e-5}
@@ -66,7 +66,7 @@
         {
             "name": "sensor_voltage_real",
             "type": "MeasurementComponent",
-			"host": "10.5.0.8",
+			"host": "localhost",
 			"port": 5684,
             "parameters": {
                 "gaussian_variance": 0.0,
@@ -77,7 +77,7 @@
         {
             "name": "sensor_voltage_magnitude",
             "type": "MeasurementComponent",
-			"host": "10.5.0.9",
+			"host": "localhost",
 			"port": 5685,
             "parameters": {
                 "gaussian_variance": 0.0,
@@ -88,7 +88,7 @@
         {
             "name": "sensor_voltage_imaginary",
             "type": "MeasurementComponent",
-			"host": "10.5.0.10",
+			"host": "localhost",
 			"port": 5686,
             "parameters": {
                 "gaussian_variance": 0.0,
@@ -99,7 +99,7 @@
         {
             "name": "sensor_power_real",
             "type": "MeasurementComponent",
-			"host": "10.5.0.11",
+			"host": "localhost",
 			"port": 5687,
             "parameters": {
                 "gaussian_variance": 0.0,
@@ -110,7 +110,7 @@
         {
             "name": "sensor_power_imaginary",
             "type": "MeasurementComponent",
-			"host": "10.5.0.12",
+			"host": "localhost",
 			"port": 5688,
             "parameters": {
                 "gaussian_variance": 0.0,

@@ -1,19 +1,11 @@
-from FeederSimulator import CommandList, FeederConfig, FeederSimulator, FeederMapping
+from gadal.gadal_types.common import BrokerConfig
 from fastapi import FastAPI, BackgroundTasks
-from sender_cosim import go_cosim
+from sender_cosim import run_simulator
 import uvicorn
 import socket
 import sys
 
 app = FastAPI()
-
-def run(model_configs : FeederMapping):
-    """Load static_inputs and input_mapping and run JSON."""
-    config = model_configs.static_inputs
-    input_mapping = model_configs.input_mapping
-    sim = FeederSimulator(config)
-    go_cosim(sim, config, input_mapping)
-
 
 @app.get("/")
 def read_root():
@@ -23,9 +15,9 @@ def read_root():
 
 
 @app.post("/run/")
-async def run_feeder(feeder_mapping:FeederMapping, background_tasks: BackgroundTasks):
+async def run_feeder(broker_config:BrokerConfig, background_tasks: BackgroundTasks):
     try:
-        background_tasks.add_task(run, feeder_mapping)
+        background_tasks.add_task(run_simulator, broker_config)
         return {"reply": "success", "error": False}
     except Exception as e:
         return {"reply": str(e), "error": True}

@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
-
+from gadal.gadal_types.common import BrokerConfig
 import helics as h
 import numpy as np
 import numpy.typing as npt
@@ -252,7 +252,7 @@ def where_power_unbalanced(PQ_injections_all, calculated_power, tol=1):
     return errors.ids[indices]
 
 
-def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str, str]):
+def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str, str], broker_config:BrokerConfig):
     """Run HELICS federate with FeederSimulation.
 
     TODO: Maybe this should be a class or a coroutine or something cleaner.
@@ -263,12 +263,18 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
 
     logger.info("Creating Federate Info")
     fedinfo = h.helicsCreateFederateInfo()
+    
+    h.helicsFederateInfoSetBroker(fedinfo, broker_config.broker_ip)
+    h.helicsFederateInfoSetBrokerPort(fedinfo, broker_config.broker_port)
+    
     h.helicsFederateInfoSetCoreName(fedinfo, config.name)
     h.helicsFederateInfoSetCoreTypeFromString(fedinfo, "zmq")
     h.helicsFederateInfoSetCoreInitString(fedinfo, fedinitstring)
     h.helicsFederateInfoSetTimeProperty(fedinfo, h.helics_property_time_delta, deltat)
     vfed = h.helicsCreateValueFederate(config.name, fedinfo)
 
+    
+    
     pub_voltages_real = h.helicsFederateRegisterPublication(
         vfed, "voltages_real", h.HELICS_DATA_TYPE_STRING, ""
     )
@@ -405,7 +411,7 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
     h.helicsCloseLibrary()
 
 
-def run():
+def run_simulator(broker_config:BrokerConfig):
     """Load static_inputs and input_mapping and run JSON."""
     with open("static_inputs.json") as f:
         parameters = json.load(f)
@@ -413,8 +419,8 @@ def run():
         input_mapping = json.load(f)
     config = FeederConfig(**parameters)
     sim = FeederSimulator(config)
-    go_cosim(sim, config, input_mapping)
+    go_cosim(sim, config, input_mapping, broker_config)
 
 
 if __name__ == "__main__":
-    run()
+    run_simulator()
