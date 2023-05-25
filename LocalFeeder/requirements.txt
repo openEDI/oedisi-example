@@ -12,3 +12,4 @@ xarray
 fastapi
 uvicorn
 git+https://github.com/openEDI/GADAL@al/kubernetes
+python-multipart
