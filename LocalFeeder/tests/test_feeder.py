@@ -304,6 +304,8 @@ def simulation_middle(sim, Y):
     assert len(current_data.injections.power_real.values) == len(
         current_data.injections.power_real.ids
     )
+
+    assert '113' in current_data.PQ_injections_all.equipment_ids.data
     df = pd.DataFrame(
         {
             "p": current_data.PQ_injections_all.real,

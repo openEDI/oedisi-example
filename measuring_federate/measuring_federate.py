@@ -113,7 +113,10 @@ class MeasurementRelay:
         while granted_time < h.HELICS_TIME_MAXTIME:
             logger.info("start time: " + str(datetime.now()))
             json_data = self.sub_measurement.json
-            measurement = MeasurementArray(**json_data)
+            if "equipment_ids" in json_data:
+                measurement = EquipmentNodeArray.parse_obj(json_data)
+            else:
+                measurement = MeasurementArray.parse_obj(json_data)
 
             with open(self.measurement_file, "r") as fp:
                 self.measurement = json.load(fp)

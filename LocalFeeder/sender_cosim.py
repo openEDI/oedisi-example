@@ -223,7 +223,9 @@ def get_current_data(sim: FeederSimulator, Y):
     power_real, power_imaginary = get_powers(-PQ_load, -PQ_PV, -PQ_gen, -PQ_cap)
     injections = Injection(power_real=power_real, power_imaginary=power_imaginary)
 
-    ids = xr.DataArray(sim._AllNodeNames, coords={"ids": sim._AllNodeNames})
+    ids = xr.DataArray(sim._AllNodeNames, coords={
+        "ids": sim._AllNodeNames,
+    })
     PQ_injections_all = (
         agg_to_ids(PQ_load, ids)
         + agg_to_ids(PQ_PV, ids)
@@ -231,9 +233,11 @@ def get_current_data(sim: FeederSimulator, Y):
         + agg_to_ids(PQ_cap, ids)
     )
 
+    PQ_injections_all = PQ_injections_all.assign_coords(equipment_ids=('ids', list(map(lambda x: x.split(".")[0], sim._AllNodeNames))))
     calculated_power = (
         feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
     )
+
     PQ_injections_all[sim._source_indexes] = -calculated_power[sim._source_indexes]
     return CurrentData(
         feeder_voltages=feeder_voltages,
@@ -383,16 +387,14 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
             ).json()
         )
         pub_powers_real.publish(
-            MeasurementArray(
+            PowersReal(
                 **xarray_to_dict(current_data.PQ_injections_all.real),
-                units = "kW",
                 time=current_timestamp,
             ).json()
         )
         pub_powers_imag.publish(
-            MeasurementArray(
+            PowersImaginary(
                 **xarray_to_dict(current_data.PQ_injections_all.imag),
-                units = "kVAR",
                 time=current_timestamp,
             ).json()
         )
