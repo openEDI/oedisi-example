@@ -383,14 +383,16 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
             ).json()
         )
         pub_powers_real.publish(
-            PowersReal(
+            MeasurementArray(
                 **xarray_to_dict(current_data.PQ_injections_all.real),
+                units = "kW",
                 time=current_timestamp,
             ).json()
         )
         pub_powers_imag.publish(
-            PowersImaginary(
+            MeasurementArray(
                 **xarray_to_dict(current_data.PQ_injections_all.imag),
+                units = "kVAR",
                 time=current_timestamp,
             ).json()
         )

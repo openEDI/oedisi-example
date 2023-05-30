@@ -16,7 +16,7 @@ from enum import Enum
 from typing import List, Optional, Union
 from scipy.optimize import least_squares
 from datetime import datetime
-from gadal.gadal_types.data_types import (
+from oedisi.types.data_types import (
     AdmittanceSparse,
     MeasurementArray,
     AdmittanceMatrix,
@@ -337,8 +337,8 @@ class StateEstimatorFederate:
             logger.info("start time: " + str(datetime.now()))
 
             voltages = VoltagesMagnitude.parse_obj(self.sub_voltages_magnitude.json)
-            power_Q = PowersImaginary.parse_obj(self.sub_power_Q.json)
-            power_P = PowersReal.parse_obj(self.sub_power_P.json)
+            power_Q = MeasurementArray.parse_obj(self.sub_power_Q.json)
+            power_P = MeasurementArray.parse_obj(self.sub_power_P.json)
             knownP = get_indices(topology, power_P)
             knownQ = get_indices(topology, power_Q)
             knownV = get_indices(topology, voltages)

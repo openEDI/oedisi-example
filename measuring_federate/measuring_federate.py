@@ -6,7 +6,7 @@ from typing import List
 import scipy.io
 import json
 from datetime import datetime
-from gadal.gadal_types.data_types import MeasurementArray
+from oedisi.types.data_types import MeasurementArray, EquipmentNodeArray
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -27,27 +27,41 @@ def get_indices(labelled_array, indices):
     return [inv_map[v] for v in labelled_array.ids]
 
 
-def reindex(measurement_array, indices):
+def reindex(measurement_array: MeasurementArray, indices):
     inv_map = {v: i for i, v in enumerate(measurement_array.ids)}
-    for i in inv_map:
-        logger.debug(i)
-    return MeasurementArray(
-        values=[measurement_array.values[inv_map[i]] for i in indices],
-        ids=indices,
-        units=measurement_array.units,
-        equipment_type=measurement_array.equipment_type,
-        time=measurement_array.time,
-    )
+    if isinstance(measurement_array, EquipmentNodeArray):
+        return measurement_array.__class__(
+            values=[measurement_array.values[inv_map[i]] for i in indices],
+            ids=indices,
+            units=measurement_array.units,
+            equipment_ids=[measurement_array.equipment_ids[inv_map[i]] for i in indices],
+            time=measurement_array.time,
+        )
+    else:
+        return measurement_array.__class__(
+            values=[measurement_array.values[inv_map[i]] for i in indices],
+            ids=indices,
+            units=measurement_array.units,
+            time=measurement_array.time,
+        )
 
 
-def apply(f, measurement_array):
-    return MeasurementArray(
-        values=list(map(f, measurement_array.values)),
-        ids=measurement_array.ids,
-        units=measurement_array.units,
-        equipment_type=measurement_array.equipment_type,
-        time=measurement_array.time,
-    )
+def apply(f, measurement_array: MeasurementArray):
+    if isinstance(measurement_array, EquipmentNodeArray):
+        return measurement_array.__class__(
+            values=list(map(f, measurement_array.values)),
+            ids=measurement_array.ids,
+            units=measurement_array.units,
+            equipment_ids=measurement_array.equipment_ids,
+            time=measurement_array.time,
+        )
+    else:
+        return measurement_array.__class__(
+            values=list(map(f, measurement_array.values)),
+            ids=measurement_array.ids,
+            units=measurement_array.units,
+            time=measurement_array.time,
+        )
 
 
 class MeasurementRelay:
