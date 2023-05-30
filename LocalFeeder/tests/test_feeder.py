@@ -7,13 +7,18 @@ import pandas as pd
 import plotille
 import pytest
 import xarray as xr
-from gadal.gadal_types.data_types import MeasurementArray
+from oedisi.types.data_types import (
+    EquipmentNodeArray,
+    InverterControl,
+    InverterControlMode,
+    VVControl,
+    VWControl,
+)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import FeederSimulator
 import sender_cosim
-from FeederSimulator import InverterControl, InverterControlMode, VVControl, VWControl
 from sender_cosim import agg_to_ids
 
 
@@ -194,13 +199,8 @@ def getting_and_concatentating_data(sim):
     PQ_gen = sim.get_PQs_gen(static=True)
     PQ_cap = sim.get_PQs_cap(static=True)
 
-    n_nodes = len(PQ_load)
-    pv_real, pv_imag = sender_cosim.xarray_to_powers(
-        PQ_PV, equipment_type=["PVSystem"] * n_nodes
-    )
-    gen_real, gen_imag = sender_cosim.xarray_to_powers(
-        PQ_gen, equipment_type=["Generator"] * n_nodes
-    )
+    pv_real, pv_imag = sender_cosim.xarray_to_powers(PQ_PV)
+    gen_real, gen_imag = sender_cosim.xarray_to_powers(PQ_gen)
     test_real = sender_cosim.concat_measurement_arrays(pv_real, gen_real)
     assert test_real.values[5] == PQ_PV.data[5].real
     assert test_real.ids[5] == PQ_PV.ids.data[5]
@@ -337,14 +337,14 @@ def simulation_middle(sim, Y):
     assert len(bad_bus_names) == 0
 
 
-def equipment_indices_on_measurement_array(
-    measurement_array: MeasurementArray, equipment_type: str
+def equipment_indices_on_equipment_node_array(
+    equipment_node_array: EquipmentNodeArray, equipment_type: str
 ):
     return map(
         lambda iv: iv[0],
         filter(
-            lambda iv: iv[1] == equipment_type,
-            enumerate(measurement_array.equipment_type),
+            lambda iv: iv[1].startswith(equipment_type),
+            enumerate(equipment_node_array.equipment_ids),
         ),
     )
 
@@ -369,19 +369,21 @@ def test_controls(federate_config):
     # Find first with equipment type = PVSystem
     power_real = current_data.injections.power_real
     pv_system_indices = list(
-        equipment_indices_on_measurement_array(power_real, "PVSystem")
+        equipment_indices_on_equipment_node_array(power_real, "PVSystem")
     )
     max_index = np.argmax(np.abs([power_real.values[i] for i in pv_system_indices]))
     pv_system_index = pv_system_indices[max_index]
     pv_system_index = None
     for i in range(len(power_real.ids)):
-        if power_real.ids[i] == "113.1" and power_real.equipment_type[i] == "PVSystem":
+        if power_real.ids[i] == "113.1" and power_real.equipment_ids[i].startswith(
+            "PVSystem"
+        ):
             pv_system_index = i
             break
     assert pv_system_index is not None
 
     print(
-        f"{power_real.ids[pv_system_index]} {power_real.equipment_type[pv_system_index]}"
+        f"{power_real.ids[pv_system_index]} {power_real.equipment_ids[pv_system_index]}"
     )
     # Try setting current power to half of that.
     assert abs(power_real.values[pv_system_index]) > 0.01
@@ -416,11 +418,11 @@ def test_controls(federate_config):
 
     for i in bad_indices:
         print(
-            f"Old: {power_real.equipment_type[i]} {power_real.ids[i]} "
+            f"Old: {power_real.equipment_ids[i]} {power_real.ids[i]} "
             f"{power_real.values[i]}"
         )
         print(
-            f"New: {new_power_real.equipment_type[i]} {new_power_real.ids[i]} "
+            f"New: {new_power_real.equipment_ids[i]} {new_power_real.ids[i]} "
             f"{new_power_real.values[i]}"
         )
 
@@ -440,6 +442,7 @@ def test_inv_control(federate_config):
     test_inverter_data = InverterControl(
         pvsystem_list=["PVSystem.113"],
         vvcontrol=VVControl(
+            deltaq_factor=0.7,
             voltage=[0.5, 0.945, 0.97, 0.99, 1.045, 1.50],
             reactive_response=[1, 1, 1, 1, 1, 1],
         ),
@@ -475,8 +478,9 @@ def test_inv_control(federate_config):
     test_inverter_data = InverterControl(
         pvsystem_list=["PVSystem.113"],
         vvcontrol=VVControl(
+            deltaq_factor=0.7,
             voltage=[0.5, 0.945, 0.97, 0.99, 1.045, 1.50],
-            reactive_response=[0, 0, 0, 0, 0, 0],
+            reactive_response=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         ),
     )
 
@@ -535,10 +539,12 @@ def test_inv_combined_control(federate_config):
 
     test_inverter_data = InverterControl(
         vvcontrol=VVControl(
+            deltaq_factor=0.7,
             voltage=[0.5, 0.945, 0.97, 0.99, 1.045, 1.50],
             reactive_response=[1, 1, 1, 1, 1, 1],
         ),
         vwcontrol=VWControl(
+            deltap_factor=1.0,
             voltage=[0.5, 0.945, 0.97, 0.99, 1.045, 1.50],
             power_response=[0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
         ),

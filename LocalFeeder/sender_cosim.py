@@ -9,10 +9,13 @@ import helics as h
 import numpy as np
 import numpy.typing as npt
 import xarray as xr
-from gadal.gadal_types.data_types import (
+from oedisi.types.data_types import (
     AdmittanceMatrix,
     AdmittanceSparse,
+    CommandList,
+    EquipmentNodeArray,
     Injection,
+    InverterControlList,
     MeasurementArray,
     PowersImaginary,
     PowersReal,
@@ -24,12 +27,7 @@ from gadal.gadal_types.data_types import (
 )
 from scipy.sparse import coo_matrix
 
-from FeederSimulator import (
-    CommandList,
-    InverterControlList,
-    FeederConfig,
-    FeederSimulator
-)
+from FeederSimulator import FeederConfig, FeederSimulator
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -85,10 +83,6 @@ def xarray_to_powers(data, **kwargs):
 
 def concat_measurement_arrays(*ps: MeasurementArray):
     """Concatenate list of measurements into one."""
-    equipment_type = None
-    if all((p.equipment_type is not None for p in ps)):
-        equipment_type = [e for p in ps for e in p.equipment_type]
-
     accuracy = None
     if all((p.accuracy is not None for p in ps)):
         accuracy = [e for p in ps for e in p.accuracy]
@@ -101,31 +95,35 @@ def concat_measurement_arrays(*ps: MeasurementArray):
 
     assert all(ps[0].time == p.time for p in ps)
 
-    return ps[0].__class__(
-        values=[v for p in ps for v in p.values],
-        ids=[id for p in ps for id in p.ids],
-        units=ps[0].units,
-        equipment_type=equipment_type,
-        accuracy=accuracy,
-        bad_data_threshold=bad_data_threshold,
-        time=ps[0].time,
-    )
+    if all((isinstance(p, EquipmentNodeArray) for p in ps)):
+        equipment_ids = [e for p in ps for e in p.equipment_ids]
+
+        return ps[0].__class__(
+            values=[v for p in ps for v in p.values],
+            ids=[id for p in ps for id in p.ids],
+            equipment_ids=equipment_ids,
+            units=ps[0].units,
+            accuracy=accuracy,
+            bad_data_threshold=bad_data_threshold,
+            time=ps[0].time,
+        )
+    else:
+        return ps[0].__class__(
+            values=[v for p in ps for v in p.values],
+            ids=[id for p in ps for id in p.ids],
+            units=ps[0].units,
+            accuracy=accuracy,
+            bad_data_threshold=bad_data_threshold,
+            time=ps[0].time,
+        )
 
 
 def get_powers(PQ_load, PQ_PV, PQ_gen, PQ_cap):
     """Turn xararys into PowersReal and PowersImaginary."""
-    PQ_load_real, PQ_load_imag = xarray_to_powers(
-        PQ_load, equipment_type=["Load"] * len(PQ_load)
-    )
-    PQ_PV_real, PQ_PV_imag = xarray_to_powers(
-        PQ_PV, equipment_type=["PVSystem"] * len(PQ_PV)
-    )
-    PQ_gen_real, PQ_gen_imag = xarray_to_powers(
-        PQ_gen, equipment_type=["Generator"] * len(PQ_gen)
-    )
-    PQ_cap_real, PQ_cap_imag = xarray_to_powers(
-        PQ_cap, equipment_type=["Capacitor"] * len(PQ_cap)
-    )
+    PQ_load_real, PQ_load_imag = xarray_to_powers(PQ_load)
+    PQ_PV_real, PQ_PV_imag = xarray_to_powers(PQ_PV)
+    PQ_gen_real, PQ_gen_imag = xarray_to_powers(PQ_gen)
+    PQ_cap_real, PQ_cap_imag = xarray_to_powers(PQ_cap)
 
     power_real = concat_measurement_arrays(
         PQ_load_real, PQ_PV_real, PQ_gen_real, PQ_cap_real

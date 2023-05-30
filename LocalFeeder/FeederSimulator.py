@@ -7,7 +7,7 @@ import random
 import time
 from enum import Enum
 from time import strptime
-from typing import Any, Dict, List, Optional, Set
+from typing import Dict, List, Set
 
 import boto3
 import numpy as np
@@ -15,7 +15,8 @@ import opendssdirect as dss
 import xarray as xr
 from botocore import UNSIGNED
 from botocore.config import Config
-from pydantic import BaseModel, root_validator
+from oedisi.types.data_types import Command, InverterControl, InverterControlMode
+from pydantic import BaseModel
 from scipy.sparse import coo_matrix, csc_matrix
 
 from dss_functions import (
@@ -60,90 +61,6 @@ class FeederConfig(BaseModel):
     start_time_index: int = 0
     topology_output: str = "topology.json"
     use_sparse_admittance: bool = False
-
-
-class Command(BaseModel):
-    """JSON Configuration for external object commands.
-
-    obj_name -- name of the object.
-    obj_prop -- name of the property.
-    obj_val -- val of the property.
-    """
-
-    obj_name: str
-    obj_property: str
-    val: Any
-
-
-class CommandList(BaseModel):
-    """List[Command] with JSON parsing."""
-
-    __root__: List[Command]
-
-
-class ReactivePowerSetting(Enum):
-    """Reactive power setting, almost always VARAVAL_WATTS."""
-
-    VARAVAL_WATTS = "VARAVAL_WATTS"
-    VARMAX_VARS = "VARMAX_VARS"
-    VARMAX_WATTS = "VARMAX_WATTS"
-
-
-class InverterControlMode(Enum):
-    """Inverter control mode."""
-
-    voltvar = "VOLTVAR"
-    voltwatt = "VOLTWATT"
-    voltvar_voltwatt = "VV_VW"
-
-
-class VVControl(BaseModel):
-    """OpenDSS setting for volt-var control."""
-
-    deltaq_factor: float = 0.7
-    varchangetolerance: float = 0.025
-    voltagechangetolerance: float = 0.0001
-    vv_refreactivepower: ReactivePowerSetting = ReactivePowerSetting.VARAVAL_WATTS
-    voltage: List[float]  # p.u. in V
-    reactive_response: List[float]  # p.u. in VArs
-
-
-class VWControl(BaseModel):
-    """OpenDSS setting for volt-watt control."""
-
-    deltap_factor: float = 1.0
-    voltage: List[float]  # p.u. in V
-    power_response: List[float]  # p.u. in VArs
-
-
-class InverterControl(BaseModel):
-    """InverterControl with volt-var control and/or volt-watt control."""
-
-    pvsystem_list: Optional[List[str]] = None
-    vvcontrol: Optional[VVControl] = None
-    vwcontrol: Optional[VWControl] = None
-    mode: InverterControlMode = InverterControlMode.voltvar
-
-    @root_validator(pre=True)
-    def check_mode(cls, values):
-        """Make sure that mode reflects vvcontrol and vwcontrol data."""
-        if "mode" not in values or (
-            values["mode"] == InverterControlMode.voltvar
-            or values["mode"] == InverterControlMode.voltvar_voltwatt
-        ):
-            assert "vvcontrol" in values and values["vvcontrol"] is not None
-        if "mode" in values and (
-            values["mode"] == InverterControlMode.voltwatt
-            or values["mode"] == InverterControlMode.voltvar_voltwatt
-        ):
-            assert "vwcontrol" in values and values["vwcontrol"] is not None
-        return values
-
-
-class InverterControlList(BaseModel):
-    """List[InverterControl] with JSON parsing."""
-
-    __root__: List[InverterControl]
 
 
 class OpenDSSState(Enum):
