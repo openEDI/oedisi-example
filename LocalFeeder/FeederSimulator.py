@@ -7,7 +7,7 @@ import random
 import time
 from enum import Enum
 from time import strptime
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Optional
 
 import boto3
 import numpy as np
@@ -54,7 +54,8 @@ class FeederConfig(BaseModel):
     use_smartds: bool = False
     profile_location: str
     opendss_location: str
-    sensor_location: str = ""
+    existing_feeder_file: Optional[str] = None
+    sensor_location: Optional[str] = None
     start_date: str
     number_of_timesteps: float
     run_freq_sec: float = 15 * 60
@@ -114,17 +115,20 @@ class FeederSimulator(object):
         self._vmult = 0.001
 
         self._simulation_time_step = "15m"
-        if self._use_smartds:
-            self._feeder_file = os.path.join("opendss", "Master.dss")
-            if not os.path.isfile(os.path.join("opendss", "Master.dss")):
+        if config.existing_feeder_file is None:
+            if self._use_smartds:
+                self._feeder_file = os.path.join("opendss", "Master.dss")
                 self.download_data("oedi-data-lake", update_loadshape_location=True)
-            self.load_feeder()
-            self.create_measurement_lists()
-        else:
-            self._feeder_file = os.path.join("opendss", "master.dss")
-            if not os.path.isfile(os.path.join("opendss", "master.dss")):
+            else:
+                self._feeder_file = os.path.join("opendss", "master.dss")
                 self.download_data("gadal")
-            self.load_feeder()
+        else:
+            self._feeder_file = config.existing_feeder_file
+
+        self.load_feeder()
+
+        if self._sensor_location is None:
+            self.create_measurement_lists()
 
         self.snapshot_run()
         assert self._state == OpenDSSState.SNAPSHOT_RUN, f"{self._state}"
@@ -192,7 +196,7 @@ class FeederSimulator(object):
                 os.makedirs(os.path.dirname(output_location), exist_ok=True)
                 bucket.download_file(obj.key, output_location)
 
-        if sensor_location != "":
+        if sensor_location is not None:
             output_location = os.path.join("sensors", os.path.basename(sensor_location))
             if not os.path.exists(os.path.dirname(output_location)):
                 os.makedirs(os.path.dirname(output_location))
