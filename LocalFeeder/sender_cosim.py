@@ -209,6 +209,7 @@ class CurrentData:
     PQ_injections_all: xr.core.dataarray.DataArray
     calculated_power: xr.core.dataarray.DataArray
     injections: Injection
+    load_y_matrix: Any
 
 
 def get_current_data(sim: FeederSimulator, Y):
@@ -239,11 +240,14 @@ def get_current_data(sim: FeederSimulator, Y):
     )
 
     PQ_injections_all[sim._source_indexes] = -calculated_power[sim._source_indexes]
+
+    Y_load = sim.get_load_y_matrix()
     return CurrentData(
         feeder_voltages=feeder_voltages,
         PQ_injections_all=PQ_injections_all,
         calculated_power=calculated_power,
         injections=injections,
+        load_y_matrix=Y_load,
     )
 
 
@@ -291,6 +295,9 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
     )
     pub_injections = h.helicsFederateRegisterPublication(
         vfed, "injections", h.HELICS_DATA_TYPE_STRING, ""
+    )
+    pub_load_y_matrix = h.helicsFederateRegisterPublication(
+        vfed, "load_y_matrix", h.HELICS_DATA_TYPE_STRING, ""
     )
 
     command_set_key = (
@@ -342,12 +349,15 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
             f"Solve at hour {floored_timestamp.hour} second "
             f"{60*floored_timestamp.minute + floored_timestamp.second}"
         )
+
+        sim.snapshot_run()
         sim.solve(
             floored_timestamp.hour,
             60 * floored_timestamp.minute + floored_timestamp.second,
         )
 
         current_data = get_current_data(sim, initial_data.Y)
+
         bad_bus_names = where_power_unbalanced(
             current_data.PQ_injections_all, current_data.calculated_power
         )
@@ -399,6 +409,22 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
             ).json()
         )
         pub_injections.publish(current_data.injections.json())
+
+        if config.use_sparse_admittance:
+            pub_load_y_matrix.publish(
+                sparse_to_admittance_sparse(
+                    current_data.load_y_matrix, sim._AllNodeNames
+                ).json()
+            )
+        else:
+            pub_load_y_matrix.publish(
+                AdmittanceMatrix(
+                    admittance_matrix=numpy_to_y_matrix(
+                        current_data.load_y_matrix.toarray()
+                    ),
+                    ids=sim._AllNodeNames
+                ).json()
+            )
 
         logger.info("end time: " + str(datetime.now()))
 

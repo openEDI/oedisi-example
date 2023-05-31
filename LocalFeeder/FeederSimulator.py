@@ -139,6 +139,12 @@ class FeederSimulator(object):
         Used for initialization.
         """
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
+        self.reenable()
+        dss.Text.Command("CalcVoltageBases")
+        dss.Text.Command("solve mode=snapshot")
+        self._state = OpenDSSState.SNAPSHOT_RUN
+
+    def reenable(self):
         dss.Text.Command("Batchedit Load..* enabled=yes")
         dss.Text.Command("Batchedit Vsource..* enabled=yes")
         dss.Text.Command("Batchedit Isource..* enabled=yes")
@@ -146,9 +152,6 @@ class FeederSimulator(object):
         dss.Text.Command("Batchedit PVsystem..* enabled=yes")
         dss.Text.Command("Batchedit Capacitor..* enabled=yes")
         dss.Text.Command("Batchedit Storage..* enabled=no")
-        dss.Text.Command("CalcVoltageBases")
-        dss.Text.Command("solve mode=snapshot")
-        self._state = OpenDSSState.SNAPSHOT_RUN
 
     def download_data(self, bucket_name, update_loadshape_location=False):
         """Download data from bucket path."""
@@ -336,6 +339,12 @@ class FeederSimulator(object):
 
         dss.Text.Command("batchedit Load..* enabled=false")
         self._state = OpenDSSState.DISABLED_RUN
+        self.reenable()
+
+        dss.Text.Command("CalcVoltageBases")
+        dss.Text.Command("set maxiterations=20")
+        dss.Text.Command("solve")
+        self._state = OpenDSSState.SOLVE_AT_TIME
 
         return coo_matrix(
             (Ymatrix.data, (permute[Ymatrix.row], permute[Ymatrix.col])),

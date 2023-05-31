@@ -22,6 +22,26 @@ import sender_cosim
 from sender_cosim import agg_to_ids
 
 
+@pytest.fixture(scope="session", autouse=True)
+def init_federate_simulation():
+    federate_config = FeederSimulator.FeederConfig(
+        **{
+            "use_smartds": False,
+            "profile_location": "gadal_ieee123/profiles",
+            "opendss_location": "gadal_ieee123/qsts",
+            "sensor_location": "gadal_ieee123/sensors.json",
+            "start_date": "2017-01-01 00:00:00",
+            "number_of_timesteps": 96,
+            "run_freq_sec": 900,
+            "topology_output": "../../outputs/topology.json",
+            "name": "feeder",
+        }
+    )
+    logging.info("Initializating simulation data")
+    _ = FeederSimulator.FeederSimulator(federate_config)
+    return
+
+
 @pytest.fixture()
 def federate_config():
     return FeederSimulator.FeederConfig(
@@ -30,6 +50,7 @@ def federate_config():
             "profile_location": "gadal_ieee123/profiles",
             "opendss_location": "gadal_ieee123/qsts",
             "sensor_location": "gadal_ieee123/sensors.json",
+            "existing_feeder_file": "opendss/master.dss",
             "start_date": "2017-01-01 00:00:00",
             "number_of_timesteps": 96,
             "run_freq_sec": 900,
@@ -303,6 +324,12 @@ def simulation_middle(sim, Y):
     current_data = sender_cosim.get_current_data(sim, Y)
     assert len(current_data.injections.power_real.values) == len(
         current_data.injections.power_real.ids
+    )
+
+    current_data_again = sender_cosim.get_current_data(sim, Y)
+    assert np.allclose(
+        current_data_again.feeder_voltages,
+        current_data.feeder_voltages
     )
 
     assert '113' in current_data.PQ_injections_all.equipment_ids.data
