@@ -339,7 +339,7 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
             sim.apply_inverter_control(inv_control)
 
         logger.info(
-            f"Solve at hour {floored_timestamp.hour} second"
+            f"Solve at hour {floored_timestamp.hour} second "
             f"{60*floored_timestamp.minute + floored_timestamp.second}"
         )
         sim.solve(
