@@ -117,7 +117,7 @@ class FeederSimulator(object):
         if self._use_smartds:
             self._feeder_file = os.path.join("opendss", "Master.dss")
             if not os.path.isfile(os.path.join("opendss", "Master.dss")):
-                self.download_data("oedi-data-lake")
+                self.download_data("oedi-data-lake", update_loadshape_location=True)
             self.load_feeder()
             self.create_measurement_lists()
         else:
