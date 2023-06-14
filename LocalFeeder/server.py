@@ -1,6 +1,7 @@
-from gadal.gadal_types.common import BrokerConfig
+from oedisi.types.common import BrokerConfig
 from fastapi import FastAPI, BackgroundTasks, UploadFile
 from fastapi.exceptions import HTTPException
+from fastapi.responses import FileResponse
 from sender_cosim import run_simulator
 import zipfile
 import uvicorn
@@ -17,6 +18,10 @@ def read_root():
     hostname = socket.gethostname()
     host_ip = socket.gethostbyname(hostname)
     return {"hostname": hostname, "host ip": host_ip}
+
+# @app.get("/download/")
+# async def download_model():
+#     return FileResponse(path=file_path, filename=file_path, media_type='text/mp4')
 
 @app.post("/model/")
 async def upload_model(file:UploadFile):

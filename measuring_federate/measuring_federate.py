@@ -6,8 +6,8 @@ from typing import List, Dict
 import scipy.io
 import json
 from datetime import datetime
-from gadal.gadal_types.common import BrokerConfig
-from gadal.gadal_types.data_types import MeasurementArray
+from oedisi.types.common import BrokerConfig
+from oedisi.types.data_types import MeasurementArray
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())

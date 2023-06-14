@@ -6,8 +6,8 @@ import json
 import csv
 import pyarrow as pa
 from datetime import datetime
-from gadal.gadal_types.data_types import MeasurementArray
-from gadal.gadal_types.common import BrokerConfig
+from oedisi.types.data_types import MeasurementArray
+from oedisi.types.common import BrokerConfig
 
 
 logger = logging.getLogger(__name__)

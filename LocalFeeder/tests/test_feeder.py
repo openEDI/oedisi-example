@@ -7,7 +7,7 @@ import pandas as pd
 import plotille
 import pytest
 import xarray as xr
-from gadal.gadal_types.data_types import MeasurementArray
+from oedisi.types.data_types import MeasurementArray
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -24,7 +24,7 @@ def federate_config():
             "use_smartds": False,
             "profile_location": "gadal_ieee123/profiles",
             "opendss_location": "gadal_ieee123/qsts",
-            "sensor_location": "gadal_ieee123/sensors.json",
+            "sensor_location": "oedisi.types_ieee123/sensors.json",
             "start_date": "2017-01-01 00:00:00",
             "number_of_timesteps": 96,
             "run_freq_sec": 900,

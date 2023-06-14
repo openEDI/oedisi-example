@@ -39,7 +39,7 @@ async def run_feeder(background_tasks: BackgroundTasks):
     print(broker)
     isconnected = h.helicsBrokerIsConnected(broker)
     print(f"Broker connected: ", isconnected)
-       
+    print(component_map)
     for service_ip, service_port in component_map.items():
         url = f'http://{service_ip}:{service_port}/run/'
         print(url)

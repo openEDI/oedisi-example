@@ -16,8 +16,8 @@ from enum import Enum
 from typing import List, Optional, Union
 from scipy.optimize import least_squares
 from datetime import datetime
-from gadal.gadal_types.common import BrokerConfig
-from gadal.gadal_types.data_types import (
+from oedisi.types.common import BrokerConfig
+from oedisi.types.data_types import (
     AdmittanceSparse,
     MeasurementArray,
     AdmittanceMatrix,

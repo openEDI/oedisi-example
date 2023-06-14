@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import json
 import os
-from gadal.gadal_types.data_types import MeasurementArray, AdmittanceMatrix, Topology
+from oedisi.types.data_types import MeasurementArray, AdmittanceMatrix, Topology
 import argparse
 
 
