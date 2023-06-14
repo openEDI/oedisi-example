@@ -1,4 +1,4 @@
-from gadal.gadal_types.common import BrokerConfig
+from oedisi.types.common import BrokerConfig
 from measuring_federate import run_simulator
 from fastapi import FastAPI, BackgroundTasks
 import uvicorn

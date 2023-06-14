@@ -7,7 +7,8 @@ import csv
 import pyarrow as pa
 from datetime import datetime
 from oedisi.types.data_types import MeasurementArray
-from oedisi.types.data_types import MeasurementArray
+
+from oedisi.types.common import BrokerConfig
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())

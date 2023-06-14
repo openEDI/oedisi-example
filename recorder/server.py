@@ -1,4 +1,4 @@
-from gadal.gadal_types.common import BrokerConfig
+from oedisi.types.common import BrokerConfig
 from record_subscription import run_simulator
 from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel

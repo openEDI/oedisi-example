@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
-from gadal.gadal_types.common import BrokerConfig
+from oedisi.types.common import BrokerConfig
 import helics as h
 import numpy as np
 import numpy.typing as npt
