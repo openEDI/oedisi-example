@@ -63,6 +63,9 @@ class FeederConfig(BaseModel):
     topology_output: str = "topology.json"
     use_sparse_admittance: bool = False
 
+class FeederMapping(BaseModel):
+    static_inputs : FeederConfig
+    input_mapping : Dict[str, str]
 
 class OpenDSSState(Enum):
     """Enum of all OpenDSSStates traversed in a simulation."""

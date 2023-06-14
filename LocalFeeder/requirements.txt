@@ -1,0 +1,15 @@
+helics==3.4.0
+helics-apps==3.4.0
+pydantic
+pyarrow
+scipy
+matplotlib
+numpy
+pandas
+OpenDSSDirect.py[extras]==0.7.0
+boto3
+xarray
+fastapi
+uvicorn
+git+https://github.com/openEDI/GADAL@al/kubernetes
+python-multipart

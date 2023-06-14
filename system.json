@@ -1,0 +1,203 @@
+{
+    "name": "docker_test",
+    "components": [
+        {
+            "name": "feeder",
+            "type": "LocalFeeder",
+			"host": "10.5.0.2",
+			"port": 5678,
+            "parameters": {
+                "use_smartds": false,
+                "profile_location": "gadal_ieee123/profiles",
+                "opendss_location": "gadal_ieee123/qsts",
+                "sensor_location": "gadal_ieee123/sensors.json",
+                "start_date": "2017-01-01 00:00:00",
+                "number_of_timesteps": 96,
+                "run_freq_sec": 900,
+                "topology_output": "../../outputs/topology.json"
+            }
+        },
+		{
+            "name": "recorder_voltage_real",
+            "type": "Recorder",
+			"host": "10.5.0.3",
+			"port": 5679,
+            "parameters": {"feather_filename": "../../outputs/voltage_real.feather",
+                           "csv_filename": "../../outputs/voltage_real.csv"
+                          }
+        },
+        {
+            "name": "recorder_voltage_imag",
+            "type": "Recorder",
+			"host": "10.5.0.4",
+			"port": 5680,
+            "parameters": {"feather_filename": "../../outputs/voltage_imag.feather",
+                           "csv_filename": "../../outputs/voltage_imag.csv"
+                          }
+        },
+        {
+            "name": "recorder_voltage_mag",
+            "type": "Recorder",
+			"host": "10.5.0.5",
+			"port": 5681,
+            "parameters": {"feather_filename": "../../outputs/voltage_mag.feather",
+                           "csv_filename": "../../outputs/voltage_mag.csv"
+                          }
+        },
+        {
+            "name": "recorder_voltage_angle",
+            "type": "Recorder",
+			"host": "10.5.0.6",
+			"port": 5682,
+            "parameters": {"feather_filename": "../../outputs/voltage_angle.feather",
+                           "csv_filename": "../../outputs/voltage_angle.csv"
+                          }
+        },
+        {
+            "name": "state_estimator",
+            "type": "StateEstimatorComponent",
+			"host": "10.5.0.7",
+			"port": 5683,
+            "parameters": {
+                "algorithm_parameters": {"tol": 1e-5}
+            }
+        },
+      
+        {
+            "name": "sensor_voltage_real",
+            "type": "MeasurementComponent",
+			"host": "10.5.0.8",
+			"port": 5684,
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../feeder/sensors/sensors.json"
+            }
+        },
+        {
+            "name": "sensor_voltage_magnitude",
+            "type": "MeasurementComponent",
+			"host": "10.5.0.9",
+			"port": 5685,
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../feeder/sensors/sensors.json"
+            }
+        },
+        {
+            "name": "sensor_voltage_imaginary",
+            "type": "MeasurementComponent",
+			"host": "10.5.0.10",
+			"port": 5686,
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../feeder/sensors/sensors.json"
+            }
+        },
+        {
+            "name": "sensor_power_real",
+            "type": "MeasurementComponent",
+			"host": "10.5.0.11",
+			"port": 5687,
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../feeder/sensors/sensors.json"
+            }
+        },
+        {
+            "name": "sensor_power_imaginary",
+            "type": "MeasurementComponent",
+			"host": "10.5.0.12",
+			"port": 5688,
+            "parameters": {
+                "gaussian_variance": 0.0,
+                "random_percent": 0.0,
+                "measurement_file": "../feeder/sensors/sensors.json"
+            }
+        }
+
+    ],
+    "links": [
+        {
+            "source": "feeder",
+            "source_port": "voltages_magnitude",
+            "target": "sensor_voltage_magnitude",
+            "target_port": "subscription"
+        },
+        {
+            "source": "feeder",
+            "source_port": "voltages_real",
+            "target": "sensor_voltage_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "feeder",
+            "source_port": "voltages_imag",
+            "target": "sensor_voltage_imaginary",
+            "target_port": "subscription"
+        },
+        {
+            "source": "feeder",
+            "source_port": "powers_real",
+            "target": "sensor_power_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "feeder",
+            "source_port": "powers_imag",
+            "target": "sensor_power_imaginary",
+            "target_port": "subscription"
+        },
+        {
+            "source": "feeder",
+            "source_port": "topology",
+            "target": "state_estimator",
+            "target_port": "topology"
+        },
+        {
+            "source": "sensor_voltage_magnitude",
+            "source_port": "publication",
+            "target": "state_estimator",
+            "target_port": "voltages_magnitude"
+        },
+        {
+            "source": "sensor_power_real",
+            "source_port": "publication",
+            "target": "state_estimator",
+            "target_port": "powers_real"
+        },
+        {
+            "source": "sensor_power_imaginary",
+            "source_port": "publication",
+            "target": "state_estimator",
+            "target_port": "powers_imaginary"
+        },
+        {
+            "source": "feeder",
+            "source_port": "voltages_real",
+            "target": "recorder_voltage_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "feeder",
+            "source_port": "voltages_imag",
+            "target": "recorder_voltage_imag",
+            "target_port": "subscription"
+        },
+        {
+            "source": "state_estimator",
+            "source_port": "voltage_angle",
+            "target": "recorder_voltage_angle",
+            "target_port": "subscription"
+        },
+        {
+            "source": "state_estimator",
+            "source_port": "voltage_mag",
+            "target": "recorder_voltage_mag",
+            "target_port": "subscription"
+        }
+    ]
+}
