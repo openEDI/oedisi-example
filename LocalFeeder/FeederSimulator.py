@@ -7,7 +7,7 @@ import random
 import time
 from enum import Enum
 from time import strptime
-from typing import Any, Dict, List, Optional, Set
+from typing import Dict, List, Set, Optional
 
 import boto3
 import numpy as np
@@ -15,7 +15,8 @@ import opendssdirect as dss
 import xarray as xr
 from botocore import UNSIGNED
 from botocore.config import Config
-from pydantic import BaseModel, root_validator
+from oedisi.types.data_types import Command, InverterControl, InverterControlMode
+from pydantic import BaseModel
 from scipy.sparse import coo_matrix, csc_matrix
 
 from dss_functions import (
@@ -53,7 +54,8 @@ class FeederConfig(BaseModel):
     use_smartds: bool = False
     profile_location: str
     opendss_location: str
-    sensor_location: str = ""
+    existing_feeder_file: Optional[str] = None
+    sensor_location: Optional[str] = None
     start_date: str
     number_of_timesteps: float
     run_freq_sec: float = 15 * 60
@@ -64,90 +66,6 @@ class FeederConfig(BaseModel):
 class FeederMapping(BaseModel):
     static_inputs : FeederConfig
     input_mapping : Dict[str, str]
-
-class Command(BaseModel):
-    """JSON Configuration for external object commands.
-
-    obj_name -- name of the object.
-    obj_prop -- name of the property.
-    obj_val -- val of the property.
-    """
-
-    obj_name: str
-    obj_property: str
-    val: Any
-
-
-class CommandList(BaseModel):
-    """List[Command] with JSON parsing."""
-
-    __root__: List[Command]
-
-
-class ReactivePowerSetting(Enum):
-    """Reactive power setting, almost always VARAVAL_WATTS."""
-
-    VARAVAL_WATTS = "VARAVAL_WATTS"
-    VARMAX_VARS = "VARMAX_VARS"
-    VARMAX_WATTS = "VARMAX_WATTS"
-
-
-class InverterControlMode(Enum):
-    """Inverter control mode."""
-
-    voltvar = "VOLTVAR"
-    voltwatt = "VOLTWATT"
-    voltvar_voltwatt = "VV_VW"
-
-
-class VVControl(BaseModel):
-    """OpenDSS setting for volt-var control."""
-
-    deltaq_factor: float = 0.7
-    varchangetolerance: float = 0.025
-    voltagechangetolerance: float = 0.0001
-    vv_refreactivepower: ReactivePowerSetting = ReactivePowerSetting.VARAVAL_WATTS
-    voltage: List[float]  # p.u. in V
-    reactive_response: List[float]  # p.u. in VArs
-
-
-class VWControl(BaseModel):
-    """OpenDSS setting for volt-watt control."""
-
-    deltap_factor: float = 1.0
-    voltage: List[float]  # p.u. in V
-    power_response: List[float]  # p.u. in VArs
-
-
-class InverterControl(BaseModel):
-    """InverterControl with volt-var control and/or volt-watt control."""
-
-    pvsystem_list: Optional[List[str]] = None
-    vvcontrol: Optional[VVControl] = None
-    vwcontrol: Optional[VWControl] = None
-    mode: InverterControlMode = InverterControlMode.voltvar
-
-    @root_validator(pre=True)
-    def check_mode(cls, values):
-        """Make sure that mode reflects vvcontrol and vwcontrol data."""
-        if "mode" not in values or (
-            values["mode"] == InverterControlMode.voltvar
-            or values["mode"] == InverterControlMode.voltvar_voltwatt
-        ):
-            assert "vvcontrol" in values and values["vvcontrol"] is not None
-        if "mode" in values and (
-            values["mode"] == InverterControlMode.voltwatt
-            or values["mode"] == InverterControlMode.voltvar_voltwatt
-        ):
-            assert "vwcontrol" in values and values["vwcontrol"] is not None
-        return values
-
-
-class InverterControlList(BaseModel):
-    """List[InverterControl] with JSON parsing."""
-
-    __root__: List[InverterControl]
-
 
 class OpenDSSState(Enum):
     """Enum of all OpenDSSStates traversed in a simulation."""
@@ -200,17 +118,20 @@ class FeederSimulator(object):
         self._vmult = 0.001
 
         self._simulation_time_step = "15m"
-        if self._use_smartds:
-            self._feeder_file = os.path.join("opendss", "Master.dss")
-            if not os.path.isfile(os.path.join("opendss", "Master.dss")):
-                self.download_data("oedi-data-lake")
-            self.load_feeder()
-            self.create_measurement_lists()
-        else:
-            self._feeder_file = os.path.join("opendss", "master.dss")
-            if not os.path.isfile(os.path.join("opendss", "master.dss")):
+        if config.existing_feeder_file is None:
+            if self._use_smartds:
+                self._feeder_file = os.path.join("opendss", "Master.dss")
+                self.download_data("oedi-data-lake", update_loadshape_location=True)
+            else:
+                self._feeder_file = os.path.join("opendss", "master.dss")
                 self.download_data("gadal")
-            self.load_feeder()
+        else:
+            self._feeder_file = config.existing_feeder_file
+
+        self.load_feeder()
+
+        if self._sensor_location is None:
+            self.create_measurement_lists()
 
         self.snapshot_run()
         assert self._state == OpenDSSState.SNAPSHOT_RUN, f"{self._state}"
@@ -221,6 +142,12 @@ class FeederSimulator(object):
         Used for initialization.
         """
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
+        self.reenable()
+        dss.Text.Command("CalcVoltageBases")
+        dss.Text.Command("solve mode=snapshot")
+        self._state = OpenDSSState.SNAPSHOT_RUN
+
+    def reenable(self):
         dss.Text.Command("Batchedit Load..* enabled=yes")
         dss.Text.Command("Batchedit Vsource..* enabled=yes")
         dss.Text.Command("Batchedit Isource..* enabled=yes")
@@ -228,9 +155,6 @@ class FeederSimulator(object):
         dss.Text.Command("Batchedit PVsystem..* enabled=yes")
         dss.Text.Command("Batchedit Capacitor..* enabled=yes")
         dss.Text.Command("Batchedit Storage..* enabled=no")
-        dss.Text.Command("CalcVoltageBases")
-        dss.Text.Command("solve mode=snapshot")
-        self._state = OpenDSSState.SNAPSHOT_RUN
 
     def download_data(self, bucket_name, update_loadshape_location=False):
         """Download data from bucket path."""
@@ -278,7 +202,7 @@ class FeederSimulator(object):
                 os.makedirs(os.path.dirname(output_location), exist_ok=True)
                 bucket.download_file(obj.key, output_location)
 
-        if sensor_location != "":
+        if sensor_location is not None:
             output_location = os.path.join("sensors", os.path.basename(sensor_location))
             if not os.path.exists(os.path.dirname(output_location)):
                 os.makedirs(os.path.dirname(output_location))
@@ -418,6 +342,12 @@ class FeederSimulator(object):
 
         dss.Text.Command("batchedit Load..* enabled=false")
         self._state = OpenDSSState.DISABLED_RUN
+        self.reenable()
+
+        dss.Text.Command("CalcVoltageBases")
+        dss.Text.Command("set maxiterations=20")
+        dss.Text.Command("solve")
+        self._state = OpenDSSState.SOLVE_AT_TIME
 
         return coo_matrix(
             (Ymatrix.data, (permute[Ymatrix.row], permute[Ymatrix.col])),

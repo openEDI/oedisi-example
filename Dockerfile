@@ -19,5 +19,5 @@ RUN mkdir -p outputs build
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-RUN gadal build --system docker_system.json
-ENTRYPOINT ["gadal", "run"]
+RUN oedisi build --system docker_system.json
+ENTRYPOINT ["oedisi", "run"]

@@ -12,7 +12,10 @@ import xarray as xr
 from oedisi.types.data_types import (
     AdmittanceMatrix,
     AdmittanceSparse,
+    CommandList,
+    EquipmentNodeArray,
     Injection,
+    InverterControlList,
     MeasurementArray,
     PowersImaginary,
     PowersReal,
@@ -24,12 +27,7 @@ from oedisi.types.data_types import (
 )
 from scipy.sparse import coo_matrix
 
-from FeederSimulator import (
-    CommandList,
-    InverterControlList,
-    FeederConfig,
-    FeederSimulator
-)
+from FeederSimulator import FeederConfig, FeederSimulator
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -85,10 +83,6 @@ def xarray_to_powers(data, **kwargs):
 
 def concat_measurement_arrays(*ps: MeasurementArray):
     """Concatenate list of measurements into one."""
-    equipment_type = None
-    if all((p.equipment_type is not None for p in ps)):
-        equipment_type = [e for p in ps for e in p.equipment_type]
-
     accuracy = None
     if all((p.accuracy is not None for p in ps)):
         accuracy = [e for p in ps for e in p.accuracy]
@@ -101,31 +95,35 @@ def concat_measurement_arrays(*ps: MeasurementArray):
 
     assert all(ps[0].time == p.time for p in ps)
 
-    return ps[0].__class__(
-        values=[v for p in ps for v in p.values],
-        ids=[id for p in ps for id in p.ids],
-        units=ps[0].units,
-        equipment_type=equipment_type,
-        accuracy=accuracy,
-        bad_data_threshold=bad_data_threshold,
-        time=ps[0].time,
-    )
+    if all((isinstance(p, EquipmentNodeArray) for p in ps)):
+        equipment_ids = [e for p in ps for e in p.equipment_ids]
+
+        return ps[0].__class__(
+            values=[v for p in ps for v in p.values],
+            ids=[id for p in ps for id in p.ids],
+            equipment_ids=equipment_ids,
+            units=ps[0].units,
+            accuracy=accuracy,
+            bad_data_threshold=bad_data_threshold,
+            time=ps[0].time,
+        )
+    else:
+        return ps[0].__class__(
+            values=[v for p in ps for v in p.values],
+            ids=[id for p in ps for id in p.ids],
+            units=ps[0].units,
+            accuracy=accuracy,
+            bad_data_threshold=bad_data_threshold,
+            time=ps[0].time,
+        )
 
 
 def get_powers(PQ_load, PQ_PV, PQ_gen, PQ_cap):
     """Turn xararys into PowersReal and PowersImaginary."""
-    PQ_load_real, PQ_load_imag = xarray_to_powers(
-        PQ_load, equipment_type=["Load"] * len(PQ_load)
-    )
-    PQ_PV_real, PQ_PV_imag = xarray_to_powers(
-        PQ_PV, equipment_type=["PVSystem"] * len(PQ_PV)
-    )
-    PQ_gen_real, PQ_gen_imag = xarray_to_powers(
-        PQ_gen, equipment_type=["Generator"] * len(PQ_gen)
-    )
-    PQ_cap_real, PQ_cap_imag = xarray_to_powers(
-        PQ_cap, equipment_type=["Capacitor"] * len(PQ_cap)
-    )
+    PQ_load_real, PQ_load_imag = xarray_to_powers(PQ_load)
+    PQ_PV_real, PQ_PV_imag = xarray_to_powers(PQ_PV)
+    PQ_gen_real, PQ_gen_imag = xarray_to_powers(PQ_gen)
+    PQ_cap_real, PQ_cap_imag = xarray_to_powers(PQ_cap)
 
     power_real = concat_measurement_arrays(
         PQ_load_real, PQ_PV_real, PQ_gen_real, PQ_cap_real
@@ -211,6 +209,7 @@ class CurrentData:
     PQ_injections_all: xr.core.dataarray.DataArray
     calculated_power: xr.core.dataarray.DataArray
     injections: Injection
+    load_y_matrix: Any
 
 
 def get_current_data(sim: FeederSimulator, Y):
@@ -225,7 +224,9 @@ def get_current_data(sim: FeederSimulator, Y):
     power_real, power_imaginary = get_powers(-PQ_load, -PQ_PV, -PQ_gen, -PQ_cap)
     injections = Injection(power_real=power_real, power_imaginary=power_imaginary)
 
-    ids = xr.DataArray(sim._AllNodeNames, coords={"ids": sim._AllNodeNames})
+    ids = xr.DataArray(sim._AllNodeNames, coords={
+        "ids": sim._AllNodeNames,
+    })
     PQ_injections_all = (
         agg_to_ids(PQ_load, ids)
         + agg_to_ids(PQ_PV, ids)
@@ -233,15 +234,20 @@ def get_current_data(sim: FeederSimulator, Y):
         + agg_to_ids(PQ_cap, ids)
     )
 
+    PQ_injections_all = PQ_injections_all.assign_coords(equipment_ids=('ids', list(map(lambda x: x.split(".")[0], sim._AllNodeNames))))
     calculated_power = (
         feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
     )
+
     PQ_injections_all[sim._source_indexes] = -calculated_power[sim._source_indexes]
+
+    Y_load = sim.get_load_y_matrix()
     return CurrentData(
         feeder_voltages=feeder_voltages,
         PQ_injections_all=PQ_injections_all,
         calculated_power=calculated_power,
         injections=injections,
+        load_y_matrix=Y_load,
     )
 
 
@@ -296,6 +302,9 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
     pub_injections = h.helicsFederateRegisterPublication(
         vfed, "injections", h.HELICS_DATA_TYPE_STRING, ""
     )
+    pub_load_y_matrix = h.helicsFederateRegisterPublication(
+        vfed, "load_y_matrix", h.HELICS_DATA_TYPE_STRING, ""
+    )
 
     command_set_key = (
         "unused/change_commands"
@@ -343,15 +352,18 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
             sim.apply_inverter_control(inv_control)
 
         logger.info(
-            f"Solve at hour {floored_timestamp.hour} second"
+            f"Solve at hour {floored_timestamp.hour} second "
             f"{60*floored_timestamp.minute + floored_timestamp.second}"
         )
+
+        sim.snapshot_run()
         sim.solve(
             floored_timestamp.hour,
             60 * floored_timestamp.minute + floored_timestamp.second,
         )
 
         current_data = get_current_data(sim, initial_data.Y)
+
         bad_bus_names = where_power_unbalanced(
             current_data.PQ_injections_all, current_data.calculated_power
         )
@@ -403,6 +415,22 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
             ).json()
         )
         pub_injections.publish(current_data.injections.json())
+
+        if config.use_sparse_admittance:
+            pub_load_y_matrix.publish(
+                sparse_to_admittance_sparse(
+                    current_data.load_y_matrix, sim._AllNodeNames
+                ).json()
+            )
+        else:
+            pub_load_y_matrix.publish(
+                AdmittanceMatrix(
+                    admittance_matrix=numpy_to_y_matrix(
+                        current_data.load_y_matrix.toarray()
+                    ),
+                    ids=sim._AllNodeNames
+                ).json()
+            )
 
         logger.info("end time: " + str(datetime.now()))
 
