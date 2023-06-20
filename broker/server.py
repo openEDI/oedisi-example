@@ -1,7 +1,8 @@
 from re import L
 from fastapi import FastAPI, BackgroundTasks
 import helics as h
-import requests
+import logging
+import grequests
 import uvicorn
 import socket
 import yaml
@@ -25,8 +26,7 @@ async def run_feeder(background_tasks: BackgroundTasks):
         
     broker = services.pop('broker')
     broker_ip = broker['networks']['custom-network']['ipv4_address']
-    print(broker['ports'][0].split(":"))
-    broker_port = int(broker['ports'][0].split(":")[0])
+    api_port = int(broker['ports'][0].split(":")[0])
 
     for service in services:
         ip = services[service]['networks']['custom-network']['ipv4_address']
@@ -34,31 +34,36 @@ async def run_feeder(background_tasks: BackgroundTasks):
         component_map[ip] = port
     
     initstring = f"-f {len(component_map)} --name=mainbroker --loglevel=trace --local_interface={broker_ip} --localport={23404}"
-    print(f"Broker initaialization string: {initstring}")
+    logging.info(f"Broker initaialization string: {initstring}")
     broker = h.helicsCreateBroker("zmq", "", initstring)
-    print(broker)
+    logging.info(broker)
     isconnected = h.helicsBrokerIsConnected(broker)
-    print(f"Broker connected: ", isconnected)
-    print(component_map)
+    logging.info(f"Broker connected: " + str(isconnected))
+    logging.info(str(component_map))
+    replys = []
     for service_ip, service_port in component_map.items():
         url = f'http://{service_ip}:{service_port}/run/'
-        print(url)
+        logging.info(url)
         myobj = {
             "broker_port" : 23404,
             "broker_ip" : broker_ip,
+            "api_port" : api_port,
+            "services" : services,
         }
-        print(myobj)
-        try:
-            reply = requests.post(url, json = myobj)
-        except Exception as e:
-            reply = None
-            print(str(e))
+        logging.info(str(myobj))
+        replys.append(grequests.post(url, json = myobj))
+    
+    
+        # except Exception as e:
+        #     reply = None
+        #     logging.error(str(e))
             
-        if reply and reply.ok:
-            print(f"sucess calling {url}")
-            print(f"{reply.text}")
-        else:
-            print(f"failure calling {url}")
+        # if reply and reply.ok:
+        #     logging.info(f"sucess calling {url}")
+        #     logging.info(f"{reply.text}")
+        # else:
+        #     logging.error(f"failure calling {url}")
+    print(grequests.map(replys))
     return
 
 if __name__ == "__main__":

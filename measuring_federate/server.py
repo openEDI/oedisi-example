@@ -1,20 +1,35 @@
+from email import feedparser
 from oedisi.types.common import BrokerConfig
 from measuring_federate import run_simulator
 from fastapi import FastAPI, BackgroundTasks
 import uvicorn
 import socket
+import requests
 import sys
+import json
 
 app = FastAPI()
 
+
+
 @app.get("/")
-def read_root():
+async def read_root():
     hostname = socket.gethostname()
     host_ip = socket.gethostbyname(hostname)
     return {"hostname": hostname, "host ip": host_ip}
 
 @app.post("/run/")
 async def run_model(broker_config:BrokerConfig, background_tasks: BackgroundTasks):
+    print(broker_config)
+    feeder_ip = broker_config.services['feeder']['networks']['custom-network']['ipv4_address']
+    feeder_port = int(broker_config.services['feeder']['ports'][0].split(":")[0])
+    url =f"http://{feeder_ip}:{feeder_port}/sensor/"
+    print(url)
+    reply = requests.get(url)
+    sensor_data = reply.json()
+    with open("sensors.json", "w") as outfile:
+        json.dump(sensor_data, outfile)
+    
     try:
         background_tasks.add_task(run_simulator, broker_config)
         return {"reply": "success", "error": False}
@@ -24,3 +39,4 @@ async def run_model(broker_config:BrokerConfig, background_tasks: BackgroundTask
 if __name__ == "__main__":
     port = int(sys.argv[2])
     uvicorn.run(app, host="0.0.0.0", port=port)
+    

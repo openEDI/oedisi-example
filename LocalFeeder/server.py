@@ -6,7 +6,10 @@ from sender_cosim import run_simulator
 import zipfile
 import uvicorn
 import socket
+import time
+import json
 import sys
+import os
 
 app = FastAPI()
 
@@ -19,9 +22,16 @@ def read_root():
     host_ip = socket.gethostbyname(hostname)
     return {"hostname": hostname, "host ip": host_ip}
 
-# @app.get("/download/")
-# async def download_model():
-#     return FileResponse(path=file_path, filename=file_path, media_type='text/mp4')
+@app.get("/sensor/")
+async def sensor():
+    print(os.getcwd())
+    sensor_path = os.path.join(os.getcwd(), 'sensors','sensors.json')
+    while not os.path.exists(sensor_path):
+        time.sleep(0.1)
+        print("waiting")
+    print("success")
+    data = json.load(open(sensor_path, "r"))
+    return data
 
 @app.post("/model/")
 async def upload_model(file:UploadFile):

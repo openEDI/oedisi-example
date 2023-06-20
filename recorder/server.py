@@ -1,12 +1,14 @@
 from oedisi.types.common import BrokerConfig
 from record_subscription import run_simulator
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict
 import uvicorn
+from fastapi.responses import FileResponse
 import socket
 import json
 import sys
+import os
 
 app = FastAPI()
 
@@ -15,6 +17,18 @@ def read_root():
     hostname = socket.gethostname()
     host_ip = socket.gethostbyname(hostname)
     return {"hostname": hostname, "host ip": host_ip}
+
+def find_filenames(path_to_dir=os.getcwd(), suffix=".feather" ):
+    filenames = os.listdir(path_to_dir)
+    return [ filename for filename in filenames if filename.endswith( suffix ) ]
+
+@app.get("/download/")
+def read_root():
+    file_list  = find_filenames()
+    if file_list:
+        return FileResponse(path=file_list[0], filename=file_list[0], media_type='text/mp4')
+    else:
+        raise HTTPException(status_code=404, detail="No feather file found")
 
 @app.post("/run/")
 async def run_model(broker_config:BrokerConfig, background_tasks: BackgroundTasks):

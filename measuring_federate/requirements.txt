@@ -8,4 +8,6 @@ numpy
 pandas
 fastapi
 uvicorn
+requests
+grequests
 git+https://github.com/openEDI/GADAL@al/kubernetes
