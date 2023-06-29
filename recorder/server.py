@@ -1,12 +1,9 @@
-from oedisi.types.common import BrokerConfig
-from record_subscription import run_simulator
 from fastapi import FastAPI, BackgroundTasks, HTTPException
-from pydantic import BaseModel
-from typing import List, Dict
-import uvicorn
+from record_subscription import run_simulator
+from oedisi.types.common import BrokerConfig
 from fastapi.responses import FileResponse
+import uvicorn
 import socket
-import json
 import sys
 import os
 
