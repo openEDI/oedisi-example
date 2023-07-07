@@ -1,4 +1,7 @@
 base_*.csv
+base_*.npz
+opendss
+profiles
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

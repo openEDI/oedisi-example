@@ -9,7 +9,5 @@ https://data.openei.org/s3_viewer?bucket=oedi-data-lake&prefix=SMART-DS%2Fv1.0%2
 
 Or under the s3 link,
 ```
-oedi-data-lake/SMART-DS/v1.0/2017/SFO/P1U/scenarios/base_timeseries/opendss/p1uhs0_1247/p1uhs0_1247--p1udt942 
+oedi-data-lake/SMART-DS/v1.0/2017/SFO/P1U/scenarios/base_timeseries/opendss/p1uhs0_1247/p1uhs0_1247--p1udt942
 ```
-
-

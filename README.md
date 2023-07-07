@@ -1,4 +1,4 @@
-# GADAL-example
+# oedisi-example
 
 This example shows how to use the GADAL api to manage simulations. We also
 use it as a testing ground for the testing the combination of feeders,
@@ -6,24 +6,17 @@ state estimation, and distributed OPF.
 
 # Install and Running Locally
 
-1. Install the GADAL `componentframework` using `python setup.py develop` or using
-`pip install git+ssh://git@github.com/openEDI/GADAL@v0.2.2`.
-
-To run the simulation, you'll need several libraries such as OpenDSSDirect.py and pyarrow.
+1. To run the simulation, you'll need several libraries such as OpenDSSDirect.py and pyarrow.
 ```
 pip install -r requirements.txt
 ```
-For analysis, you'll also need matplotlib.
-```
-pip install matplotlib`
-```
-2. Run `python test_full_systems.py` to initialize the system
-defined in `test_system.json` in a `build` directory.
+2. Run `oedisi build --system scenarios/docker_system.json` to initialize the system
+defined in `scenarios/test_system.json` in a `build` directory.
 
 You can specify your own directory with `--system` and your own system json
 with `--system`.
 
-3. Run `helics run --path=build/test_system_runner.json`
+3. Run `oedisi run`
 4. Analyze the results using `python post_analysis.py`
 
 This computes some percentage relative errors in magnitude (MAPE) and angle (MAE),
@@ -38,10 +31,15 @@ If the simulation fails, you may **need** to kill the `helics_broker` manually b
 When debugging, you should check the `.log` files for errors. Error code `-9` usually occurs
 when it is killed by the broker as opposed to failing directly.
 
-# Components 
+You can use the `oedisi` CLI tools to help debug specific components or timing.
+
+- `oedisi run-with-pause`
+- `oedisi debug-component --foreground feeder`
+
+# Components
 
 All the required components are defined in folders within this repo. Each component
-pulls types from `gadal.data_types`.
+pulls types from `oedisi.types.data_types`.
 
 ![Block diagram of simulation](sgidal-example.png)
 
@@ -87,7 +85,7 @@ information about the inputs and outputs of each component.
 We created component python scripts that matched these component
 descriptions and followed the GADAL API for configuration.
 
-In order to use the data types from other federates, the `gadal.gadal_types`
+In order to use the data types from other federates, the `oedisi.types`
 module is critical. If additional data is needed, then we recommend
 subclassing the pydantic models and adding the data in the required federates
 as needed. This ensures that others should still be able to parse your types if
@@ -114,19 +112,14 @@ for each component with the right configuration.
 
 # Docker Container
 
-One of the downsides of having `gadal` as a private library at present is that it complicates automated
-installation. We could do this by copying over a tar file, or we can use it by pip installing
-it with an SSH key. Currently, we use an SSH key.
-
-Assuming the github SSH key is in the current directory `gadal_docker_key`, we can build the docker image with
 ```
-docker build --secret id=gadal_github_key,src=gadal_docker_key -t gadal-example:0.0.0 .
+docker build -t oedisi-example:0.0.0 .
 ```
 
 To get a docker volume pointed at the right place locally, we have to run more commands
 ```
 mkdir outputs_build
-docker volume create --name gadal_output --opt type=none --opt device=$(PWD)/outputs_build --opt o=bind
+docker volume create --name oedisi_output --opt type=none --opt device=$(PWD)/outputs_build --opt o=bind
 ```
 
 If `pwd` is unavailable on your system, then you must specify the exact path. On windows, this will end up
@@ -134,7 +127,7 @@ being `/c/Users/.../outputs_builds/`. You must use forward slashes.
 
 Then we can run the docker image:
 ```
-docker run --rm --mount source=gadal_output,target=/simulation/outputs gadal-example:0.0.0
+docker run --rm --mount source=oedisi_output,target=/simulation/outputs oedisi-example:0.0.0
 ```
 
 You can omit the docker volume parts as well as `--mount` if you do not care about the exact outputs.

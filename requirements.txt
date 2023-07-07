@@ -1,10 +1,12 @@
-helics==3.2.1.post15 
-helics-apps==3.2.1
+helics==3.4.0
+helics-apps==3.4.0
 pydantic
 pyarrow
 scipy
 matplotlib
 numpy
 pandas
-OpenDSSDirect.py[extras]
+OpenDSSDirect.py[extras]==0.7.0
 boto3
+xarray
+oedisi==1.0.0
