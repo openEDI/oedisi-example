@@ -1,6 +1,6 @@
 helics==3.4.0
 helics-apps==3.4.0
-pydantic
+pydantic>=1.7,<2
 pyarrow
 scipy
 matplotlib
