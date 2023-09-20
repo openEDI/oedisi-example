@@ -23,8 +23,8 @@ async def run_feeder(background_tasks: BackgroundTasks):
     with open("docker-compose.yml", "r") as stream:
         config = yaml.safe_load(stream)
     services = config['services']
-        
-    broker = services.pop('broker')
+
+    broker = services.pop('oedisi_broker')
     broker_ip = broker['networks']['custom-network']['ipv4_address']
     api_port = int(broker['ports'][0].split(":")[0])
 
@@ -32,7 +32,7 @@ async def run_feeder(background_tasks: BackgroundTasks):
         ip = services[service]['networks']['custom-network']['ipv4_address']
         port = int(services[service]['ports'][0].split(":")[0])
         component_map[ip] = port
-    
+
     initstring = f"-f {len(component_map)} --name=mainbroker --loglevel=trace --local_interface={broker_ip} --localport={23404}"
     logging.info(f"Broker initaialization string: {initstring}")
     broker = h.helicsCreateBroker("zmq", "", initstring)
@@ -52,12 +52,12 @@ async def run_feeder(background_tasks: BackgroundTasks):
         }
         logging.info(str(myobj))
         replys.append(grequests.post(url, json = myobj))
-    
-    
+
+
         # except Exception as e:
         #     reply = None
         #     logging.error(str(e))
-            
+
         # if reply and reply.ok:
         #     logging.info(f"sucess calling {url}")
         #     logging.info(f"{reply.text}")
