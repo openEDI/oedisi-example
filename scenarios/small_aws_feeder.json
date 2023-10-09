@@ -41,6 +41,7 @@
             "type": "LocalFeeder",
             "parameters": {
                 "use_smartds": true,
+                "user_uploads_model": true,
                 "profile_location": "SMART-DS/v1.0/2017/SFO/P1U/profiles",
                 "opendss_location": "SMART-DS/v1.0/2017/SFO/P1U/scenarios/solar_medium_batteries_none_timeseries/opendss/p1uhs0_1247/p1uhs0_1247--p1udt942",
                 "start_date": "2017-05-01 00:00:00",

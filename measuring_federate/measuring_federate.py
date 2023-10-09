@@ -2,8 +2,6 @@ import logging
 import helics as h
 import numpy as np
 from pydantic import BaseModel
-from typing import List, Dict
-import scipy.io
 import json
 from datetime import datetime
 

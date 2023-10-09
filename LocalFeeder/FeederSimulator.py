@@ -52,6 +52,7 @@ class FeederConfig(BaseModel):
 
     name: str
     use_smartds: bool = False
+    user_uploads_model : bool = False
     profile_location: str
     opendss_location: str
     existing_feeder_file: Optional[str] = None
@@ -102,7 +103,7 @@ class FeederSimulator(object):
         self._profile_location = config.profile_location
         self._sensor_location = config.sensor_location
         self._use_smartds = config.use_smartds
-
+        self._user_uploads_model = config.user_uploads_model
         self._inverter_to_pvsystems = {}
         self._pvsystem_to_inverter = {}
         self._inverters = set()
@@ -122,9 +123,12 @@ class FeederSimulator(object):
             if self._use_smartds:
                 self._feeder_file = os.path.join("opendss", "Master.dss")
                 self.download_data("oedi-data-lake", update_loadshape_location=True)
-            else:
+            elif not self._use_smartds and not self._user_uploads_model:
                 self._feeder_file = os.path.join("opendss", "master.dss")
                 self.download_data("gadal")
+            else:
+                #User will upload model usning endpoint
+                pass
         else:
             self._feeder_file = config.existing_feeder_file
 
