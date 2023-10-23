@@ -1,4 +1,4 @@
-from oedisi.types.common import BrokerConfig
+#from oedisi.types.common import BrokerConfig
 from fastapi import FastAPI, BackgroundTasks, UploadFile
 from fastapi.exceptions import HTTPException
 from fastapi.responses import FileResponse
@@ -79,7 +79,7 @@ async def upload_model(file:UploadFile):
         HTTPException(500, "Unknown error while uploading userdefined opendss model.")
 
 @app.post("/run/")
-async def run_feeder(broker_config:BrokerConfig, background_tasks: BackgroundTasks):
+async def run_feeder(broker_config, background_tasks: BackgroundTasks): #:BrokerConfig
     try:
         background_tasks.add_task(run_simulator, broker_config)
         return {"reply": "success", "error": False}

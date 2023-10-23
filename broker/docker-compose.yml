@@ -6,7 +6,7 @@ networks:
       - gateway: 10.5.0.1
         subnet: 10.5.0.0/16
 services:
-  broker:
+  oedisi_broker:
     build:
       context: ./broker/.
     networks:
@@ -14,7 +14,7 @@ services:
         ipv4_address: 10.5.0.2
     ports:
     - 8766:8766
-  feeder:
+  oedisi_feeder:
     build:
       context: ./feeder/.
     networks:
@@ -22,83 +22,83 @@ services:
         ipv4_address: 10.5.0.3
     ports:
     - 5678:5678
-  # recorder_voltage_angle:
-  #   build:
-  #     context: ./recorder_voltage_angle/.
-  #   networks:
-  #     custom-network:
-  #       ipv4_address: 10.5.0.7
-  #   ports:
-  #   - 5682:5682
-  # recorder_voltage_imag:
-  #   build:
-  #     context: ./recorder_voltage_imag/.
-  #   networks:
-  #     custom-network:
-  #       ipv4_address: 10.5.0.5
-  #   ports:
-  #   - 5680:5680
-  # recorder_voltage_mag:
-  #   build:
-  #     context: ./recorder_voltage_mag/.
-  #   networks:
-  #     custom-network:
-  #       ipv4_address: 10.5.0.6
-  #   ports:
-  #   - 5681:5681
-  # recorder_voltage_real:
-  #   build:
-  #     context: ./recorder_voltage_real/.
-  #   networks:
-  #     custom-network:
-  #       ipv4_address: 10.5.0.4
-  #   ports:
-  #   - 5679:5679
-  # sensor_power_imaginary:
-  #   build:
-  #     context: ./sensor_power_imaginary/.
-  #   networks:
-  #     custom-network:
-  #       ipv4_address: 10.5.0.13
-  #   ports:
-  #   - 5688:5688
-  # sensor_power_real:
-  #   build:
-  #     context: ./sensor_power_real/.
-  #   networks:
-  #     custom-network:
-  #       ipv4_address: 10.5.0.12
-  #   ports:
-  #   - 5687:5687
-  # sensor_voltage_imaginary:
-  #   build:
-  #     context: ./sensor_voltage_imaginary/.
-  #   networks:
-  #     custom-network:
-  #       ipv4_address: 10.5.0.11
-  #   ports:
-  #   - 5686:5686
-  # sensor_voltage_magnitude:
-  #   build:
-  #     context: ./sensor_voltage_magnitude/.
-  #   networks:
-  #     custom-network:
-  #       ipv4_address: 10.5.0.10
-  #   ports:
-  #   - 5685:5685
-  # sensor_voltage_real:
-  #   build:
-  #     context: ./sensor_voltage_real/.
-  #   networks:
-  #     custom-network:
-  #       ipv4_address: 10.5.0.9
-  #   ports:
-  #   - 5684:5684
-  # state_estimator:
-  #   build:
-  #     context: ./state_estimator/.
-  #   networks:
-  #     custom-network:
-  #       ipv4_address: 10.5.0.8
-  #   ports:
-  #   - 5683:5683
+  oedisi_recorder_voltage_angle:
+    build:
+      context: ./recorder_voltage_angle/.
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.7
+    ports:
+    - 5682:5682
+  oedisi_recorder_voltage_imag:
+    build:
+      context: ./recorder_voltage_imag/.
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.5
+    ports:
+    - 5680:5680
+  oedisi_recorder_voltage_mag:
+    build:
+      context: ./recorder_voltage_mag/.
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.6
+    ports:
+    - 5681:5681
+  oedisi_recorder_voltage_real:
+    build:
+      context: ./recorder_voltage_real/.
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.4
+    ports:
+    - 5679:5679
+  oedisi_sensor_power_imaginary:
+    build:
+      context: ./sensor_power_imaginary/.
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.13
+    ports:
+    - 5688:5688
+  oedisi_sensor_power_real:
+    build:
+      context: ./sensor_power_real/.
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.12
+    ports:
+    - 5687:5687
+  oedisi_sensor_voltage_imaginary:
+    build:
+      context: ./sensor_voltage_imaginary/.
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.11
+    ports:
+    - 5686:5686
+  oedisi_sensor_voltage_magnitude:
+    build:
+      context: ./sensor_voltage_magnitude/.
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.10
+    ports:
+    - 5685:5685
+  oedisi_sensor_voltage_real:
+    build:
+      context: ./sensor_voltage_real/.
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.9
+    ports:
+    - 5684:5684
+  oedisi_state_estimator:
+    build:
+      context: ./state_estimator/.
+    networks:
+      custom-network:
+        ipv4_address: 10.5.0.8
+    ports:
+    - 5683:5683

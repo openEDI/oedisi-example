@@ -20,7 +20,7 @@ def find_filenames(path_to_dir=os.getcwd(), suffix=".feather" ):
     return [ filename for filename in filenames if filename.endswith( suffix ) ]
 
 @app.get("/download/")
-def read_root():
+def download_results():
     file_list  = find_filenames()
     if file_list:
         return FileResponse(path=file_list[0], filename=file_list[0], media_type='text/mp4')
