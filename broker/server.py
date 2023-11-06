@@ -2,15 +2,16 @@ from fastapi import FastAPI, BackgroundTasks, UploadFile
 from fastapi.exceptions import HTTPException
 from fastapi.responses import FileResponse
 import helics as h
-import logging
 import grequests
-import uvicorn
-import socket
-import yaml
-import sys
+import traceback
 import requests
+import uvicorn
+import logging
+import socket
 import shutil
 import time
+import yaml
+import sys
 import os
 
 app = FastAPI()
@@ -61,33 +62,39 @@ def download_results():
     else:
         raise HTTPException(status_code=404, detail="No feather file found")
 
-
-@app.post("/run/")
-async def run_feeder(): 
-    component_map, broker_ip, api_port = read_settings()
-    initstring = f"-f {len(self.component_map)} --name=mainbroker --loglevel=trace --local_interface={broker_ip} --localport={23404}"
+def run_simulation(services, component_map, broker_ip, api_port):
+    
+    initstring = f"-f {len(component_map)} --name=mainbroker --loglevel=trace --local_interface={broker_ip} --localport={23404}"
     logging.info(f"Broker initaialization string: {initstring}")
     broker = h.helicsCreateBroker("zmq", "", initstring)
     logging.info(broker)
     isconnected = h.helicsBrokerIsConnected(broker)
     logging.info(f"Broker connected: " + str(isconnected))
     logging.info(str(component_map))
-    replys = []
-    for service_ip, service_port in self.component_map.items():
+    replies = []
+    for service_ip, service_port in component_map.items():
         url = f'http://{service_ip}:{service_port}/run/'
-        logging.info(url)
+        print(url)
         myobj = {
             "broker_port" : 23404,
             "broker_ip" : broker_ip,
             "api_port" : api_port,
             "services" : services,
         }
-        logging.info(str(myobj))
-        replys.append(grequests.post(url, json = myobj))
+        replies.append(grequests.post(url, json = myobj))
         
-    print(grequests.map(replys))
+    print(grequests.map(replies))
     return
-        
+
+
+@app.post("/run/")
+async def run_feeder(background_tasks: BackgroundTasks): 
+    data_input = read_settings()
+    try:
+        background_tasks.add_task(run_simulation, *data_input)
+    except Exception as e:
+        err = traceback.format_exc()
+        raise HTTPException(status_code=404, detail=str(err))
 
 if __name__ == "__main__":
     port = int(sys.argv[2])

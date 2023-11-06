@@ -29,6 +29,7 @@ def download_results():
 
 @app.post("/run/")
 async def run_model(broker_config:BrokerConfig, background_tasks: BackgroundTasks):
+    print(broker_config)
     try:
         background_tasks.add_task(run_simulator, broker_config)
         return {"reply": "success", "error": False}

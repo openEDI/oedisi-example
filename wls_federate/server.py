@@ -1,4 +1,3 @@
-#from gadal.gadal_types.common import BrokerConfig
 from oedisi.types.common import BrokerConfig
 from state_estimator_federate import run_simulator
 from fastapi import FastAPI, BackgroundTasks
@@ -19,6 +18,7 @@ def read_root():
 
 @app.post("/run/")
 async def run_model(broker_config:BrokerConfig, background_tasks: BackgroundTasks):
+    print(broker_config)
     try:
         background_tasks.add_task(run_simulator, broker_config)
         return {"reply": "success", "error": False}
