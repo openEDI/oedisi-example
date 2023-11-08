@@ -41,7 +41,7 @@
             "type": "LocalFeeder",
             "parameters": {
                 "use_smartds": false,
-                "user_uploads_model": true,
+                "user_uploads_model": false,
                 "profile_location": "gadal_ieee123/profiles",
                 "opendss_location": "gadal_ieee123/qsts",
                 "sensor_location": "gadal_ieee123/sensors.json",
