@@ -5,3 +5,4 @@ fastapi
 uvicorn
 git+https://github.com/openEDI/GADAL@al/kubernetes
 grequests
+python-multipart

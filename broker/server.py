@@ -5,6 +5,7 @@ import helics as h
 import grequests
 import traceback
 import requests
+import zipfile
 import uvicorn
 import logging
 import socket
@@ -43,11 +44,55 @@ def read_root():
     host_ip = socket.gethostbyname(hostname)
     return {"hostname": hostname, "host ip": host_ip}
 
+@app.post("/profiles/")
+async def upload_profiles(file:UploadFile):
+    try:
+        services, _, _, _ = read_settings()
+        for service in services:
+            if "feeder" in service.lower():
+                ip = services[service]['networks']['custom-network']['ipv4_address']
+                port = int(services[service]['ports'][0].split(":")[0])
+                data = file.file.read()
+                if not file.filename.endswith(".zip"):
+                    HTTPException(400, "Invalid file type. Only zip files are accepted.")
+                with open(file.filename, "wb") as f:
+                    f.write(data)
+                url = f'http://{ip}:{port}/profiles/'
+                files = {'file': open(file.filename, 'rb')}
+                r = requests.post(url, files=files)
+                return {"code": r.status_code, "message": r.text}
+        raise HTTPException(status_code=404, detail="Unable to upload profiles")
+    except:
+        err = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=str(err))  
+            
+@app.post("/model/")
+async def upload_model(file:UploadFile):
+    try:
+        services, _, _, _ = read_settings()
+        for service in services:
+            if "feeder" in service.lower():
+                ip = services[service]['networks']['custom-network']['ipv4_address']
+                port = int(services[service]['ports'][0].split(":")[0])
+                data = file.file.read()
+                if not file.filename.endswith(".zip"):
+                    HTTPException(400, "Invalid file type. Only zip files are accepted.")
+                with open(file.filename, "wb") as f:
+                    f.write(data)
+                url = f'http://{ip}:{port}/model/'
+                files = {'file': open(file.filename, 'rb')}
+                r = requests.post(url, files=files)
+                return {"code": r.status_code, "message": r.text}
+        raise HTTPException(status_code=404, detail="Unable to upload model")   
+    except:
+        err = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=str(err))                       
+
 @app.get("/results/")
 def download_results():
     services, _, _, _ = read_settings()
     for service in services:
-        if "oedisi_recorder" in service.lower():
+        if "recorder" in service.lower():
             ip = services[service]['networks']['custom-network']['ipv4_address']
             port = int(services[service]['ports'][0].split(":")[0])
             url = f'http://{ip}:{port}/download/'
@@ -55,12 +100,16 @@ def download_results():
             with open(f'{service}.feather', 'wb') as out_file:
                 shutil.copyfileobj(response.raw, out_file)
                 time.sleep(2)
-        
-    file_list  = find_filenames()
-    if file_list:
-        return FileResponse(path=file_list[0], filename=file_list[0], media_type='text/mp4')
-    else:
-        raise HTTPException(status_code=404, detail="No feather file found")
+    
+    file_path = 'results.zip'
+    with zipfile.ZipFile(file_path, 'w') as zipMe:        
+        for feather_file in find_filenames():
+            zipMe.write(feather_file, compress_type=zipfile.ZIP_DEFLATED)
+            
+    try:
+        return FileResponse(path=file_path, filename=file_path, media_type='text/mp4')
+    except:
+        raise HTTPException(status_code=404, detail="Failed download ")
 
 def run_simulation(services, component_map, broker_ip, api_port):
     
@@ -85,7 +134,6 @@ def run_simulation(services, component_map, broker_ip, api_port):
         
     print(grequests.map(replies))
     return
-
 
 @app.post("/run/")
 async def run_feeder(background_tasks: BackgroundTasks): 
