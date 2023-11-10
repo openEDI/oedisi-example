@@ -1,9 +1,10 @@
 from oedisi.types.common import BrokerConfig
-from fastapi import FastAPI, BackgroundTasks, UploadFile
+from fastapi import FastAPI, BackgroundTasks, UploadFile, Request
 from fastapi.exceptions import HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sender_cosim import run_simulator
 import traceback
+import asyncio
 import zipfile
 import uvicorn
 import socket
@@ -12,10 +13,23 @@ import json
 import sys
 import os
 
+REQUEST_TIMEOUT_SEC = 120
+
 app = FastAPI()
 
 base_path = os.getcwd()
 
+
+@app.middleware("http")
+async def timeout_middleware(request: Request, call_next):
+    try:
+        return await asyncio.wait_for(call_next(request), timeout=REQUEST_TIMEOUT_SEC)
+    except asyncio.TimeoutError:
+        endpoint = str(request.url).replace(str(request.base_url), "").replace("/", "")
+        if endpoint == "sensor":
+            return JSONResponse({'detail': 'Request processing time exceeded limit. Upload a model and associated profiles before simulation before starting the simulation.'}, 504)
+        else:
+            return JSONResponse({'detail': 'Request processing time exceeded limit'}, 504)
 
 @app.get("/")
 def read_root():
