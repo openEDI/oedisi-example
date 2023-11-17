@@ -1,6 +1,6 @@
 from fastapi import FastAPI, BackgroundTasks, UploadFile
 from fastapi.exceptions import HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 import helics as h
 import grequests
 import traceback
@@ -14,6 +14,8 @@ import time
 import yaml
 import sys
 import os
+
+from oedisi.types.common import ServerReply, HeathCheck
 
 app = FastAPI()
 
@@ -42,7 +44,13 @@ def read_settings():
 def read_root():
     hostname = socket.gethostname()
     host_ip = socket.gethostbyname(hostname)
-    return {"hostname": hostname, "host ip": host_ip}
+    
+    response = HeathCheck(
+        hostname = hostname,
+        host_ip = host_ip
+    ).dict()
+    
+    return JSONResponse(response, 200)
 
 @app.post("/profiles/")
 async def upload_profiles(file:UploadFile):
@@ -60,7 +68,10 @@ async def upload_profiles(file:UploadFile):
                 url = f'http://{ip}:{port}/profiles/'
                 files = {'file': open(file.filename, 'rb')}
                 r = requests.post(url, files=files)
-                return {"code": r.status_code, "message": r.text}
+                response = ServerReply(
+                    detail = r.text
+                ).dict()
+                return JSONResponse(response, r.status_code)  
         raise HTTPException(status_code=404, detail="Unable to upload profiles")
     except:
         err = traceback.format_exc()
@@ -82,7 +93,10 @@ async def upload_model(file:UploadFile):
                 url = f'http://{ip}:{port}/model/'
                 files = {'file': open(file.filename, 'rb')}
                 r = requests.post(url, files=files)
-                return {"code": r.status_code, "message": r.text}
+                response = ServerReply(
+                    detail = r.text
+                ).dict()
+                return JSONResponse(response, r.status_code)  
         raise HTTPException(status_code=404, detail="Unable to upload model")   
     except:
         err = traceback.format_exc()
@@ -131,15 +145,18 @@ def run_simulation(services, component_map, broker_ip, api_port):
             "services" : services,
         }
         replies.append(grequests.post(url, json = myobj))
-        
-    print(grequests.map(replies))
-    return
+
+    return grequests.map(replies)
 
 @app.post("/run/")
 async def run_feeder(background_tasks: BackgroundTasks): 
     data_input = read_settings()
     try:
-        background_tasks.add_task(run_simulation, *data_input)
+        response = run_simulation(*data_input)
+        response = ServerReply(
+            detail = f"Task sucessfully added."
+        ).dict() 
+        return JSONResponse({"detail" : response}, 200) 
     except Exception as e:
         err = traceback.format_exc()
         raise HTTPException(status_code=404, detail=str(err))

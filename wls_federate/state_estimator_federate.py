@@ -287,11 +287,6 @@ class StateEstimatorFederate:
         self.vfed = h.helicsCreateValueFederate(federate_name, fedinfo)
         logger.info("Value federate created")
 
-        # Set port and IP
-        
-        
-
-
         # Register the publication #
         self.sub_voltages_magnitude = self.vfed.register_subscription(
             input_mapping["voltages_magnitude"], "V"

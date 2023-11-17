@@ -6,4 +6,4 @@ numpy
 pandas
 fastapi
 uvicorn
-git+https://github.com/openEDI/GADAL
+git+https://github.com/openEDI/GADAL@al/kubernetes

@@ -1,6 +1,7 @@
+from fastapi import FastAPI, BackgroundTasks, HTTPException
 from oedisi.types.common import BrokerConfig
 from measuring_federate import run_simulator
-from fastapi import FastAPI, BackgroundTasks
+from fastapi.responses import JSONResponse
 import uvicorn
 import socket
 import requests
@@ -8,6 +9,7 @@ import sys
 import json
 import traceback
 
+from oedisi.types.common import ServerReply, HeathCheck
 
 app = FastAPI()
 
@@ -17,7 +19,11 @@ app = FastAPI()
 async def read_root():
     hostname = socket.gethostname()
     host_ip = socket.gethostbyname(hostname)
-    return {"hostname": hostname, "host ip": host_ip}
+    response = HeathCheck(
+        hostname = hostname,
+        host_ip = host_ip
+    ).dict()
+    return JSONResponse(response, 200)
     
 @app.post("/run/")
 async def run_model(broker_config:BrokerConfig, background_tasks: BackgroundTasks):
@@ -34,10 +40,13 @@ async def run_model(broker_config:BrokerConfig, background_tasks: BackgroundTask
             json.dump(sensor_data, outfile)
 
         background_tasks.add_task(run_simulator, broker_config)
-        return {"reply": "success", "error": False}
+        response = ServerReply(
+            detail = f"Task sucessfully added."
+        ).dict() 
+        return JSONResponse(response, 200)
     except Exception as e:
         err = traceback.format_exc()
-        raise HTTPException(status_code=404, detail=str(err))
+        HTTPException(500,str(err))
 
 if __name__ == "__main__":
     port = int(sys.argv[2])

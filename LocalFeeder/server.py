@@ -13,6 +13,8 @@ import json
 import sys
 import os
 
+from oedisi.types.common import ServerReply, HeathCheck
+
 REQUEST_TIMEOUT_SEC = 120
 
 app = FastAPI()
@@ -27,15 +29,26 @@ async def timeout_middleware(request: Request, call_next):
     except asyncio.TimeoutError:
         endpoint = str(request.url).replace(str(request.base_url), "").replace("/", "")
         if endpoint == "sensor":
-            return JSONResponse({'detail': 'Request processing time exceeded limit. Upload a model and associated profiles before simulation before starting the simulation.'}, 504)
+            response = ServerReply(
+                detail='Request processing time exceeded limit. Upload a model and associated profiles before simulation before starting the simulation.'
+            ).dict()
+            return JSONResponse(response, 504)
         else:
-            return JSONResponse({'detail': 'Request processing time exceeded limit'}, 504)
+            response = ServerReply(
+                detail='Request processing time exceeded limit'
+            ).dict()
+            return JSONResponse(response, 504)
 
 @app.get("/")
 def read_root():
     hostname = socket.gethostname()
     host_ip = socket.gethostbyname(hostname)
-    return {"hostname": hostname, "host ip": host_ip}
+    response = HeathCheck(
+        hostname = hostname,
+        host_ip = host_ip
+    ).dict()
+    
+    return JSONResponse(response, 200)
 
 @app.get("/sensor/")
 async def sensor():
@@ -64,7 +77,10 @@ async def upload_profiles(file:UploadFile):
             zip_ref.extractall(profile_path)
         
         if os.path.exists(os.path.join(profile_path, "load_profiles")) and os.path.exists(os.path.join(profile_path, "pv_profiles")):
-            return {"reply": "success", "error": False, "action": f"File uploaded to server: {file.filename}" }  
+            response = ServerReply(
+                    detail = f"File uploaded to server: {file.filename}"
+                ).dict()
+            return JSONResponse(response, 200)  
         else:
             HTTPException(400, "Invalid user defined profile structure. See OEDISI documentation.")
 
@@ -87,7 +103,11 @@ async def upload_model(file:UploadFile):
             zip_ref.extractall(model_path)
         
         if os.path.exists(os.path.join(model_path, "master.dss")):
-            return {"reply": "success", "error": False, "action": f"File uploaded to server: {file.filename}" }    
+            response = ServerReply(
+                    detail = f"File uploaded to server: {file.filename}"
+                ).dict()
+            return JSONResponse(response, 200)   
+  
         else:
             HTTPException(400, "A valid opendss model should have a master.dss file.")
     except Exception as e:
@@ -98,10 +118,14 @@ async def run_feeder(broker_config:BrokerConfig, background_tasks: BackgroundTas
     print(broker_config)
     try:
         background_tasks.add_task(run_simulator, broker_config)
-        return {"reply": "success", "error": False}
+        response = ServerReply(
+            detail = f"Task sucessfully added."
+        ).dict() 
+
+        return JSONResponse(response, 200) 
     except Exception as e:
         err = traceback.format_exc()
-        return {"reply": str(err), "error": True}
+        HTTPException(500,str(err))
 
 if __name__ == "__main__":
     port = int(sys.argv[2])

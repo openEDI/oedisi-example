@@ -1,11 +1,14 @@
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from record_subscription import run_simulator
 from oedisi.types.common import BrokerConfig
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+import traceback
 import uvicorn
 import socket
 import sys
 import os
+
+from oedisi.types.common import ServerReply, HeathCheck
 
 app = FastAPI()
 
@@ -13,7 +16,13 @@ app = FastAPI()
 def read_root():
     hostname = socket.gethostname()
     host_ip = socket.gethostbyname(hostname)
-    return {"hostname": hostname, "host ip": host_ip}
+    
+    response = HeathCheck(
+        hostname = hostname,
+        host_ip = host_ip
+    ).dict()
+    
+    return JSONResponse(response, 200)
 
 def find_filenames(path_to_dir=os.getcwd(), suffix=".feather" ):
     filenames = os.listdir(path_to_dir)
@@ -32,9 +41,13 @@ async def run_model(broker_config:BrokerConfig, background_tasks: BackgroundTask
     print(broker_config)
     try:
         background_tasks.add_task(run_simulator, broker_config)
-        return {"reply": "success", "error": False}
+        response = ServerReply(
+            detail = f"Task sucessfully added."
+        ).dict() 
+        return JSONResponse(response, 200)
     except Exception as e:
-        return {"reply": str(e), "error": True}
+        err = traceback.format_exc()
+        HTTPException(500,str(err))
 
 if __name__ == "__main__":
     port = int(sys.argv[2])

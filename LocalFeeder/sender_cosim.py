@@ -258,7 +258,7 @@ def where_power_unbalanced(PQ_injections_all, calculated_power, tol=1):
     return errors.ids[indices]
 
 
-def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str, str], broker_config:BrokerConfig):
+def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str, str], broker_config: BrokerConfig):
     """Run HELICS federate with FeederSimulation.
 
     TODO: Maybe this should be a class or a coroutine or something cleaner.
@@ -439,7 +439,7 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
     h.helicsCloseLibrary()
 
 
-def run_simulator(broker_config:BrokerConfig):
+def run_simulator(broker_config: BrokerConfig):
     """Load static_inputs and input_mapping and run JSON."""
     with open("static_inputs.json") as f:
         parameters = json.load(f)

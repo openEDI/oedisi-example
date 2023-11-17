@@ -62,7 +62,6 @@ class Recorder:
                 json_data = self.sub.json
                 json_data["time"] = granted_time
                 measurement = MeasurementArray(**self.sub.json)
-                print(measurement)
                 measurement_dict = {
                     key: value
                     for key, value in zip(measurement.ids, measurement.values)
