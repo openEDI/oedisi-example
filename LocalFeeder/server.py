@@ -13,9 +13,10 @@ import json
 import sys
 import os
 
+import math
 from oedisi.types.common import ServerReply, HeathCheck
 
-REQUEST_TIMEOUT_SEC = 120
+REQUEST_TIMEOUT_SEC = 1200
 
 app = FastAPI()
 
@@ -55,7 +56,7 @@ async def sensor():
     print(os.getcwd())
     sensor_path = os.path.join(base_path, 'sensors','sensors.json')
     while not os.path.exists(sensor_path):
-        time.sleep(0.1)
+        time.sleep(1)
         print(f"waiting {sensor_path}")
     print("success")
     data = json.load(open(sensor_path, "r"))

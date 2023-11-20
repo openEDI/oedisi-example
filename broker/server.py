@@ -15,6 +15,8 @@ import yaml
 import sys
 import os
 
+import math
+
 from oedisi.types.common import ServerReply, HeathCheck
 
 app = FastAPI()
@@ -125,8 +127,17 @@ def download_results():
     except:
         raise HTTPException(status_code=404, detail="Failed download ")
 
-def run_simulation(services, component_map, broker_ip, api_port):
-    
+
+@app.get("/terminate/")
+def terminate_simulation():
+    try:
+        h.helicsCloseLibrary()
+        return JSONResponse({"detail" : "Helics broker sucessfully closed"}, 200) 
+    except:
+        raise HTTPException(status_code=404, detail="Failed download ")
+
+def run_simulation():
+    services, component_map, broker_ip, api_port = read_settings()
     initstring = f"-f {len(component_map)} --name=mainbroker --loglevel=trace --local_interface={broker_ip} --localport={23404}"
     logging.info(f"Broker initaialization string: {initstring}")
     broker = h.helicsCreateBroker("zmq", "", initstring)
@@ -145,14 +156,18 @@ def run_simulation(services, component_map, broker_ip, api_port):
             "services" : services,
         }
         replies.append(grequests.post(url, json = myobj))
-
-    return grequests.map(replies)
+    grequests.map(replies)
+    while h.helicsBrokerIsConnected(broker):
+        time.sleep(1)
+    h.helicsCloseLibrary()
+    
+    return 
 
 @app.post("/run/")
 async def run_feeder(background_tasks: BackgroundTasks): 
-    data_input = read_settings()
     try:
-        response = run_simulation(*data_input)
+        background_tasks.add_task(run_simulation)
+        #response = run_simulation(*data_input)
         response = ServerReply(
             detail = f"Task sucessfully added."
         ).dict() 
