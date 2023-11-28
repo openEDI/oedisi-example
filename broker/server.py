@@ -15,8 +15,6 @@ import yaml
 import sys
 import os
 
-import math
-
 from oedisi.types.common import ServerReply, HeathCheck
 
 app = FastAPI()
@@ -167,7 +165,6 @@ def run_simulation():
 async def run_feeder(background_tasks: BackgroundTasks): 
     try:
         background_tasks.add_task(run_simulation)
-        #response = run_simulation(*data_input)
         response = ServerReply(
             detail = f"Task sucessfully added."
         ).dict() 

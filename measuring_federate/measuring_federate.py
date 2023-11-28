@@ -7,7 +7,6 @@ from datetime import datetime
 
 from oedisi.types.data_types import MeasurementArray, EquipmentNodeArray
 from oedisi.types.common import BrokerConfig
-from oedisi.types.data_types import MeasurementArray
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())

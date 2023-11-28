@@ -7,7 +7,6 @@ import uvicorn
 import socket
 import sys
 
-import math
 from oedisi.types.common import ServerReply, HeathCheck
 
 app = FastAPI()
