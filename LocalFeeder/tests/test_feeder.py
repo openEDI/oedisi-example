@@ -329,12 +329,9 @@ def simulation_middle(sim, Y):
     )
 
     current_data_again = sender_cosim.get_current_data(sim, Y)
-    assert np.allclose(
-        current_data_again.feeder_voltages,
-        current_data.feeder_voltages
-    )
+    assert np.allclose(current_data_again.feeder_voltages, current_data.feeder_voltages)
 
-    assert '113' in current_data.PQ_injections_all.equipment_ids.data
+    assert "113" in current_data.PQ_injections_all.equipment_ids.data
     df = pd.DataFrame(
         {
             "p": current_data.PQ_injections_all.real,

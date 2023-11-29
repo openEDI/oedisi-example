@@ -224,9 +224,7 @@ def get_current_data(sim: FeederSimulator, Y):
     power_real, power_imaginary = get_powers(-PQ_load, -PQ_PV, -PQ_gen, -PQ_cap)
     injections = Injection(power_real=power_real, power_imaginary=power_imaginary)
 
-    ids = xr.DataArray(sim._AllNodeNames, coords={
-        "ids": sim._AllNodeNames,
-    })
+    ids = xr.DataArray(sim._AllNodeNames, coords={"ids": sim._AllNodeNames,})
     PQ_injections_all = (
         agg_to_ids(PQ_load, ids)
         + agg_to_ids(PQ_PV, ids)
@@ -234,7 +232,9 @@ def get_current_data(sim: FeederSimulator, Y):
         + agg_to_ids(PQ_cap, ids)
     )
 
-    PQ_injections_all = PQ_injections_all.assign_coords(equipment_ids=('ids', list(map(lambda x: x.split(".")[0], sim._AllNodeNames))))
+    PQ_injections_all = PQ_injections_all.assign_coords(
+        equipment_ids=("ids", list(map(lambda x: x.split(".")[0], sim._AllNodeNames)))
+    )
     calculated_power = (
         feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
     )
@@ -258,7 +258,12 @@ def where_power_unbalanced(PQ_injections_all, calculated_power, tol=1):
     return errors.ids[indices]
 
 
-def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str, str], broker_config: BrokerConfig):
+def go_cosim(
+    sim: FeederSimulator,
+    config: FeederConfig,
+    input_mapping: Dict[str, str],
+    broker_config: BrokerConfig,
+):
     """Run HELICS federate with FeederSimulation.
 
     TODO: Maybe this should be a class or a coroutine or something cleaner.
@@ -269,18 +274,16 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
 
     logger.info("Creating Federate Info")
     fedinfo = h.helicsCreateFederateInfo()
-    
+
     h.helicsFederateInfoSetBroker(fedinfo, broker_config.broker_ip)
     h.helicsFederateInfoSetBrokerPort(fedinfo, broker_config.broker_port)
-    
+
     h.helicsFederateInfoSetCoreName(fedinfo, config.name)
     h.helicsFederateInfoSetCoreTypeFromString(fedinfo, "zmq")
     h.helicsFederateInfoSetCoreInitString(fedinfo, fedinitstring)
     h.helicsFederateInfoSetTimeProperty(fedinfo, h.helics_property_time_delta, deltat)
     vfed = h.helicsCreateValueFederate(config.name, fedinfo)
 
-    
-    
     pub_voltages_real = h.helicsFederateRegisterPublication(
         vfed, "voltages_real", h.HELICS_DATA_TYPE_STRING, ""
     )
@@ -428,7 +431,7 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
                     admittance_matrix=numpy_to_y_matrix(
                         current_data.load_y_matrix.toarray()
                     ),
-                    ids=sim._AllNodeNames
+                    ids=sim._AllNodeNames,
                 ).json()
             )
 

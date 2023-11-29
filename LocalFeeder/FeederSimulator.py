@@ -52,7 +52,7 @@ class FeederConfig(BaseModel):
 
     name: str
     use_smartds: bool = False
-    user_uploads_model : bool = False
+    user_uploads_model: bool = False
     profile_location: str
     opendss_location: str
     existing_feeder_file: Optional[str] = None
@@ -64,9 +64,11 @@ class FeederConfig(BaseModel):
     topology_output: str = "topology.json"
     use_sparse_admittance: bool = False
 
+
 class FeederMapping(BaseModel):
-    static_inputs : FeederConfig
-    input_mapping : Dict[str, str]
+    static_inputs: FeederConfig
+    input_mapping: Dict[str, str]
+
 
 class OpenDSSState(Enum):
     """Enum of all OpenDSSStates traversed in a simulation."""
@@ -127,7 +129,7 @@ class FeederSimulator(object):
                 self._feeder_file = os.path.join("opendss", "master.dss")
                 self.download_data("gadal")
             else:
-                #User will upload model usning endpoint
+                # User will upload model usning endpoint
                 pass
         else:
             self._feeder_file = config.existing_feeder_file
