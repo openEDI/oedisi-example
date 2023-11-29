@@ -124,8 +124,8 @@ class FeederSimulator(object):
                 self._feeder_file = os.path.join("opendss", "master.dss")
                 self.download_data("gadal")
             else:
-                # User will upload model usning endpoint
-                pass
+                # User should have uploaded model using endpoint
+                raise Exception("Set existing_feeder_file when uploading data")
         else:
             self._feeder_file = config.existing_feeder_file
 

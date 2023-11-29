@@ -445,4 +445,4 @@ def run_simulator(broker_config: BrokerConfig):
 
 
 if __name__ == "__main__":
-    run_simulator()
+    run_simulator(BrokerConfig(broker_ip="localhost"))

@@ -264,7 +264,11 @@ class StateEstimatorFederate:
     "State estimator federate. Wraps state_estimation with pubs and subs"
 
     def __init__(
-        self, federate_name, algorithm_parameters: AlgorithmParameters, input_mapping, broker_config: BrokerConfig
+        self,
+        federate_name,
+        algorithm_parameters: AlgorithmParameters,
+        input_mapping,
+        broker_config: BrokerConfig,
     ):
         "Initializes federate with name and remaps input into subscriptions"
         deltat = 0.1
@@ -276,7 +280,7 @@ class StateEstimatorFederate:
 
         h.helicsFederateInfoSetBroker(fedinfo, broker_config.broker_ip)
         h.helicsFederateInfoSetBrokerPort(fedinfo, broker_config.broker_port)
-        
+
         fedinfo.core_name = federate_name
         fedinfo.core_type = h.HELICS_CORE_TYPE_ZMQ
         fedinfo.core_init = "--federates=1"
@@ -394,7 +398,7 @@ class StateEstimatorFederate:
         h.helicsCloseLibrary()
 
 
-def run_simulator(broker_config:BrokerConfig):
+def run_simulator(broker_config: BrokerConfig):
     with open("static_inputs.json") as f:
         config = json.load(f)
         federate_name = config["name"]
@@ -406,11 +410,11 @@ def run_simulator(broker_config:BrokerConfig):
     with open("input_mapping.json") as f:
         input_mapping = json.load(f)
 
-    sfed = StateEstimatorFederate(federate_name, parameters, input_mapping, broker_config)
+    sfed = StateEstimatorFederate(
+        federate_name, parameters, input_mapping, broker_config
+    )
     sfed.run()
 
 
 if __name__ == "__main__":
-    run_simulator()
-
-    
+    run_simulator(BrokerConfig(broker_ip="127.0.0.1"))
