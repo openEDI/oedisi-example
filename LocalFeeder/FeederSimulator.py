@@ -15,13 +15,12 @@ import opendssdirect as dss
 import xarray as xr
 from botocore import UNSIGNED
 from botocore.config import Config
+from dss_functions import (get_capacitors, get_generators, get_loads,
+                           get_pvsystems, get_voltages)
 from oedisi.types.data_types import (Command, InverterControl,
                                      InverterControlMode)
 from pydantic import BaseModel
 from scipy.sparse import coo_matrix, csc_matrix
-
-from dss_functions import (get_capacitors, get_generators, get_loads,
-                           get_pvsystems, get_voltages)
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())

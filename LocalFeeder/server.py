@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import math
 import os
 import socket
@@ -13,7 +14,6 @@ from fastapi import BackgroundTasks, FastAPI, Request, UploadFile
 from fastapi.exceptions import HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from oedisi.types.common import BrokerConfig, HeathCheck, ServerReply
-
 from sender_cosim import run_simulator
 
 REQUEST_TIMEOUT_SEC = 1200
@@ -52,12 +52,12 @@ def read_root():
 
 @app.get("/sensor/")
 async def sensor():
-    print(os.getcwd())
+    logging.info(os.getcwd())
     sensor_path = os.path.join(base_path, "sensors", "sensors.json")
     while not os.path.exists(sensor_path):
         time.sleep(1)
-        print(f"waiting {sensor_path}")
-    print("success")
+        logging.info(f"waiting {sensor_path}")
+    logging.info("success")
     data = json.load(open(sensor_path, "r"))
     return data
 
@@ -128,7 +128,7 @@ async def upload_model(file: UploadFile):
 async def run_feeder(
     broker_config: BrokerConfig, background_tasks: BackgroundTasks
 ):  #:BrokerConfig
-    print(broker_config)
+    logging.info(broker_config)
     try:
         background_tasks.add_task(run_simulator, broker_config)
         response = ServerReply(detail=f"Task sucessfully added.").dict()

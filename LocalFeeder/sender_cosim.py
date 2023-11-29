@@ -9,6 +9,7 @@ import helics as h
 import numpy as np
 import numpy.typing as npt
 import xarray as xr
+from FeederSimulator import FeederConfig, FeederSimulator
 from oedisi.types.common import BrokerConfig
 from oedisi.types.data_types import (AdmittanceMatrix, AdmittanceSparse,
                                      CommandList, EquipmentNodeArray,
@@ -18,8 +19,6 @@ from oedisi.types.data_types import (AdmittanceMatrix, AdmittanceSparse,
                                      VoltagesImaginary, VoltagesMagnitude,
                                      VoltagesReal)
 from scipy.sparse import coo_matrix
-
-from FeederSimulator import FeederConfig, FeederSimulator
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
