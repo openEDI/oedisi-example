@@ -74,7 +74,7 @@ async def upload_profiles(file: UploadFile):
                 response = ServerReply(detail=r.text).dict()
                 return JSONResponse(response, r.status_code)
         raise HTTPException(status_code=404, detail="Unable to upload profiles")
-    except:
+    except Exception as e:
         err = traceback.format_exc()
         raise HTTPException(status_code=500, detail=str(err))
 
@@ -100,7 +100,7 @@ async def upload_model(file: UploadFile):
                 response = ServerReply(detail=r.text).dict()
                 return JSONResponse(response, r.status_code)
         raise HTTPException(status_code=404, detail="Unable to upload model")
-    except:
+    except Exception as e:
         err = traceback.format_exc()
         raise HTTPException(status_code=500, detail=str(err))
 
@@ -125,8 +125,8 @@ def download_results():
 
     try:
         return FileResponse(path=file_path, filename=file_path, media_type="text/mp4")
-    except:
-        raise HTTPException(status_code=404, detail="Failed download ")
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="Failed download")
 
 
 @app.get("/terminate/")
@@ -134,7 +134,7 @@ def terminate_simulation():
     try:
         h.helicsCloseLibrary()
         return JSONResponse({"detail": "Helics broker sucessfully closed"}, 200)
-    except:
+    except Exception as e:
         raise HTTPException(status_code=404, detail="Failed download ")
 
 
@@ -170,7 +170,7 @@ def run_simulation():
 async def run_feeder(background_tasks: BackgroundTasks):
     try:
         background_tasks.add_task(run_simulation)
-        response = ServerReply(detail=f"Task sucessfully added.").dict()
+        response = ServerReply(detail="Task sucessfully added.").dict()
         return JSONResponse({"detail": response}, 200)
     except Exception as e:
         err = traceback.format_exc()
