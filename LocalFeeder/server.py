@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import math
 import os
 import socket
 import sys
@@ -12,7 +11,7 @@ import zipfile
 import uvicorn
 from fastapi import BackgroundTasks, FastAPI, Request, UploadFile
 from fastapi.exceptions import HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from oedisi.types.common import BrokerConfig, HeathCheck, ServerReply
 from sender_cosim import run_simulator
 
@@ -127,11 +126,11 @@ async def upload_model(file: UploadFile):
 @app.post("/run/")
 async def run_feeder(
     broker_config: BrokerConfig, background_tasks: BackgroundTasks
-):  #:BrokerConfig
+):  # :BrokerConfig
     logging.info(broker_config)
     try:
         background_tasks.add_task(run_simulator, broker_config)
-        response = ServerReply(detail=f"Task sucessfully added.").dict()
+        response = ServerReply(detail="Task sucessfully added.").dict()
 
         return JSONResponse(response, 200)
     except Exception as e:
