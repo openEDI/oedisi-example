@@ -140,12 +140,12 @@ def terminate_simulation():
 
 def run_simulation():
     services, component_map, broker_ip, api_port = read_settings()
-    initstring = f"-f {len(component_map)} --name=mainbroker --loglevel=trace --local_interface={broker_ip} --localport={23404}"
+    initstring = f"-f {len(component_map)} --name=mainbroker --loglevel=trace --local_interface={broker_ip} --localport=23404"
     logging.info(f"Broker initaialization string: {initstring}")
     broker = h.helicsCreateBroker("zmq", "", initstring)
     logging.info(broker)
     isconnected = h.helicsBrokerIsConnected(broker)
-    logging.info(f"Broker connected: " + str(isconnected))
+    logging.info(f"Broker connected: {isconnected}")
     logging.info(str(component_map))
     replies = []
     for service_ip, service_port in component_map.items():
