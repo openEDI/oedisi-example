@@ -22,7 +22,6 @@ def init_federate_simulation():
     federate_config = FeederSimulator.FeederConfig(
         **{
             "use_smartds": False,
-            "user_uploads_model": True,
             "profile_location": "gadal_ieee123/profiles",
             "opendss_location": "gadal_ieee123/qsts",
             "sensor_location": "gadal_ieee123/sensors.json",
