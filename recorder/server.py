@@ -1,5 +1,4 @@
 import logging
-import math
 import os
 import socket
 import sys
@@ -42,10 +41,10 @@ def download_results():
 
 @app.post("/run/")
 async def run_model(broker_config: BrokerConfig, background_tasks: BackgroundTasks):
-    logger.info(broker_config)
+    logging.info(broker_config)
     try:
         background_tasks.add_task(run_simulator, broker_config)
-        response = ServerReply(detail=f"Task sucessfully added.").dict()
+        response = ServerReply(detail="Task sucessfully added.").dict()
         return JSONResponse(response, 200)
     except Exception as e:
         err = traceback.format_exc()
