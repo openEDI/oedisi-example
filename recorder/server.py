@@ -33,7 +33,7 @@ def download_results():
     file_list = find_filenames()
     if file_list:
         return FileResponse(
-            path=file_list[0], filename=file_list[0], media_type="text/mp4"  # TODO: fix
+            path=file_list[0], filename=file_list[0], media_type="feather"
         )
     else:
         raise HTTPException(status_code=404, detail="No feather file found")

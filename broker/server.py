@@ -124,7 +124,7 @@ def download_results():
             zipMe.write(feather_file, compress_type=zipfile.ZIP_DEFLATED)
 
     try:
-        return FileResponse(path=file_path, filename=file_path, media_type="text/mp4")
+        return FileResponse(path=file_path, filename=file_path, media_type="zip")
     except Exception as e:
         raise HTTPException(status_code=404, detail="Failed download")
 
