@@ -7,7 +7,7 @@ import random
 import time
 from enum import Enum
 from time import strptime
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Optional, Set
 
 import boto3
 import numpy as np
@@ -15,17 +15,13 @@ import opendssdirect as dss
 import xarray as xr
 from botocore import UNSIGNED
 from botocore.config import Config
-from oedisi.types.data_types import Command, InverterControl, InverterControlMode
+from oedisi.types.data_types import (Command, InverterControl,
+                                     InverterControlMode)
 from pydantic import BaseModel
 from scipy.sparse import coo_matrix, csc_matrix
 
-from dss_functions import (
-    get_capacitors,
-    get_generators,
-    get_loads,
-    get_pvsystems,
-    get_voltages,
-)
+from dss_functions import (get_capacitors, get_generators, get_loads,
+                           get_pvsystems, get_voltages)
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())

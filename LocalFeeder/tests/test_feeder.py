@@ -7,14 +7,8 @@ import pandas as pd
 import plotille
 import pytest
 import xarray as xr
-from oedisi.types.data_types import (
-    EquipmentNodeArray,
-    InverterControl,
-    InverterControlMode,
-    VVControl,
-    VWControl,
-)
-
+from oedisi.types.data_types import (EquipmentNodeArray, InverterControl,
+                                     InverterControlMode, VVControl, VWControl)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
