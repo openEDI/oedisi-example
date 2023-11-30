@@ -1,13 +1,13 @@
+import csv
+import json
 import logging
+from datetime import datetime
+
 import helics as h
 import numpy as np
-from pydantic import BaseModel
 import pandas as pd
-from typing import List
-import json
-import csv
 import pyarrow as pa
-from datetime import datetime
+from oedisi.types.common import BrokerConfig
 from oedisi.types.data_types import MeasurementArray
 
 logger = logging.getLogger(__name__)
@@ -16,13 +16,24 @@ logger.setLevel(logging.INFO)
 
 
 class Recorder:
-    def __init__(self, name, feather_filename, csv_filename, input_mapping):
+    def __init__(
+        self,
+        name,
+        feather_filename,
+        csv_filename,
+        input_mapping,
+        broker_config: BrokerConfig,
+    ):
         self.rng = np.random.default_rng(12345)
         deltat = 0.01
         # deltat = 60.
 
         # Create Federate Info object that describes the federate properties #
         fedinfo = h.helicsCreateFederateInfo()
+
+        h.helicsFederateInfoSetBroker(fedinfo, broker_config.broker_ip)
+        h.helicsFederateInfoSetBrokerPort(fedinfo, broker_config.broker_port)
+
         fedinfo.core_name = name
         fedinfo.core_type = h.HELICS_CORE_TYPE_ZMQ
         fedinfo.core_init = "--federates=1"
@@ -58,7 +69,6 @@ class Recorder:
                 json_data = self.sub.json
                 json_data["time"] = granted_time
                 measurement = MeasurementArray(**self.sub.json)
-
                 measurement_dict = {
                     key: value
                     for key, value in zip(measurement.ids, measurement.values)
@@ -96,7 +106,7 @@ class Recorder:
         h.helicsCloseLibrary()
 
 
-if __name__ == "__main__":
+def run_simulator(broker_config: BrokerConfig):
     with open("static_inputs.json") as f:
         config = json.load(f)
         name = config["name"]
@@ -106,5 +116,9 @@ if __name__ == "__main__":
     with open("input_mapping.json") as f:
         input_mapping = json.load(f)
 
-    sfed = Recorder(name, feather_path, csv_path, input_mapping)
+    sfed = Recorder(name, feather_path, csv_path, input_mapping, broker_config)
     sfed.run()
+
+
+if __name__ == "__main__":
+    run_simulator(BrokerConfig(broker_ip="127.0.0.1"))

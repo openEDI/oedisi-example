@@ -7,7 +7,7 @@ import random
 import time
 from enum import Enum
 from time import strptime
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Optional, Set
 
 import boto3
 import numpy as np
@@ -15,17 +15,12 @@ import opendssdirect as dss
 import xarray as xr
 from botocore import UNSIGNED
 from botocore.config import Config
-from oedisi.types.data_types import Command, InverterControl, InverterControlMode
+from dss_functions import (get_capacitors, get_generators, get_loads,
+                           get_pvsystems, get_voltages)
+from oedisi.types.data_types import (Command, InverterControl,
+                                     InverterControlMode)
 from pydantic import BaseModel
 from scipy.sparse import coo_matrix, csc_matrix
-
-from dss_functions import (
-    get_capacitors,
-    get_generators,
-    get_loads,
-    get_pvsystems,
-    get_voltages,
-)
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -52,6 +47,7 @@ class FeederConfig(BaseModel):
 
     name: str
     use_smartds: bool = False
+    user_uploads_model: bool = False
     profile_location: str
     opendss_location: str
     existing_feeder_file: Optional[str] = None
@@ -62,6 +58,11 @@ class FeederConfig(BaseModel):
     start_time_index: int = 0
     topology_output: str = "topology.json"
     use_sparse_admittance: bool = False
+
+
+class FeederMapping(BaseModel):
+    static_inputs: FeederConfig
+    input_mapping: Dict[str, str]
 
 
 class OpenDSSState(Enum):
@@ -99,7 +100,7 @@ class FeederSimulator(object):
         self._profile_location = config.profile_location
         self._sensor_location = config.sensor_location
         self._use_smartds = config.use_smartds
-
+        self._user_uploads_model = config.user_uploads_model
         self._inverter_to_pvsystems = {}
         self._pvsystem_to_inverter = {}
         self._inverters = set()
@@ -119,9 +120,12 @@ class FeederSimulator(object):
             if self._use_smartds:
                 self._feeder_file = os.path.join("opendss", "Master.dss")
                 self.download_data("oedi-data-lake", update_loadshape_location=True)
-            else:
+            elif not self._use_smartds and not self._user_uploads_model:
                 self._feeder_file = os.path.join("opendss", "master.dss")
                 self.download_data("gadal")
+            else:
+                # User should have uploaded model using endpoint
+                raise Exception("Set existing_feeder_file when uploading data")
         else:
             self._feeder_file = config.existing_feeder_file
 

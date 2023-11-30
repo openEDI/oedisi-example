@@ -2,16 +2,15 @@ import logging
 import helics as h
 import numpy as np
 from pydantic import BaseModel
-from typing import List
-import scipy.io
 import json
 from datetime import datetime
+
 from oedisi.types.data_types import MeasurementArray, EquipmentNodeArray
+from oedisi.types.common import BrokerConfig
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
-
 
 class MeasurementConfig(BaseModel):
     name: str
@@ -65,7 +64,7 @@ def apply(f, measurement_array: MeasurementArray):
 
 
 class MeasurementRelay:
-    def __init__(self, config: MeasurementConfig, input_mapping):
+    def __init__(self, config: MeasurementConfig, input_mapping, broker_config:BrokerConfig):
         self.rng = np.random.default_rng(12345)
         # deltat = 60.
 
@@ -74,6 +73,9 @@ class MeasurementRelay:
         fedinfo.core_name = config.name
         fedinfo.core_type = h.HELICS_CORE_TYPE_ZMQ
         fedinfo.core_init = "--federates=1"
+        h.helicsFederateInfoSetBroker(fedinfo, broker_config.broker_ip)
+        h.helicsFederateInfoSetBrokerPort(fedinfo, broker_config.broker_port)
+
         logger.debug(config.name)
 
         h.helicsFederateInfoSetTimeProperty(
@@ -137,13 +139,16 @@ class MeasurementRelay:
         h.helicsFederateFree(self.vfed)
         h.helicsCloseLibrary()
 
-
-if __name__ == "__main__":
+def run_simulator(broker_config:BrokerConfig):
     with open("static_inputs.json") as f:
         config = MeasurementConfig(**json.load(f))
 
     with open("input_mapping.json") as f:
         input_mapping = json.load(f)
 
-    sfed = MeasurementRelay(config, input_mapping)
+    sfed = MeasurementRelay(config, input_mapping, broker_config)
     sfed.run()
+
+
+if __name__ == "__main__":
+    run_simulator(BrokerConfig(broker_ip="127.0.0.1"))

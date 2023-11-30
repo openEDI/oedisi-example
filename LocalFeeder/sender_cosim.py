@@ -9,25 +9,16 @@ import helics as h
 import numpy as np
 import numpy.typing as npt
 import xarray as xr
-from oedisi.types.data_types import (
-    AdmittanceMatrix,
-    AdmittanceSparse,
-    CommandList,
-    EquipmentNodeArray,
-    Injection,
-    InverterControlList,
-    MeasurementArray,
-    PowersImaginary,
-    PowersReal,
-    Topology,
-    VoltagesAngle,
-    VoltagesImaginary,
-    VoltagesMagnitude,
-    VoltagesReal,
-)
-from scipy.sparse import coo_matrix
-
 from FeederSimulator import FeederConfig, FeederSimulator
+from oedisi.types.common import BrokerConfig
+from oedisi.types.data_types import (AdmittanceMatrix, AdmittanceSparse,
+                                     CommandList, EquipmentNodeArray,
+                                     Injection, InverterControlList,
+                                     MeasurementArray, PowersImaginary,
+                                     PowersReal, Topology, VoltagesAngle,
+                                     VoltagesImaginary, VoltagesMagnitude,
+                                     VoltagesReal)
+from scipy.sparse import coo_matrix
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -224,9 +215,7 @@ def get_current_data(sim: FeederSimulator, Y):
     power_real, power_imaginary = get_powers(-PQ_load, -PQ_PV, -PQ_gen, -PQ_cap)
     injections = Injection(power_real=power_real, power_imaginary=power_imaginary)
 
-    ids = xr.DataArray(sim._AllNodeNames, coords={
-        "ids": sim._AllNodeNames,
-    })
+    ids = xr.DataArray(sim._AllNodeNames, coords={"ids": sim._AllNodeNames})
     PQ_injections_all = (
         agg_to_ids(PQ_load, ids)
         + agg_to_ids(PQ_PV, ids)
@@ -234,7 +223,9 @@ def get_current_data(sim: FeederSimulator, Y):
         + agg_to_ids(PQ_cap, ids)
     )
 
-    PQ_injections_all = PQ_injections_all.assign_coords(equipment_ids=('ids', list(map(lambda x: x.split(".")[0], sim._AllNodeNames))))
+    PQ_injections_all = PQ_injections_all.assign_coords(
+        equipment_ids=("ids", list(map(lambda x: x.split(".")[0], sim._AllNodeNames)))
+    )
     calculated_power = (
         feeder_voltages * (Y.conjugate() @ feeder_voltages.conjugate()) / 1000
     )
@@ -258,7 +249,12 @@ def where_power_unbalanced(PQ_injections_all, calculated_power, tol=1):
     return errors.ids[indices]
 
 
-def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str, str]):
+def go_cosim(
+    sim: FeederSimulator,
+    config: FeederConfig,
+    input_mapping: Dict[str, str],
+    broker_config: BrokerConfig,
+):
     """Run HELICS federate with FeederSimulation.
 
     TODO: Maybe this should be a class or a coroutine or something cleaner.
@@ -269,6 +265,10 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
 
     logger.info("Creating Federate Info")
     fedinfo = h.helicsCreateFederateInfo()
+
+    h.helicsFederateInfoSetBroker(fedinfo, broker_config.broker_ip)
+    h.helicsFederateInfoSetBrokerPort(fedinfo, broker_config.broker_port)
+
     h.helicsFederateInfoSetCoreName(fedinfo, config.name)
     h.helicsFederateInfoSetCoreTypeFromString(fedinfo, "zmq")
     h.helicsFederateInfoSetCoreInitString(fedinfo, fedinitstring)
@@ -422,7 +422,7 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
                     admittance_matrix=numpy_to_y_matrix(
                         current_data.load_y_matrix.toarray()
                     ),
-                    ids=sim._AllNodeNames
+                    ids=sim._AllNodeNames,
                 ).json()
             )
 
@@ -433,7 +433,7 @@ def go_cosim(sim: FeederSimulator, config: FeederConfig, input_mapping: Dict[str
     h.helicsCloseLibrary()
 
 
-def run():
+def run_simulator(broker_config: BrokerConfig):
     """Load static_inputs and input_mapping and run JSON."""
     with open("static_inputs.json") as f:
         parameters = json.load(f)
@@ -441,8 +441,8 @@ def run():
         input_mapping = json.load(f)
     config = FeederConfig(**parameters)
     sim = FeederSimulator(config)
-    go_cosim(sim, config, input_mapping)
+    go_cosim(sim, config, input_mapping, broker_config)
 
 
 if __name__ == "__main__":
-    run()
+    run_simulator(BrokerConfig(broker_ip="127.0.0.1"))

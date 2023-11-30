@@ -16,6 +16,7 @@ from enum import Enum
 from typing import List, Optional, Union
 from scipy.optimize import least_squares
 from datetime import datetime
+from oedisi.types.common import BrokerConfig
 from oedisi.types.data_types import (
     AdmittanceSparse,
     MeasurementArray,
@@ -263,7 +264,11 @@ class StateEstimatorFederate:
     "State estimator federate. Wraps state_estimation with pubs and subs"
 
     def __init__(
-        self, federate_name, algorithm_parameters: AlgorithmParameters, input_mapping
+        self,
+        federate_name,
+        algorithm_parameters: AlgorithmParameters,
+        input_mapping,
+        broker_config: BrokerConfig,
     ):
         "Initializes federate with name and remaps input into subscriptions"
         deltat = 0.1
@@ -272,6 +277,9 @@ class StateEstimatorFederate:
 
         # Create Federate Info object that describes the federate properties #
         fedinfo = h.helicsCreateFederateInfo()
+
+        h.helicsFederateInfoSetBroker(fedinfo, broker_config.broker_ip)
+        h.helicsFederateInfoSetBrokerPort(fedinfo, broker_config.broker_port)
 
         fedinfo.core_name = federate_name
         fedinfo.core_type = h.HELICS_CORE_TYPE_ZMQ
@@ -390,7 +398,7 @@ class StateEstimatorFederate:
         h.helicsCloseLibrary()
 
 
-if __name__ == "__main__":
+def run_simulator(broker_config: BrokerConfig):
     with open("static_inputs.json") as f:
         config = json.load(f)
         federate_name = config["name"]
@@ -402,5 +410,11 @@ if __name__ == "__main__":
     with open("input_mapping.json") as f:
         input_mapping = json.load(f)
 
-    sfed = StateEstimatorFederate(federate_name, parameters, input_mapping)
+    sfed = StateEstimatorFederate(
+        federate_name, parameters, input_mapping, broker_config
+    )
     sfed.run()
+
+
+if __name__ == "__main__":
+    run_simulator(BrokerConfig(broker_ip="127.0.0.1"))

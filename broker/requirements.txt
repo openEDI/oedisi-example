@@ -1,0 +1,8 @@
+helics==3.4.0
+helics-apps==3.4.0
+pyyaml
+fastapi
+uvicorn
+git+https://github.com/openEDI/GADAL@al/kubernetes
+grequests
+python-multipart
