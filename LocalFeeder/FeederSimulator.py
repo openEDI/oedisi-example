@@ -708,6 +708,46 @@ class FeederSimulator(object):
         else:
             dss.Text.Command(f"{inverter}.Mode = {inv_control.mode.value}")
 
+    def set_pv_output(self, pv_system, p, q):
+        """Sets the P and Q values for a PV system in OpenDSS
+        """
+
+        max_pv = self.get_max_pv_available(pv_system)
+        pf = q / ((p**2 + q **2)**0.5)
+
+        obj_name = f"PVSystem.{pv_system}"
+        if max_pv <=0:
+            Warning("Maximum PV Value is 0")
+            obj_val = 100
+        elif p < max_pv:
+            obj_val = p/float(max_pv)
+        else:
+            obj_val = 100
+        command = [Command(obj_name=obj_name,obj_property="%PMPP",val=obj_val), Command(obj_name=obj_name,obj_property="pf",val=pf)]
+        self.change_obj(command)
+
+    def get_max_pv_available(self,pv_system):
+        dss.PVsystems.First()
+        irradiance = None
+        pmpp = None
+        while True:
+            if dss.PVsystems.Name() == pv_system:
+                print(dss.PVsystems.Name())
+                irradiance = dss.PVsystems.Irradiance()
+                pmpp = dss.PVsystems.Pmpp()
+            if not dss.PVsystems.Next() > 0:
+                break
+        if irradiance is None or pmpp is None:
+            import pdb;pdb.set_trace()
+            raise ValueError(f"Irradiance or PMPP not found for {pv_system}")
+        return irradiance*pmpp
+
+
+
+
+
+    
+
     def apply_inverter_control(self, inv_control: InverterControl):
         """Apply inverter control to OpenDSS.
 
@@ -721,6 +761,11 @@ class FeederSimulator(object):
         -------
         name of inverter with ``InvControl.`` prefix: str
 
+        Raises
+        ------
+        ValueError:
+            Called when a fixed control inverter mode is created.
+            This modifies the values of the PV directly and doesn't work with inverters
         Warnings and Caveats
         --------------------
         Using multiple pvsystems will issue a warning, since
@@ -732,6 +777,8 @@ class FeederSimulator(object):
         This only works with the legacy InvControl settings,
         volt var, volt watt, and volt-var volt-watt combined mode.
         """
+        if inv_control.mode == InverterControlMode.fixed_control:
+            raise ValueError("Attempting to create an inverter with fixed control mode")
         if inv_control.pvsystem_list is None:
             pvsystem_set = self._pvsystems
         else:

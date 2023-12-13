@@ -22,7 +22,7 @@ import sender_cosim
 from sender_cosim import agg_to_ids
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session", autouse=False)
 def init_federate_simulation():
     federate_config = FeederSimulator.FeederConfig(
         **{
@@ -592,3 +592,35 @@ def test_inv_combined_control(federate_config):
     assert float(
         np.sum(np.abs(new_voltages.loc["87.3"] - old_voltages.loc["87.3"]))
     ) > 0.01 * float(np.abs(old_voltages.loc["87.3"]))
+
+def test_pv_setpoints(federate_config):
+    logging.info("Loading sim")
+    sim = FeederSimulator.FeederSimulator(federate_config)
+    sim.change_obj(
+        [
+            FeederSimulator.Command(
+                obj_name="PVSystem.113",
+                obj_property="irradiance",
+                val=1, 
+            ),
+            FeederSimulator.Command(
+                obj_name="PVSystem.113",
+                obj_property="Pmpp",
+                val=30, 
+            )
+
+        ]
+    )
+    sim.set_pv_output("113",20,5)
+    sim.change_obj(
+        [
+            FeederSimulator.Command(
+                obj_name="PVSystem.113",
+                obj_property="irradiance",
+                val=0.2, 
+            )
+        ]
+    )
+    sim.set_pv_output("113",20,5)
+
+
