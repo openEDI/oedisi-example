@@ -22,7 +22,7 @@ import sender_cosim
 from sender_cosim import agg_to_ids
 
 
-@pytest.fixture(scope="session", autouse=False)
+@pytest.fixture(scope="session", autouse=True)
 def init_federate_simulation():
     federate_config = FeederSimulator.FeederConfig(
         **{
