@@ -15,10 +15,20 @@ import opendssdirect as dss
 import xarray as xr
 from botocore import UNSIGNED
 from botocore.config import Config
-from dss_functions import (get_capacitors, get_generators, get_loads,
-                           get_pvsystems, get_voltages)
-from oedisi.types.data_types import (Command, InverterControl,
-                                     InverterControlMode)
+from dss_functions import (
+    get_capacitors,
+    get_generators,
+    get_loads,
+    get_pvsystems,
+    get_voltages,
+)
+
+from oedisi.types.data_types import (
+    Command,
+    InverterControl,
+    InverterControlMode,
+    Incidence,
+)
 from pydantic import BaseModel
 from scipy.sparse import coo_matrix, csc_matrix
 
@@ -701,7 +711,8 @@ class FeederSimulator(object):
             )
         if inv_control.vwcontrol is not None:
             vw_curve = self.create_xy_curve(
-                inv_control.vwcontrol.voltage, inv_control.vwcontrol.power_response,
+                inv_control.vwcontrol.voltage,
+                inv_control.vwcontrol.power_response,
             )
             dss.Text.Command(f"{inverter}.voltwatt_curve={vw_curve.split('.')[1]}")
             dss.Text.Command(
@@ -801,3 +812,21 @@ class FeederSimulator(object):
 
         self.set_properties_to_inverter(inverter, inv_control)
         return inverter
+
+    def get_incidences(self) -> Incidence:
+        """Get Incidence from line names to buses."""
+        assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
+        from_list = []
+        to_list = []
+        equipment_type = []
+        for line in dss.Lines.AllNames():
+            dss.Circuit.SetActiveElement("Line." + line)
+            from_bus, to_bus = dss.CktElement.BusNames()
+            from_list.append(from_bus.upper())
+            to_list.append(to_bus.upper())
+            equipment_type.append(line)
+        return Incidence(
+            from_equipment=from_list,
+            to_equipment=to_list,
+            equipment_type=equipment_type,
+        )
