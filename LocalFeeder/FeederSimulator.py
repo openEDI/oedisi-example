@@ -761,11 +761,6 @@ class FeederSimulator(object):
         -------
         name of inverter with ``InvControl.`` prefix: str
 
-        Raises
-        ------
-        ValueError:
-            Called when a fixed control inverter mode is created.
-            This modifies the values of the PV directly and doesn't work with inverters
         Warnings and Caveats
         --------------------
         Using multiple pvsystems will issue a warning, since
@@ -777,8 +772,6 @@ class FeederSimulator(object):
         This only works with the legacy InvControl settings,
         volt var, volt watt, and volt-var volt-watt combined mode.
         """
-        if inv_control.mode == InverterControlMode.fixed_control:
-            raise ValueError("Attempting to create an inverter with fixed control mode")
         if inv_control.pvsystem_list is None:
             pvsystem_set = self._pvsystems
         else:
