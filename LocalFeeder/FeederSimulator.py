@@ -594,7 +594,7 @@ class FeederSimulator(object):
 
         Examples
         --------
-        ``change_obj([Command('PVsystem.pv1','kVAr',25)])``
+        ``change_obj([Command('PVsystem.pv1','kVAr','25')])``
         """
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
         for entry in change_commands:
@@ -716,7 +716,7 @@ class FeederSimulator(object):
         pf = q / ((p**2 + q **2)**0.5)
 
         obj_name = f"PVSystem.{pv_system}"
-        if max_pv <=0:
+        if max_pv <=0 or p == 0:
             Warning("Maximum PV Value is 0")
             obj_val = 100
             q=0
@@ -724,7 +724,9 @@ class FeederSimulator(object):
             obj_val = p/float(max_pv) *100
         else:
             obj_val = 100
-        command = [Command(obj_name=obj_name,obj_property="%Pmpp",val=obj_val), Command(obj_name=obj_name,obj_property="kvar",val=q)]
+            ratio = float(max_pv)/p
+            q = q*ratio #adjust q value to that it matches the kw output
+        command = [Command(obj_name=obj_name,obj_property="%Pmpp",val=str(obj_val)), Command(obj_name=obj_name,obj_property="kvar",val=str(q)), Command(obj_name=obj_name,obj_property="%Cutout", val="0"),  Command(obj_name=obj_name,obj_property="%Cutin", val="0")]
         self.change_obj(command)
         
     def get_pv_output(self,pv_system):

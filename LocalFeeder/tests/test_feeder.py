@@ -421,7 +421,7 @@ def test_controls(federate_config):
             FeederSimulator.Command(
                 obj_name="PVSystem.113",
                 obj_property="%Pmpp",
-                val=5,  # power_real.values[pv_system_index] / 2,
+                val="5",  # power_real.values[pv_system_index] / 2,
             )
         ]
     )
@@ -601,12 +601,12 @@ def test_pv_setpoints(federate_config):
             FeederSimulator.Command(
                 obj_name="PVSystem.113",
                 obj_property="irradiance",
-                val=1, 
+                val="1", 
             ),
             FeederSimulator.Command(
                 obj_name="PVSystem.113",
                 obj_property="Pmpp",
-                val=40, 
+                val="40", 
             )
 
         ]
@@ -620,12 +620,13 @@ def test_pv_setpoints(federate_config):
             FeederSimulator.Command(
                 obj_name="PVSystem.113",
                 obj_property="irradiance",
-                val=0.2, 
+                val="0.2", 
             )
         ]
     )
     sim.set_pv_output("113",20,5)
     kw,kvar = sim.get_pv_output("113")
     assert kw == 8
+    assert kvar == 2
 
 
