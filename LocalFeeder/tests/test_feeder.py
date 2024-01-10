@@ -612,9 +612,9 @@ def test_pv_setpoints(federate_config):
         ]
     )
     kw,kvar = sim.get_pv_output("113")
+    sim.set_pv_output("113",20,5)
     assert kw == 20
     assert kvar == 5
-    sim.set_pv_output("113",20,5)
     sim.change_obj(
         [
             FeederSimulator.Command(
