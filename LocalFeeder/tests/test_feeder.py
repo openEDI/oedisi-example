@@ -606,11 +606,14 @@ def test_pv_setpoints(federate_config):
             FeederSimulator.Command(
                 obj_name="PVSystem.113",
                 obj_property="Pmpp",
-                val=30, 
+                val=40, 
             )
 
         ]
     )
+    kw,kvar = sim.get_pv_output("113")
+    assert kw == 20
+    assert kvar == 5
     sim.set_pv_output("113",20,5)
     sim.change_obj(
         [
@@ -622,5 +625,6 @@ def test_pv_setpoints(federate_config):
         ]
     )
     sim.set_pv_output("113",20,5)
+    assert kw == 8
 
 
