@@ -624,7 +624,7 @@ def test_pv_setpoints(federate_config):
             )
         ]
     )
-    sim.set_pv_output("113",20,5)
+    kw,var = sim.set_pv_output("113",20,5)
     assert kw == 8
 
 
