@@ -719,12 +719,26 @@ class FeederSimulator(object):
         if max_pv <=0:
             Warning("Maximum PV Value is 0")
             obj_val = 100
+            q=0
         elif p < max_pv:
-            obj_val = p/float(max_pv)
+            obj_val = p/float(max_pv) *100
         else:
             obj_val = 100
-        command = [Command(obj_name=obj_name,obj_property="%PMPP",val=obj_val), Command(obj_name=obj_name,obj_property="pf",val=pf)]
+        command = [Command(obj_name=obj_name,obj_property="%Pmpp",val=obj_val), Command(obj_name=obj_name,obj_property="kvar",val=q)]
         self.change_obj(command)
+        
+    def get_pv_output(self,pv_system):
+        dss.PVsystems.First()
+        irradiance = None
+        pmpp = None
+        while True:
+            if dss.PVsystems.Name() == pv_system:
+                print(dss.PVsystems.Name())
+                kw = dss.PVsystems.kW()
+                kvar = dss.PVsystems.kvar()
+            if not dss.PVsystems.Next() > 0:
+                break
+        return kw,kvar
 
     def get_max_pv_available(self,pv_system):
         dss.PVsystems.First()
@@ -738,15 +752,8 @@ class FeederSimulator(object):
             if not dss.PVsystems.Next() > 0:
                 break
         if irradiance is None or pmpp is None:
-            import pdb;pdb.set_trace()
             raise ValueError(f"Irradiance or PMPP not found for {pv_system}")
         return irradiance*pmpp
-
-
-
-
-
-    
 
     def apply_inverter_control(self, inv_control: InverterControl):
         """Apply inverter control to OpenDSS.
