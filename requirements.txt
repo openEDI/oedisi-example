@@ -9,4 +9,4 @@ pandas
 OpenDSSDirect.py[extras]==0.7.0
 boto3
 xarray
-git+https://github.com/openEDI/oedisi@al/kubernetes
+oedisi==1.1.1
