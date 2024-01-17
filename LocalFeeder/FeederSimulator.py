@@ -735,7 +735,6 @@ class FeederSimulator(object):
         pmpp = None
         while True:
             if dss.PVsystems.Name() == pv_system:
-                print(dss.PVsystems.Name())
                 kw = dss.PVsystems.kW()
                 kvar = dss.PVsystems.kvar()
             if not dss.PVsystems.Next() > 0:
@@ -748,7 +747,6 @@ class FeederSimulator(object):
         pmpp = None
         while True:
             if dss.PVsystems.Name() == pv_system:
-                print(dss.PVsystems.Name())
                 irradiance = dss.PVsystems.Irradiance()
                 pmpp = dss.PVsystems.Pmpp()
             if not dss.PVsystems.Next() > 0:
