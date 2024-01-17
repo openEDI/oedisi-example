@@ -713,7 +713,7 @@ class FeederSimulator(object):
         """
 
         max_pv = self.get_max_pv_available(pv_system)
-        pf = q / ((p**2 + q **2)**0.5)
+        #pf = q / ((p**2 + q **2)**0.5)
 
         obj_name = f"PVSystem.{pv_system}"
         if max_pv <=0 or p == 0:
@@ -731,8 +731,6 @@ class FeederSimulator(object):
         
     def get_pv_output(self,pv_system):
         dss.PVsystems.First()
-        irradiance = None
-        pmpp = None
         while True:
             if dss.PVsystems.Name() == pv_system:
                 kw = dss.PVsystems.kW()
