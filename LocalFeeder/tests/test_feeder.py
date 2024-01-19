@@ -605,12 +605,11 @@ def test_pv_setpoints(federate_config):
                 obj_name="PVSystem.113",
                 obj_property="Pmpp",
                 val="40",
-            )
-
+            ),
         ]
     )
-    sim.set_pv_output("113",20,5)
-    kw,kvar = sim.get_pv_output("113")
+    sim.set_pv_output("113", 20, 5)
+    kw, kvar = sim.get_pv_output("113")
     assert kw == 20
     assert kvar == 5
     sim.change_obj(
@@ -622,8 +621,8 @@ def test_pv_setpoints(federate_config):
             )
         ]
     )
-    sim.set_pv_output("113",20,5)
-    kw,kvar = sim.get_pv_output("113")
+    sim.set_pv_output("113", 20, 5)
+    kw, kvar = sim.get_pv_output("113")
     assert kw == 8
     assert kvar == 2
 
@@ -643,3 +642,5 @@ def test_incidence_matrix(federate_config):
     assert len(incidences.from_equipment) == len(incidences.to_equipment)
     if incidences.equipment_type is not None:
         assert len(incidences.equipment_type) == len(incidences.from_equipment)
+    if incidences.ids is not None:
+        assert len(incidences.ids) == len(incidences.from_equipment)
