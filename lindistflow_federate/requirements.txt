@@ -1,0 +1,12 @@
+helics==3.4.0
+pydantic>=1.7,<2
+pyarrow
+cvxpy
+matplotlib
+numpy
+pandas
+xarray
+networkx
+oedisi==1.2.1
+fastapi
+uvicorn

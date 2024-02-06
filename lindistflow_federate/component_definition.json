@@ -1,0 +1,19 @@
+{
+    "directory": "lindistflow_federate",
+    "execute_function": "python opf_federate.py",
+    "static_inputs": [
+        {"type": "", "port_id": "name"},
+        {"type": "", "port_id": "deltat"},
+        {"type": "", "port_id": "control_type"},
+        {"type": "", "port_id": "pf_flag"}
+    ],
+    "dynamic_inputs": [
+        {"type": "VoltagesMagnitude", "port_id": "voltages_magnitude"},
+        {"type": "Topology", "port_id": "topology"},
+        {"type": "Injections", "port_id": "injections"}
+    ],
+    "dynamic_outputs": [
+        {"type": "ControlList", "port_id": "change_commands"},
+        {"type": "VoltagesMagnitude", "port_id": "opf_voltages_magnitude"}
+    ]
+}
