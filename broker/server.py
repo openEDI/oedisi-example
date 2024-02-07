@@ -1,6 +1,5 @@
 import logging
 import os
-import shutil
 import socket
 import sys
 import time
@@ -114,9 +113,9 @@ def download_results():
             port = int(services[service]["ports"][0].split(":")[0])
             url = f"http://{ip}:{port}/download/"
             response = requests.get(url)
+            logging.info(f"Response from {service} has {len(response.content)} bytes")
             with open(f"{service}.feather", "wb") as out_file:
-                shutil.copyfileobj(response.raw, out_file)
-                time.sleep(2)
+                out_file.write(response.content)
 
     file_path = "results.zip"
     with zipfile.ZipFile(file_path, "w") as zipMe:
