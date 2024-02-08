@@ -191,7 +191,6 @@ async def status():
                 ):
                     name_2_timedata[time_data.name] = time_data
         return {"connected": connected, "timedata": name_2_timedata, "error": False}
-        # return {"status": app.state.broker.granted_time, "error": False}
     except AttributeError as e:
         return {"reply": str(e), "error": True}
 
