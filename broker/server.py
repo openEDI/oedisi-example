@@ -183,13 +183,14 @@ async def run_feeder(background_tasks: BackgroundTasks):
 async def status():
     try:
         name_2_timedata = {}
-        if h.helicsBrokerIsConnected(app.state.broker) is True:
+        connected = h.helicsBrokerIsConnected(app.state.broker)
+        if connected:
             for time_data in get_time_data(app.state.broker):
                 if (time_data.name not in name_2_timedata) or (
                     name_2_timedata[time_data.name] != time_data
                 ):
                     name_2_timedata[time_data.name] = time_data
-        return {"timedata": name_2_timedata, "error": False}
+        return {"connected": connected, "timedata": name_2_timedata, "error": False}
         # return {"status": app.state.broker.granted_time, "error": False}
     except AttributeError as e:
         return {"reply": str(e), "error": True}
