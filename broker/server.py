@@ -16,6 +16,7 @@ from fastapi import BackgroundTasks, FastAPI, UploadFile
 from fastapi.exceptions import HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from oedisi.types.common import HeathCheck, ServerReply
+from oedisi.tools.broker_utils import get_time_data
 
 app = FastAPI()
 
@@ -143,6 +144,7 @@ def run_simulation():
     initstring = f"-f {len(component_map)} --name=mainbroker --loglevel=trace --local_interface={broker_ip} --localport=23404"
     logging.info(f"Broker initaialization string: {initstring}")
     broker = h.helicsCreateBroker("zmq", "", initstring)
+    app.state.broker = broker
     logging.info(broker)
     isconnected = h.helicsBrokerIsConnected(broker)
     logging.info(f"Broker connected: {isconnected}")
@@ -175,6 +177,22 @@ async def run_feeder(background_tasks: BackgroundTasks):
     except Exception as e:
         err = traceback.format_exc()
         raise HTTPException(status_code=404, detail=str(err))
+
+
+@app.get("/status/")
+async def status():
+    try:
+        name_2_timedata = {}
+        if h.helicsBrokerIsConnected(app.state.broker) is True:
+            for time_data in get_time_data(app.state.broker):
+                if (time_data.name not in name_2_timedata) or (
+                    name_2_timedata[time_data.name] != time_data
+                ):
+                    name_2_timedata[time_data.name] = time_data
+        return {"timedata": name_2_timedata, "error": False}
+        # return {"status": app.state.broker.granted_time, "error": False}
+    except AttributeError as e:
+        return {"reply": str(e), "error": True}
 
 
 if __name__ == "__main__":
