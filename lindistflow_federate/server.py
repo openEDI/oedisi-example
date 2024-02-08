@@ -1,13 +1,10 @@
 from oedisi.types.common import BrokerConfig
 from opf_federate import EchoFederate
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import JSONResponse
-import traceback
 import uvicorn
 import socket
 import sys
-
-from oedisi.types.common import ServerReply
 
 app = FastAPI()
 
