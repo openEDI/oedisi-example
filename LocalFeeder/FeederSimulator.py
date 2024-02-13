@@ -749,13 +749,24 @@ class FeederSimulator(object):
         pmpp = None
         while True:
             if dss.PVsystems.Name() == pv_system:
-                irradiance = dss.PVsystems.Irradiance()
+                irradiance = dss.PVsystems.IrradianceNow()
                 pmpp = dss.PVsystems.Pmpp()
             if not dss.PVsystems.Next() > 0:
                 break
         if irradiance is None or pmpp is None:
             raise ValueError(f"Irradiance or PMPP not found for {pv_system}")
         return irradiance*pmpp
+
+    def get_available_pv(self):
+        pv_names = []
+        powers = []
+        dss.PVsystems.First()
+        while True:
+            pv_names.append(f"PVSystem.{dss.PVsystems.Name()}")
+            powers.append(dss.PVsystems.Pmpp() * dss.PVsystems.IrradianceNow())
+            if not dss.PVsystems.Next() > 0:
+                break
+        return xr.DataArray(powers, coords={"ids": pv_names})
 
     def apply_inverter_control(self, inv_control: InverterControl):
         """Apply inverter control to OpenDSS.

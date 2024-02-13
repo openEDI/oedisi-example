@@ -1,0 +1,107 @@
+{
+    "name": "test_omoo",
+    "components": [
+        {
+            "name": "recorder_voltage_real",
+            "type": "Recorder",
+            "parameters": {
+                "feather_filename": "../../outputs/voltage_real.feather",
+                "csv_filename": "../../outputs/voltage_real.csv"
+            }
+        },
+        {
+            "name": "recorder_voltage_imag",
+            "type": "Recorder",
+            "parameters": {
+                "feather_filename": "../../outputs/voltage_imag.feather",
+                "csv_filename": "../../outputs/voltage_imag.csv"
+            }
+        },
+        {
+            "name": "optimal_pf",
+            "type": "OMOOComponent",
+            "parameters": {
+                "algorithm_parameters": {
+                    "tol": 1e-5
+                }
+            }
+        },
+        {
+            "name": "local_feeder",
+            "type": "LocalFeeder",
+            "parameters": {
+                "use_smartds": false,
+                "profile_location": "gadal_ieee123/profiles",
+                "opendss_location": "gadal_ieee123/qsts",
+                "sensor_location": "gadal_ieee123/sensors.json",
+                "existing_feeder_file": "opendss/master.dss",
+                "start_date": "2017-01-01 11:00:00",
+                "number_of_timesteps": 10,
+                "run_freq_sec": 900,
+                "topology_output": "../../outputs/topology.json"
+            }
+        }
+    ],
+    "links": [
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_real",
+            "target": "recorder_voltage_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_imag",
+            "target": "recorder_voltage_imag",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "topology",
+            "target": "optimal_pf",
+            "target_port": "topology"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "powers_real",
+            "target": "optimal_pf",
+            "target_port": "powers_real"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "powers_imag",
+            "target": "optimal_pf",
+            "target_port": "powers_imag"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_real",
+            "target": "optimal_pf",
+            "target_port": "voltages_real"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_imag",
+            "target": "optimal_pf",
+            "target_port": "voltages_imag"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "injections",
+            "target": "optimal_pf",
+            "target_port": "injections"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "available_power",
+            "target": "optimal_pf",
+            "target_port": "available_power"
+        },
+        {
+            "source": "optimal_pf",
+            "source_port": "P_set",
+            "target": "local_feeder",
+            "target_port": "pv_set"
+        }
+    ]
+}

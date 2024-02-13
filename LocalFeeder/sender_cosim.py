@@ -296,6 +296,9 @@ def go_cosim(
     pub_injections = h.helicsFederateRegisterPublication(
         vfed, "injections", h.HELICS_DATA_TYPE_STRING, ""
     )
+    pub_available_power = h.helicsFederateRegisterPublication(
+        vfed, "available_power", h.HELICS_DATA_TYPE_STRING, ""
+    )
     pub_load_y_matrix = h.helicsFederateRegisterPublication(
         vfed, "load_y_matrix", h.HELICS_DATA_TYPE_STRING, ""
     )
@@ -317,6 +320,16 @@ def go_cosim(
     sub_invcontrol = vfed.register_subscription(inv_control_key, "")
     sub_invcontrol.set_default("[]")
     sub_invcontrol.option["CONNECTION_OPTIONAL"] = 1
+
+    pv_set_key = (
+        "unused/pv_set"
+        if "pv_set" not in input_mapping
+        else input_mapping["pv_set"]
+    )
+
+    sub_pv_set = vfed.register_subscription(pv_set_key, "")
+    sub_pv_set.set_default("[]")
+    sub_pv_set.option["CONNECTION_OPTIONAL"] = 1
 
     h.helicsFederateEnterExecutingMode(vfed)
     initial_data = get_initial_data(sim, config)
@@ -344,6 +357,10 @@ def go_cosim(
         inverter_controls = InverterControlList.parse_obj(sub_invcontrol.json)
         for inv_control in inverter_controls.__root__:
             sim.apply_inverter_control(inv_control)
+
+        pv_sets = sub_pv_set.json
+        for pv_set in pv_sets:
+            sim.set_pv_output(pv_set[0].split(".")[1], pv_set[1], pv_set[2])
 
         logger.info(
             f"Solve at hour {floored_timestamp.hour} second "
@@ -409,6 +426,13 @@ def go_cosim(
             ).json()
         )
         pub_injections.publish(current_data.injections.json())
+        pub_available_power.publish(
+            MeasurementArray(
+                **xarray_to_dict(sim.get_available_pv()),
+                time=current_timestamp,
+                units="kWA"
+            ).json()
+        )
 
         if config.use_sparse_admittance:
             pub_load_y_matrix.publish(

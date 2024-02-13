@@ -2,24 +2,80 @@
     "directory": "LocalFeeder",
     "execute_function": "python sender_cosim.py",
     "static_inputs": [
-        {"type": "", "port_id": "feeder_file"},
-        {"type": "", "port_id": "start_date"},
-        {"type": "", "port_id": "run_freq_sec"},
-        {"type": "", "port_id": "number_of_timesteps"},
-        {"type": "", "port_id": "start_time_index"}
+        {
+            "type": "",
+            "port_id": "feeder_file"
+        },
+        {
+            "type": "",
+            "port_id": "start_date"
+        },
+        {
+            "type": "",
+            "port_id": "run_freq_sec"
+        },
+        {
+            "type": "",
+            "port_id": "number_of_timesteps"
+        },
+        {
+            "type": "",
+            "port_id": "start_time_index"
+        }
     ],
     "dynamic_inputs": [
-        {"type": "CommandList", "port_id": "change_commands", "optional": true},
-        {"type": "InverterControlList", "port_id": "inv_control", "optional": true}
+        {
+            "type": "",
+            "port_id": "pv_set",
+            "optional": true
+        },
+        {
+            "type": "CommandList",
+            "port_id": "change_commands",
+            "optional": true
+        },
+        {
+            "type": "InverterControlList",
+            "port_id": "inv_control",
+            "optional": true
+        }
     ],
     "dynamic_outputs": [
-        {"type": "VoltagesMagnitude", "port_id": "voltages_magnitude"},
-        {"type": "VoltagesReal", "port_id": "voltages_real"},
-        {"type": "VoltagesImaginary", "port_id": "voltages_imag"},
-        {"type": "PowersReal", "port_id": "powers_real"},
-        {"type": "PowersImaginary", "port_id": "powers_imag"},
-        {"type": "Topology", "port_id": "topology"},
-        {"type": "Injection", "port_id": "injections"},
-        {"type": "", "port_id": "load_y_matrix"}
+        {
+            "type": "VoltagesMagnitude",
+            "port_id": "voltages_magnitude"
+        },
+        {
+            "type": "VoltagesReal",
+            "port_id": "voltages_real"
+        },
+        {
+            "type": "VoltagesImaginary",
+            "port_id": "voltages_imag"
+        },
+        {
+            "type": "PowersReal",
+            "port_id": "powers_real"
+        },
+        {
+            "type": "PowersImaginary",
+            "port_id": "powers_imag"
+        },
+        {
+            "type": "Topology",
+            "port_id": "topology"
+        },
+        {
+            "type": "Injection",
+            "port_id": "injections"
+        },
+        {
+            "type": "",
+            "port_id": "load_y_matrix"
+        },
+        {
+            "type": "PowersReal",
+            "port_id": "available_power"
+        }
     ]
 }
