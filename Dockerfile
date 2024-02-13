@@ -13,6 +13,7 @@ COPY README.md .
 COPY measuring_federate measuring_federate
 COPY wls_federate wls_federate
 COPY recorder recorder
+COPY omoo_federate omoo_federate
 
 RUN mkdir -p outputs build
 
