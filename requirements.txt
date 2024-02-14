@@ -10,3 +10,4 @@ OpenDSSDirect.py[extras]==0.7.0
 boto3
 xarray
 oedisi>=2.0.2,<3
+cvxpy
