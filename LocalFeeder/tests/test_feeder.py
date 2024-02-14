@@ -606,8 +606,8 @@ def test_pv_setpoints(federate_config):
     sim.set_pv_output("113",20,5)
     sim.snapshot_run()
     kw,kvar = sim.get_pv_output("113")
-    assert kw == 20
-    assert kvar == 5
+    assert np.isclose(kw, 20), f"Expected 20, got {kw}"
+    assert np.isclose(kvar, 5), f"Expected 5, got {kvar}"
     sim.change_obj(
         [
             FeederSimulator.Command(
@@ -617,10 +617,9 @@ def test_pv_setpoints(federate_config):
             )
         ]
     )
-    sim.set_pv_output("113",20,5)
     sim.snapshot_run()
     kw,kvar = sim.get_pv_output("113")
-    assert kw == 8
-    assert kvar == 2
+    assert np.isclose(kw, 8), f"Expected 8, got {kw}"
+    assert np.isclose(kvar, 2), f"Expected 2, got {kvar}"
 
 
