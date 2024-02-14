@@ -67,7 +67,6 @@
             "host": "10.5.0.10",
             "container_port": 5678,
             "parameters": {
-                "existing_feeder_file": "opendss/master.dss",
                 "use_smartds": false,
                 "profile_location": "gadal_ieee123/profiles",
                 "opendss_location": "gadal_ieee123/qsts",
