@@ -604,6 +604,7 @@ def test_pv_setpoints(federate_config):
         ]
     )
     sim.set_pv_output("113",20,5)
+    sim.snapshot_run()
     kw,kvar = sim.get_pv_output("113")
     assert kw == 20
     assert kvar == 5
@@ -617,6 +618,7 @@ def test_pv_setpoints(federate_config):
         ]
     )
     sim.set_pv_output("113",20,5)
+    sim.snapshot_run()
     kw,kvar = sim.get_pv_output("113")
     assert kw == 8
     assert kvar == 2
