@@ -1,21 +1,22 @@
-import logging
-import os
-import shutil
-import socket
-import sys
-import time
-import traceback
-import zipfile
-
-import grequests
-import helics as h
-import requests
-import uvicorn
-import yaml
-from fastapi import BackgroundTasks, FastAPI, UploadFile
-from fastapi.exceptions import HTTPException
+from fastapi import FastAPI, BackgroundTasks, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
-from oedisi.types.common import HeathCheck, ServerReply
+from fastapi.exceptions import HTTPException
+import helics as h
+import grequests
+import traceback
+import requests
+import zipfile
+import uvicorn
+import logging
+import socket
+import shutil
+import time
+import yaml
+import sys
+import os
+
+from oedisi.componentframework.system_configuration import WiringDiagram, ComponentStruct
+from oedisi.types.common import ServerReply, HeathCheck
 
 app = FastAPI()
 
@@ -176,7 +177,23 @@ async def run_feeder(background_tasks: BackgroundTasks):
         err = traceback.format_exc()
         raise HTTPException(status_code=404, detail=str(err))
 
-
+    
+@app.post("/configure/")
+async def configure(wiring_diagram:WiringDiagram): 
+    for component in wiring_diagram.components:
+        component_model  = ComponentStruct(
+            component = component,
+            links = []
+        )
+        for link in wiring_diagram.links:
+            if link.target == component.name:
+                component_model.links.append(link)
+                
+        url = f'http://{component.host}:{component.container_port}/configure/'
+        logging.info(f"making post request to: {url}")
+        r = requests.post(url, json=component_model.dict())
+        assert r.status_code==200, f"POST request to update configuration failed for url - {url}"
+        
 if __name__ == "__main__":
     port = int(sys.argv[2])
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ['PORT']))
