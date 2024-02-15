@@ -715,7 +715,6 @@ class FeederSimulator(object):
     def set_pv_output(self, pv_system, p, q):
         """Sets the P and Q values for a PV system in OpenDSS
         """
-
         max_pv = self.get_max_pv_available(pv_system)
         #pf = q / ((p**2 + q **2)**0.5)
 
@@ -732,16 +731,6 @@ class FeederSimulator(object):
             q = q*ratio #adjust q value to that it matches the kw output
         command = [Command(obj_name=obj_name,obj_property="%Pmpp",val=str(obj_val)), Command(obj_name=obj_name,obj_property="kvar",val=str(q)), Command(obj_name=obj_name,obj_property="%Cutout", val="0"),  Command(obj_name=obj_name,obj_property="%Cutin", val="0")]
         self.change_obj(command)
-        
-    def get_pv_output(self,pv_system):
-        dss.PVsystems.First()
-        while True:
-            if dss.PVsystems.Name() == pv_system:
-                kw = dss.PVsystems.kW()
-                kvar = dss.PVsystems.kvar()
-            if not dss.PVsystems.Next() > 0:
-                break
-        return kw,kvar
 
     def get_max_pv_available(self,pv_system):
         dss.PVsystems.First()

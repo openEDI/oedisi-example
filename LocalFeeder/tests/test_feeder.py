@@ -605,21 +605,24 @@ def test_pv_setpoints(federate_config):
     )
     sim.set_pv_output("113",20,5)
     sim.snapshot_run()
-    kw,kvar = sim.get_pv_output("113")
-    assert np.isclose(kw, 20), f"Expected 20, got {kw}"
-    assert np.isclose(kvar, 5), f"Expected 5, got {kvar}"
+    power = -sim.get_PQs_pv(static=True).groupby("equipment_ids")["PVSystem.113"].sum().item()
+    assert np.isclose(power.real, 20), f"Real power is {power.real}"
+    assert np.isclose(power.imag, 5), f"Reactive power is {power.imag}"
+
     sim.change_obj(
         [
             FeederSimulator.Command(
                 obj_name="PVSystem.113",
-                obj_property="irradiance",
-                val="0.2", 
+                obj_property="Pmpp",
+                val="8", 
             )
         ]
     )
     sim.snapshot_run()
-    kw,kvar = sim.get_pv_output("113")
-    assert np.isclose(kw, 8), f"Expected 8, got {kw}"
-    assert np.isclose(kvar, 2), f"Expected 2, got {kvar}"
+    sim.set_pv_output("113",20,5)
+    sim.snapshot_run()
+    power = -sim.get_PQs_pv(static=True).groupby("equipment_ids")["PVSystem.113"].sum().item()
+    assert np.isclose(power.real, 8), f"Real power is {power.real}"
+    assert np.isclose(power.imag, 2), f"Reactive power is {power.imag}"
 
 
