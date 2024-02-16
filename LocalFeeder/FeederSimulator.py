@@ -823,14 +823,24 @@ class FeederSimulator(object):
         from_list = []
         to_list = []
         equipment_ids = []
+        equipment_types = []
         for line in dss.Lines.AllNames():
             dss.Circuit.SetActiveElement("Line." + line)
             from_bus, to_bus = dss.CktElement.BusNames()
             from_list.append(from_bus.upper())
             to_list.append(to_bus.upper())
             equipment_ids.append(line)
+            equipment_types.append("Line")
+        for transformer in dss.Transformers.AllNames():
+            dss.Circuit.SetActiveElement("Transformer." + transformer)
+            from_bus, to_bus = dss.CktElement.BusNames()
+            from_list.append(from_bus.upper())
+            to_list.append(to_bus.upper())
+            equipment_ids.append(transformer)
+            equipment_types.append("Transformer")
         return IncidenceList(
             from_equipment=from_list,
             to_equipment=to_list,
             ids=equipment_ids,
+            equipment_types=equipment_types,
         )
