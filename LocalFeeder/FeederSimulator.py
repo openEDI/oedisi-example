@@ -15,10 +15,20 @@ import opendssdirect as dss
 import xarray as xr
 from botocore import UNSIGNED
 from botocore.config import Config
-from dss_functions import (get_capacitors, get_generators, get_loads,
-                           get_pvsystems, get_voltages)
-from oedisi.types.data_types import (Command, InverterControl,
-                                     InverterControlMode)
+from dss_functions import (
+    get_capacitors,
+    get_generators,
+    get_loads,
+    get_pvsystems,
+    get_voltages,
+)
+
+from oedisi.types.data_types import (
+    Command,
+    InverterControl,
+    InverterControlMode,
+    IncidenceList,
+)
 from pydantic import BaseModel
 from scipy.sparse import coo_matrix, csc_matrix
 
@@ -701,7 +711,8 @@ class FeederSimulator(object):
             )
         if inv_control.vwcontrol is not None:
             vw_curve = self.create_xy_curve(
-                inv_control.vwcontrol.voltage, inv_control.vwcontrol.power_response,
+                inv_control.vwcontrol.voltage,
+                inv_control.vwcontrol.power_response,
             )
             dss.Text.Command(f"{inverter}.voltwatt_curve={vw_curve.split('.')[1]}")
             dss.Text.Command(
@@ -713,27 +724,31 @@ class FeederSimulator(object):
             dss.Text.Command(f"{inverter}.Mode = {inv_control.mode.value}")
 
     def set_pv_output(self, pv_system, p, q):
-        """Sets the P and Q values for a PV system in OpenDSS
-        """
+        """Sets the P and Q values for a PV system in OpenDSS"""
 
         max_pv = self.get_max_pv_available(pv_system)
-        #pf = q / ((p**2 + q **2)**0.5)
+        # pf = q / ((p**2 + q **2)**0.5)
 
         obj_name = f"PVSystem.{pv_system}"
-        if max_pv <=0 or p == 0:
+        if max_pv <= 0 or p == 0:
             Warning("Maximum PV Value is 0")
             obj_val = 100
-            q=0
+            q = 0
         elif p < max_pv:
-            obj_val = p/float(max_pv) *100
+            obj_val = p / float(max_pv) * 100
         else:
             obj_val = 100
-            ratio = float(max_pv)/p
-            q = q*ratio #adjust q value to that it matches the kw output
-        command = [Command(obj_name=obj_name,obj_property="%Pmpp",val=str(obj_val)), Command(obj_name=obj_name,obj_property="kvar",val=str(q)), Command(obj_name=obj_name,obj_property="%Cutout", val="0"),  Command(obj_name=obj_name,obj_property="%Cutin", val="0")]
+            ratio = float(max_pv) / p
+            q = q * ratio  # adjust q value to that it matches the kw output
+        command = [
+            Command(obj_name=obj_name, obj_property="%Pmpp", val=str(obj_val)),
+            Command(obj_name=obj_name, obj_property="kvar", val=str(q)),
+            Command(obj_name=obj_name, obj_property="%Cutout", val="0"),
+            Command(obj_name=obj_name, obj_property="%Cutin", val="0"),
+        ]
         self.change_obj(command)
-        
-    def get_pv_output(self,pv_system):
+
+    def get_pv_output(self, pv_system):
         dss.PVsystems.First()
         while True:
             if dss.PVsystems.Name() == pv_system:
@@ -741,9 +756,9 @@ class FeederSimulator(object):
                 kvar = dss.PVsystems.kvar()
             if not dss.PVsystems.Next() > 0:
                 break
-        return kw,kvar
+        return kw, kvar
 
-    def get_max_pv_available(self,pv_system):
+    def get_max_pv_available(self, pv_system):
         dss.PVsystems.First()
         irradiance = None
         pmpp = None
@@ -755,7 +770,7 @@ class FeederSimulator(object):
                 break
         if irradiance is None or pmpp is None:
             raise ValueError(f"Irradiance or PMPP not found for {pv_system}")
-        return irradiance*pmpp
+        return irradiance * pmpp
 
     def apply_inverter_control(self, inv_control: InverterControl):
         """Apply inverter control to OpenDSS.
@@ -801,3 +816,31 @@ class FeederSimulator(object):
 
         self.set_properties_to_inverter(inverter, inv_control)
         return inverter
+
+    def get_incidences(self) -> IncidenceList:
+        """Get Incidence from line names to buses."""
+        assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
+        from_list = []
+        to_list = []
+        equipment_ids = []
+        equipment_types = []
+        for line in dss.Lines.AllNames():
+            dss.Circuit.SetActiveElement("Line." + line)
+            from_bus, to_bus = dss.CktElement.BusNames()
+            from_list.append(from_bus.upper())
+            to_list.append(to_bus.upper())
+            equipment_ids.append(line)
+            equipment_types.append("Line")
+        for transformer in dss.Transformers.AllNames():
+            dss.Circuit.SetActiveElement("Transformer." + transformer)
+            from_bus, to_bus = dss.CktElement.BusNames()
+            from_list.append(from_bus.upper())
+            to_list.append(to_bus.upper())
+            equipment_ids.append(transformer)
+            equipment_types.append("Transformer")
+        return IncidenceList(
+            from_equipment=from_list,
+            to_equipment=to_list,
+            ids=equipment_ids,
+            equipment_types=equipment_types,
+        )
