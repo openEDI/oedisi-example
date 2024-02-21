@@ -15,10 +15,14 @@ import opendssdirect as dss
 import xarray as xr
 from botocore import UNSIGNED
 from botocore.config import Config
-from dss_functions import (get_capacitors, get_generators, get_loads,
-                           get_pvsystems, get_voltages)
-from oedisi.types.data_types import (Command, InverterControl,
-                                     InverterControlMode)
+from dss_functions import (
+    get_capacitors,
+    get_generators,
+    get_loads,
+    get_pvsystems,
+    get_voltages,
+)
+from oedisi.types.data_types import Command, InverterControl, InverterControlMode
 from pydantic import BaseModel
 from scipy.sparse import coo_matrix, csc_matrix
 
@@ -53,7 +57,7 @@ class FeederConfig(BaseModel):
     existing_feeder_file: Optional[str] = None
     sensor_location: Optional[str] = None
     start_date: str
-    number_of_timesteps: float
+    number_of_timesteps: int
     run_freq_sec: float = 15 * 60
     start_time_index: int = 0
     topology_output: str = "topology.json"
@@ -701,7 +705,8 @@ class FeederSimulator(object):
             )
         if inv_control.vwcontrol is not None:
             vw_curve = self.create_xy_curve(
-                inv_control.vwcontrol.voltage, inv_control.vwcontrol.power_response,
+                inv_control.vwcontrol.voltage,
+                inv_control.vwcontrol.power_response,
             )
             dss.Text.Command(f"{inverter}.voltwatt_curve={vw_curve.split('.')[1]}")
             dss.Text.Command(
@@ -713,26 +718,30 @@ class FeederSimulator(object):
             dss.Text.Command(f"{inverter}.Mode = {inv_control.mode.value}")
 
     def set_pv_output(self, pv_system, p, q):
-        """Sets the P and Q values for a PV system in OpenDSS
-        """
+        """Sets the P and Q values for a PV system in OpenDSS"""
         max_pv = self.get_max_pv_available(pv_system)
-        #pf = q / ((p**2 + q **2)**0.5)
+        # pf = q / ((p**2 + q **2)**0.5)
 
         obj_name = f"PVSystem.{pv_system}"
-        if max_pv <=0 or p == 0:
+        if max_pv <= 0 or p == 0:
             Warning("Maximum PV Value is 0")
             obj_val = 100
-            q=0
+            q = 0
         elif p < max_pv:
-            obj_val = p/float(max_pv) *100
+            obj_val = p / float(max_pv) * 100
         else:
             obj_val = 100
-            ratio = float(max_pv)/p
-            q = q*ratio #adjust q value to that it matches the kw output
-        command = [Command(obj_name=obj_name,obj_property="%Pmpp",val=str(obj_val)), Command(obj_name=obj_name,obj_property="kvar",val=str(q)), Command(obj_name=obj_name,obj_property="%Cutout", val="0"),  Command(obj_name=obj_name,obj_property="%Cutin", val="0")]
+            ratio = float(max_pv) / p
+            q = q * ratio  # adjust q value to that it matches the kw output
+        command = [
+            Command(obj_name=obj_name, obj_property="%Pmpp", val=str(obj_val)),
+            Command(obj_name=obj_name, obj_property="kvar", val=str(q)),
+            Command(obj_name=obj_name, obj_property="%Cutout", val="0"),
+            Command(obj_name=obj_name, obj_property="%Cutin", val="0"),
+        ]
         self.change_obj(command)
 
-    def get_max_pv_available(self,pv_system):
+    def get_max_pv_available(self, pv_system):
         dss.PVsystems.First()
         irradiance = None
         pmpp = None
@@ -744,7 +753,7 @@ class FeederSimulator(object):
                 break
         if irradiance is None or pmpp is None:
             raise ValueError(f"Irradiance or PMPP not found for {pv_system}")
-        return irradiance*pmpp
+        return irradiance * pmpp
 
     def get_available_pv(self):
         pv_names = []

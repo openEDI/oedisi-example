@@ -11,13 +11,22 @@ import numpy.typing as npt
 import xarray as xr
 from FeederSimulator import FeederConfig, FeederSimulator
 from oedisi.types.common import BrokerConfig
-from oedisi.types.data_types import (AdmittanceMatrix, AdmittanceSparse,
-                                     CommandList, EquipmentNodeArray,
-                                     Injection, InverterControlList,
-                                     MeasurementArray, PowersImaginary,
-                                     PowersReal, Topology, VoltagesAngle,
-                                     VoltagesImaginary, VoltagesMagnitude,
-                                     VoltagesReal)
+from oedisi.types.data_types import (
+    AdmittanceMatrix,
+    AdmittanceSparse,
+    CommandList,
+    EquipmentNodeArray,
+    Injection,
+    InverterControlList,
+    MeasurementArray,
+    PowersImaginary,
+    PowersReal,
+    Topology,
+    VoltagesAngle,
+    VoltagesImaginary,
+    VoltagesMagnitude,
+    VoltagesReal,
+)
 from scipy.sparse import coo_matrix
 
 logger = logging.getLogger(__name__)
@@ -322,9 +331,7 @@ def go_cosim(
     sub_invcontrol.option["CONNECTION_OPTIONAL"] = 1
 
     pv_set_key = (
-        "unused/pv_set"
-        if "pv_set" not in input_mapping
-        else input_mapping["pv_set"]
+        "unused/pv_set" if "pv_set" not in input_mapping else input_mapping["pv_set"]
     )
 
     sub_pv_set = vfed.register_subscription(pv_set_key, "")
@@ -340,8 +347,14 @@ def go_cosim(
     pub_topology.publish(initial_data.topology.json())
 
     granted_time = -1
-    for request_time in range(0, int(config.number_of_timesteps)):
+    request_time = 0
+    while request_time < int(config.number_of_timesteps):
         granted_time = h.helicsFederateRequestTime(vfed, request_time)
+        assert (
+            granted_time <= request_time + deltat
+        ), f"granted_time: {granted_time} past {request_time}"
+        if granted_time >= request_time + deltat:
+            request_time += 1
 
         current_index = int(granted_time)  # floors
         current_timestamp = datetime.strptime(
@@ -398,7 +411,8 @@ def go_cosim(
         voltage_magnitudes = np.abs(current_data.feeder_voltages)
         pub_voltages_magnitude.publish(
             VoltagesMagnitude(
-                **xarray_to_dict(voltage_magnitudes), time=current_timestamp,
+                **xarray_to_dict(voltage_magnitudes),
+                time=current_timestamp,
             ).json()
         )
         pub_voltages_real.publish(
@@ -430,7 +444,7 @@ def go_cosim(
             MeasurementArray(
                 **xarray_to_dict(sim.get_available_pv()),
                 time=current_timestamp,
-                units="kWA"
+                units="kWA",
             ).json()
         )
 
