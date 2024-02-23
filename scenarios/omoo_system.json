@@ -18,6 +18,22 @@
             }
         },
         {
+            "name": "recorder_power_real",
+            "type": "Recorder",
+            "parameters": {
+                "feather_filename": "../../outputs/power_real.feather",
+                "csv_filename": "../../outputs/power_real.csv"
+            }
+        },
+        {
+            "name": "recorder_power_imag",
+            "type": "Recorder",
+            "parameters": {
+                "feather_filename": "../../outputs/power_imag.feather",
+                "csv_filename": "../../outputs/power_imag.csv"
+            }
+        },
+        {
             "name": "optimal_pf",
             "type": "OMOOComponent",
             "parameters": {
@@ -35,10 +51,57 @@
                 "opendss_location": "gadal_ieee123/qsts",
                 "sensor_location": "gadal_ieee123/sensors.json",
                 "existing_feeder_file": "opendss/master.dss",
-                "start_date": "2017-01-01 11:00:00",
-                "number_of_timesteps": 10,
+                "start_date": "2017-01-01 00:00:00",
+                "number_of_timesteps": 96,
                 "run_freq_sec": 900,
                 "topology_output": "../../outputs/topology.json"
+            }
+        },
+        {
+            "name": "reference_feeder",
+            "type": "LocalFeeder",
+            "parameters": {
+                "use_smartds": false,
+                "profile_location": "gadal_ieee123/profiles",
+                "opendss_location": "gadal_ieee123/qsts",
+                "sensor_location": "gadal_ieee123/sensors.json",
+                "existing_feeder_file": "opendss/master.dss",
+                "start_date": "2017-01-01 00:00:00",
+                "number_of_timesteps": 96,
+                "run_freq_sec": 900,
+                "topology_output": "topology.json"
+            }
+        },
+        {
+            "name": "recorder_reference_voltage_real",
+            "type": "Recorder",
+            "parameters": {
+                "feather_filename": "../../outputs/reference_voltage_real.feather",
+                "csv_filename": "../../outputs/reference_voltage_real.csv"
+            }
+        },
+        {
+            "name": "recorder_reference_voltage_imag",
+            "type": "Recorder",
+            "parameters": {
+                "feather_filename": "../../outputs/reference_voltage_imag.feather",
+                "csv_filename": "../../outputs/reference_voltage_imag.csv"
+            }
+        },
+        {
+            "name": "recorder_reference_power_real",
+            "type": "Recorder",
+            "parameters": {
+                "feather_filename": "../../outputs/reference_power_real.feather",
+                "csv_filename": "../../outputs/reference_power_real.csv"
+            }
+        },
+        {
+            "name": "recorder_reference_power_imag",
+            "type": "Recorder",
+            "parameters": {
+                "feather_filename": "../../outputs/reference_power_imag.feather",
+                "csv_filename": "../../outputs/reference_power_imag.csv"
             }
         }
     ],
@@ -53,6 +116,42 @@
             "source": "local_feeder",
             "source_port": "voltages_imag",
             "target": "recorder_voltage_imag",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "powers_real",
+            "target": "recorder_power_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "local_feeder",
+            "source_port": "powers_imag",
+            "target": "recorder_power_imag",
+            "target_port": "subscription"
+        },
+        {
+            "source": "reference_feeder",
+            "source_port": "voltages_real",
+            "target": "recorder_reference_voltage_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "reference_feeder",
+            "source_port": "voltages_imag",
+            "target": "recorder_reference_voltage_imag",
+            "target_port": "subscription"
+        },
+        {
+            "source": "reference_feeder",
+            "source_port": "powers_real",
+            "target": "recorder_reference_power_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "reference_feeder",
+            "source_port": "powers_imag",
+            "target": "recorder_reference_power_imag",
             "target_port": "subscription"
         },
         {

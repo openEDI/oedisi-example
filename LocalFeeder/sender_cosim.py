@@ -348,12 +348,13 @@ def go_cosim(
 
     granted_time = -1
     request_time = 0
+
     while request_time < int(config.number_of_timesteps):
         granted_time = h.helicsFederateRequestTime(vfed, request_time)
         assert (
             granted_time <= request_time + deltat
         ), f"granted_time: {granted_time} past {request_time}"
-        if granted_time >= request_time + deltat:
+        if granted_time >= request_time - deltat:
             request_time += 1
 
         current_index = int(granted_time)  # floors

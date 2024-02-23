@@ -725,7 +725,9 @@ class OMOOFederate:
 
             # There should be a HELICS way to do this? Set resolution?
             previous_time = granted_time
-            while granted_time <= previous_time + 1:
+            while (
+                granted_time <= np.floor(previous_time) + 1
+            ):  # This should avoid waiting a full 15 minutes
                 granted_time = h.helicsFederateRequestTime(self.vfed, 1000)
 
         self.destroy()
