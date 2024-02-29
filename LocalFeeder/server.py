@@ -51,7 +51,7 @@ def read_root():
     return JSONResponse(response, 200)
 
 
-@app.get("/sensor/")
+@app.get("/sensor")
 async def sensor():
     logging.info(os.getcwd())
     sensor_path = os.path.join(base_path, "sensors", "sensors.json")
@@ -63,7 +63,7 @@ async def sensor():
     return data
 
 
-@app.post("/profiles/")
+@app.post("/profiles")
 async def upload_profiles(file: UploadFile):
     try:
         data = file.file.read()
@@ -96,7 +96,7 @@ async def upload_profiles(file: UploadFile):
         )
 
 
-@app.post("/model/")
+@app.post("/model")
 async def upload_model(file: UploadFile):
     try:
         data = file.file.read()
@@ -125,7 +125,7 @@ async def upload_model(file: UploadFile):
         HTTPException(500, "Unknown error while uploading userdefined opendss model.")
 
 
-@app.post("/run/")
+@app.post("/run")
 async def run_feeder(
     broker_config: BrokerConfig, background_tasks: BackgroundTasks
 ):  # :BrokerConfig
@@ -140,7 +140,7 @@ async def run_feeder(
         HTTPException(500, str(err))
 
 
-@app.post("/configure/")
+@app.post("/configure")
 async def configure(component_struct:ComponentStruct): 
     component = component_struct.component
     params = component.parameters

@@ -26,7 +26,7 @@ def read_root():
     return JSONResponse(response, 200)
 
 
-@app.post("/run/")
+@app.post("/run")
 async def run_model(broker_config: BrokerConfig, background_tasks: BackgroundTasks):
     print(broker_config)
     try:
@@ -40,7 +40,7 @@ async def run_model(broker_config: BrokerConfig, background_tasks: BackgroundTas
         HTTPException(500, str(err))
 
 
-@app.post("/configure/")
+@app.post("/configure")
 async def configure(component_struct:ComponentStruct): 
     component = component_struct.component
     params = component.parameters

@@ -1,6 +1,7 @@
 from fastapi import FastAPI, BackgroundTasks, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.exceptions import HTTPException
+from pathlib import Path
 import helics as h
 import grequests
 import traceback
@@ -12,15 +13,27 @@ import socket
 import shutil
 import time
 import yaml
+import json
 import sys
 import os
 
 from oedisi.componentframework.system_configuration import WiringDiagram, ComponentStruct
-from oedisi.types.common import ServerReply, HeathCheck
+from oedisi.types.common import ServerReply, HeathCheck, DefaultFileNames
 
 app = FastAPI()
 
+is_kubernetes_env = os.environ['SERVICE_NAME'] if 'SERVICE_NAME' in os.environ else None
 
+
+def build_url(host:str, port:int, enpoint:list):
+    if is_kubernetes_env:
+        SERVICE_NAME = os.environ['SERVICE_NAME']
+        url = f"http://{host}.{SERVICE_NAME}:{port}/"
+    else:
+        url = f"http://{host}:{port}/"
+    url = url + "/".join(enpoint) + "/" 
+    return url 
+    
 def find_filenames(path_to_dir=os.getcwd(), suffix=".feather"):
     filenames = os.listdir(path_to_dir)
     return [filename for filename in filenames if filename.endswith(suffix)]
@@ -33,13 +46,15 @@ def read_settings():
     services = config["services"]
     print(services)
     broker = services.pop("oedisi_broker")
-    broker_ip = broker["networks"]["custom-network"]["ipv4_address"]
+    broker_host = broker["hostname"]
+
+    broker_ip = socket.gethostbyname(broker_host) 
     api_port = int(broker["ports"][0].split(":")[0])
 
     for service in services:
-        ip = services[service]["networks"]["custom-network"]["ipv4_address"]
+        host = services[service]["hostname"]
         port = int(services[service]["ports"][0].split(":")[0])
-        component_map[ip] = port
+        component_map[host] = port
 
     return services, component_map, broker_ip, api_port
 
@@ -54,13 +69,13 @@ def read_root():
     return JSONResponse(response, 200)
 
 
-@app.post("/profiles/")
+@app.post("/profiles")
 async def upload_profiles(file: UploadFile):
     try:
         services, _, _, _ = read_settings()
         for service in services:
             if "feeder" in service.lower():
-                ip = services[service]["networks"]["custom-network"]["ipv4_address"]
+                ip = services[service]["host"]
                 port = int(services[service]["ports"][0].split(":")[0])
                 data = file.file.read()
                 if not file.filename.endswith(".zip"):
@@ -69,7 +84,10 @@ async def upload_profiles(file: UploadFile):
                     )
                 with open(file.filename, "wb") as f:
                     f.write(data)
-                url = f"http://{ip}:{port}/profiles/"
+                    
+                url = build_url(ip, port, ["profiles"])    
+                logging.info(f"making a request to url - {url}")
+                
                 files = {"file": open(file.filename, "rb")}
                 r = requests.post(url, files=files)
                 response = ServerReply(detail=r.text).dict()
@@ -80,13 +98,13 @@ async def upload_profiles(file: UploadFile):
         raise HTTPException(status_code=500, detail=str(err))
 
 
-@app.post("/model/")
+@app.post("/model")
 async def upload_model(file: UploadFile):
     try:
         services, _, _, _ = read_settings()
         for service in services:
             if "feeder" in service.lower():
-                ip = services[service]["networks"]["custom-network"]["ipv4_address"]
+                ip = services[service]["host"]
                 port = int(services[service]["ports"][0].split(":")[0])
                 data = file.file.read()
                 if not file.filename.endswith(".zip"):
@@ -95,7 +113,10 @@ async def upload_model(file: UploadFile):
                     )
                 with open(file.filename, "wb") as f:
                     f.write(data)
-                url = f"http://{ip}:{port}/model/"
+                    
+                url = build_url(ip, port, ["model"])    
+                logging.info(f"making a request to url - {url}")
+       
                 files = {"file": open(file.filename, "rb")}
                 r = requests.post(url, files=files)
                 response = ServerReply(detail=r.text).dict()
@@ -105,15 +126,17 @@ async def upload_model(file: UploadFile):
         err = traceback.format_exc()
         raise HTTPException(status_code=500, detail=str(err))
 
-
-@app.get("/results/")
+@app.get("/results")
 def download_results():
     services, _, _, _ = read_settings()
     for service in services:
         if "recorder" in service.lower():
-            ip = services[service]["networks"]["custom-network"]["ipv4_address"]
+            host = services[service]["hostname"]
             port = int(services[service]["ports"][0].split(":")[0])
-            url = f"http://{ip}:{port}/download/"
+            
+            url = build_url(host, port, ["download"])    
+            logging.info(f"making a request to url - {url}")
+            
             response = requests.get(url)
             with open(f"{service}.feather", "wb") as out_file:
                 shutil.copyfileobj(response.raw, out_file)
@@ -130,7 +153,7 @@ def download_results():
         raise HTTPException(status_code=404, detail="Failed download")
 
 
-@app.get("/terminate/")
+@app.get("/terminate")
 def terminate_simulation():
     try:
         h.helicsCloseLibrary()
@@ -141,6 +164,7 @@ def terminate_simulation():
 
 def run_simulation():
     services, component_map, broker_ip, api_port = read_settings()
+    logging.info(f"{broker_ip}, {api_port}")
     initstring = f"-f {len(component_map)} --name=mainbroker --loglevel=trace --local_interface={broker_ip} --localport=23404"
     logging.info(f"Broker initaialization string: {initstring}")
     broker = h.helicsCreateBroker("zmq", "", initstring)
@@ -150,8 +174,10 @@ def run_simulation():
     logging.info(str(component_map))
     replies = []
     for service_ip, service_port in component_map.items():
-        url = f"http://{service_ip}:{service_port}/run/"
-        print(url)
+        
+        url = build_url(service_ip, service_port, ["run"])    
+        logging.info(f"making a request to url - {url}")
+        
         myobj = {
             "broker_port": 23404,
             "broker_ip": broker_ip,
@@ -167,7 +193,7 @@ def run_simulation():
     return
 
 
-@app.post("/run/")
+@app.post("/run")
 async def run_feeder(background_tasks: BackgroundTasks):
     try:
         background_tasks.add_task(run_simulation)
@@ -178,8 +204,9 @@ async def run_feeder(background_tasks: BackgroundTasks):
         raise HTTPException(status_code=404, detail=str(err))
 
     
-@app.post("/configure/")
+@app.post("/configure")
 async def configure(wiring_diagram:WiringDiagram): 
+    json.dump(wiring_diagram.dict(), open(DefaultFileNames.WIRING_DIAGRAM.value, "w"))
     for component in wiring_diagram.components:
         component_model  = ComponentStruct(
             component = component,
@@ -188,11 +215,13 @@ async def configure(wiring_diagram:WiringDiagram):
         for link in wiring_diagram.links:
             if link.target == component.name:
                 component_model.links.append(link)
+        
+        url = build_url(component.host, component.container_port, ["configure"])    
+        logging.info(f"making a request to url - {url}")
                 
-        url = f'http://{component.host}:{component.container_port}/configure/'
-        logging.info(f"making post request to: {url}")
         r = requests.post(url, json=component_model.dict())
         assert r.status_code==200, f"POST request to update configuration failed for url - {url}"
+    return JSONResponse(ServerReply(detail="Sucessfully updated config files for all containers").dict(), 200)
         
 if __name__ == "__main__":
     port = int(sys.argv[2])

@@ -1,0 +1,19 @@
+networks:
+  custom-network:
+    driver: bridge
+    ipam:
+      config:
+      - gateway: 10.5.0.1
+        subnet: 10.5.0.0/16
+services:
+  oedisi_broker:
+    build:
+      context: ./broker/.
+    environment:
+      PORT: '8766'
+    hostname: broker
+    image: aadillatif/oedisi_broker
+    networks:
+      custom-network: {}
+    ports:
+    - 8766:8766

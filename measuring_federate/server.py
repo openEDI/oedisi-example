@@ -5,6 +5,7 @@ import traceback
 import requests
 import uvicorn
 import socket
+import logging
 import sys
 import json
 import os
@@ -14,6 +15,17 @@ from oedisi.types.common import ServerReply, HeathCheck, DefaultFileNames
 from oedisi.types.common import BrokerConfig
 
 app = FastAPI()
+
+is_kubernetes_env = os.environ['SERVICE_NAME'] if 'SERVICE_NAME' in os.environ else None
+
+def build_url(host:str, port:int, enpoint:list):
+    if is_kubernetes_env:
+        SERVICE_NAME = os.environ['SERVICE_NAME']
+        url = f"http://{host}.{SERVICE_NAME}:{port}/"
+    else:
+        url = f"http://{host}:{port}/"
+    url = url + "/".join(enpoint)
+    return url 
 
 @app.get("/")
 async def read_root():
@@ -25,18 +37,20 @@ async def read_root():
     ).dict()
     return JSONResponse(response, 200)
     
-@app.post("/run/")
+@app.post("/run")
 async def run_model(broker_config:BrokerConfig, background_tasks: BackgroundTasks):
-    try:
-        print(broker_config)
-        feeder_ip = broker_config.services['oedisi_feeder']['networks']['custom-network']['ipv4_address']
-        feeder_port = int(broker_config.services['oedisi_feeder']['ports'][0].split(":")[0])
-       
-        url =f"http://{feeder_ip}:{feeder_port}/sensor/"
-        print(url)
+    logging.info(broker_config)
+    feeder_host = broker_config.services['oedisi_feeder']['hostname']
+    feeder_port = int(broker_config.services['oedisi_feeder']['ports'][0].split(":")[0])
+    url = build_url(feeder_host, feeder_port, 'sensor') 
+    logging.info(url)
+    try:   
         reply = requests.get(url)
         sensor_data = reply.json()
-        print(sensor_data)
+        if not sensor_data:
+            msg = "empty sensor list"
+            raise HTTPException(404, msg)
+        logging.info(sensor_data)
         with open("sensors.json", "w") as outfile:
             json.dump(sensor_data, outfile)
 
@@ -47,9 +61,9 @@ async def run_model(broker_config:BrokerConfig, background_tasks: BackgroundTask
         return JSONResponse(response, 200)
     except Exception as e:
         err = traceback.format_exc()
-        HTTPException(500,str(err))
+        raise HTTPException(500,str(err))
 
-@app.post("/configure/")
+@app.post("/configure")
 async def configure(component_struct:ComponentStruct): 
     component = component_struct.component
     params = component.parameters

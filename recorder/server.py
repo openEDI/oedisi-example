@@ -35,7 +35,7 @@ def find_filenames(path_to_dir=os.getcwd(), suffix=".feather"):
     return [filename for filename in filenames if filename.endswith(suffix)]
 
 
-@app.get("/download/")
+@app.get("/download")
 def download_results():
     file_list = find_filenames()
     if file_list:
@@ -46,7 +46,7 @@ def download_results():
         raise HTTPException(status_code=404, detail="No feather file found")
 
 
-@app.post("/run/")
+@app.post("/run")
 async def run_model(broker_config: BrokerConfig, background_tasks: BackgroundTasks):
     logging.info(broker_config)
     try:
@@ -58,7 +58,7 @@ async def run_model(broker_config: BrokerConfig, background_tasks: BackgroundTas
         HTTPException(500, str(err))
 
 
-@app.post("/configure/")
+@app.post("/configure")
 async def configure(component_struct:ComponentStruct): 
     component = component_struct.component
     params = component.parameters
