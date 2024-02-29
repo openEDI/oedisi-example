@@ -75,7 +75,7 @@ async def upload_profiles(file: UploadFile):
         services, _, _, _ = read_settings()
         for service in services:
             if "feeder" in service.lower():
-                ip = services[service]["host"]
+                ip = services[service]["hostname"]
                 port = int(services[service]["ports"][0].split(":")[0])
                 data = file.file.read()
                 if not file.filename.endswith(".zip"):
@@ -104,7 +104,7 @@ async def upload_model(file: UploadFile):
         services, _, _, _ = read_settings()
         for service in services:
             if "feeder" in service.lower():
-                ip = services[service]["host"]
+                ip = services[service]["hostname"]
                 port = int(services[service]["ports"][0].split(":")[0])
                 data = file.file.read()
                 if not file.filename.endswith(".zip"):
