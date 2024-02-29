@@ -144,6 +144,7 @@ class InitialData:
 
 def get_initial_data(sim: FeederSimulator, config: FeederConfig):
     """Get and calculate InitialData from simulation."""
+    incidences = sim.get_incidences()
     Y = sim.get_y_matrix()
     unique_ids = sim._AllNodeNames
 
@@ -187,6 +188,7 @@ def get_initial_data(sim: FeederSimulator, config: FeederConfig):
         injections=injections,
         base_voltage_magnitudes=base_voltagemagnitude,
         slack_bus=slack_ids,
+        incidences=incidences,
     )
     return InitialData(Y=Y, topology=topology)
 
@@ -224,7 +226,12 @@ def get_current_data(sim: FeederSimulator, Y):
     power_real, power_imaginary = get_powers(-PQ_load, -PQ_PV, -PQ_gen, -PQ_cap)
     injections = Injection(power_real=power_real, power_imaginary=power_imaginary)
 
-    ids = xr.DataArray(sim._AllNodeNames, coords={"ids": sim._AllNodeNames})
+    ids = xr.DataArray(
+        sim._AllNodeNames,
+        coords={
+            "ids": sim._AllNodeNames,
+        },
+    )
     PQ_injections_all = (
         agg_to_ids(PQ_load, ids)
         + agg_to_ids(PQ_PV, ids)

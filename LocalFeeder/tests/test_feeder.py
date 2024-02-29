@@ -7,8 +7,13 @@ import pandas as pd
 import plotille
 import pytest
 import xarray as xr
-from oedisi.types.data_types import (EquipmentNodeArray, InverterControl,
-                                     InverterControlMode, VVControl, VWControl)
+from oedisi.types.data_types import (
+    EquipmentNodeArray,
+    InverterControl,
+    InverterControlMode,
+    VVControl,
+    VWControl,
+)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -585,6 +590,7 @@ def test_inv_combined_control(federate_config):
         np.sum(np.abs(new_voltages.loc["87.3"] - old_voltages.loc["87.3"]))
     ) > 0.01 * float(np.abs(old_voltages.loc["87.3"]))
 
+
 def test_pv_setpoints(federate_config):
     logging.info("Loading sim")
     sim = FeederSimulator.FeederSimulator(federate_config)
@@ -593,19 +599,23 @@ def test_pv_setpoints(federate_config):
             FeederSimulator.Command(
                 obj_name="PVSystem.113",
                 obj_property="irradiance",
-                val="1", 
+                val="1",
             ),
             FeederSimulator.Command(
                 obj_name="PVSystem.113",
                 obj_property="Pmpp",
-                val="40", 
-            )
-
+                val="40",
+            ),
         ]
     )
-    sim.set_pv_output("113",20,5)
+    sim.set_pv_output("113", 20, 5)
     sim.snapshot_run()
-    power = -sim.get_PQs_pv(static=True).groupby("equipment_ids")["PVSystem.113"].sum().item()
+    power = (
+        -sim.get_PQs_pv(static=True)
+        .groupby("equipment_ids")["PVSystem.113"]
+        .sum()
+        .item()
+    )
     assert np.isclose(power.real, 20), f"Real power is {power.real}"
     assert np.isclose(power.imag, 5), f"Reactive power is {power.imag}"
 
@@ -614,15 +624,37 @@ def test_pv_setpoints(federate_config):
             FeederSimulator.Command(
                 obj_name="PVSystem.113",
                 obj_property="Pmpp",
-                val="8", 
+                val="8",
             )
         ]
     )
     sim.snapshot_run()
-    sim.set_pv_output("113",20,5)
+    sim.set_pv_output("113", 20, 5)
     sim.snapshot_run()
-    power = -sim.get_PQs_pv(static=True).groupby("equipment_ids")["PVSystem.113"].sum().item()
+    power = (
+        -sim.get_PQs_pv(static=True)
+        .groupby("equipment_ids")["PVSystem.113"]
+        .sum()
+        .item()
+    )
     assert np.isclose(power.real, 8), f"Real power is {power.real}"
     assert np.isclose(power.imag, 2), f"Reactive power is {power.imag}"
 
 
+def test_incidence_matrix(federate_config):
+    sim = FeederSimulator.FeederSimulator(federate_config)
+    incidences = sim.get_incidences()
+
+    core_bus_names = set(name.split(".")[0] for name in sim._AllNodeNames)
+    assert all(
+        bus_name.split(".")[0] in core_bus_names
+        for bus_name in incidences.from_equipment
+    ), f"Could not find the following buses: {list(filter(lambda bus_name: bus_name.split('.')[0] not in core_bus_names, incidences.from_equipment))}"
+    assert all(
+        bus_name.split(".")[0] in core_bus_names for bus_name in incidences.to_equipment
+    ), f"Could not find the following buses: {list(filter(lambda bus_name: bus_name.split('.')[0] not in core_bus_names, incidences.to_equipment))}"
+    assert len(incidences.from_equipment) == len(incidences.to_equipment)
+    if incidences.equipment_type is not None:
+        assert len(incidences.equipment_type) == len(incidences.from_equipment)
+    if incidences.ids is not None:
+        assert len(incidences.ids) == len(incidences.from_equipment)
