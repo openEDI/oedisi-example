@@ -297,9 +297,9 @@ class UnitSystem(str, Enum):
 
 
 class OMOOParameters(BaseModel):
-    Vmax: float = 1.05 + 0.005  # Upper limit
-    Vmin_act: float = 0.945  # + 0.005
-    Vmin: float = 0.945 + 0.005 + 0.002  # Lower limit\
+    Vmax: float = 1.05  # + 0.005  # Upper limit
+    Vmin_act: float = 0.95  # + 0.005
+    Vmin: float = 0.95  # + 0.005 + 0.002  # Lower limit\
     # Linearized equation is overestimating. So increase the lower limit by 0.005.
     # The problem is not solved to the optimal, so increase another 0.002.
     alpha: float = 0.5  #  learning rate for dual and primal
@@ -685,8 +685,12 @@ class OMOOFederate:
             power_set = P_set + 1j * Q_set
             power_factor = power_set.real / (np.abs(power_set) + 1e-7)
             pmpp = power_set.real / pv["kVarRated"]
-            assert np.all(np.abs(power_factor) <= 1)
-            assert np.all((pmpp <= 1) & (pmpp >= 0))
+            assert np.all(
+                np.abs(power_factor) <= 1
+            ), f"Invalid power factor at index {np.argmax(np.abs(power_factor) > 1)}: {power_factor[np.argmax(np.abs(power_factor) > 1)]}"
+            assert np.all(
+                (pmpp <= 1) & (pmpp >= 0)
+            ), f"Invalid pmpp at index {np.argmax((pmpp > 1) | (pmpp < 0))}: {pmpp[np.argmax((pmpp > 1) | (pmpp < 0))]}"
 
             te = time.time()
             logger.debug(f"OMOO takes {(te-ts)/60} (min)")
