@@ -30,8 +30,8 @@ jobs:
       shell: bash -l {0}
       run: |
         git clone https://github.com/openEDI/oedisi-ieee123
-        cp oedisi-ieee123/profiles LocalFeeder/profiles
-        cp oedisi-ieee123/qsts LocalFeeder/opendss
+        mv oedisi-ieee123/profiles LocalFeeder/profiles
+        mv oedisi-ieee123/qsts LocalFeeder/opendss
         # Change every kVA=50 and Pmpp=50 to kVA=200 and Pmpp=200 in LocalFeeder/opendss/IEEE123Pv.dss
         sed -i 's/kVA=50/kVA=200/g; s/Pmpp=50/Pmpp=200/g' LocalFeeder/opendss/IEEE123Pv.dss
         oedisi build --system scenarios/omoo_system.json
