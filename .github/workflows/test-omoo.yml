@@ -36,7 +36,7 @@ jobs:
         sed -i 's/kVA=50/kVA=200/g; s/Pmpp=50/Pmpp=200/g' LocalFeeder/opendss/IEEE123Pv.dss
         oedisi build --system scenarios/omoo_system.json
         oedisi run
-        python opf_analysis.json
+        python opf_analysis.py
     - name: Archive logs
       uses: actions/upload-artifact@v2
       if: always()
