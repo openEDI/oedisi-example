@@ -21,6 +21,10 @@
         {
             "type": "",
             "port_id": "start_time_index"
+        },
+        {
+            "type": "",
+            "port_id": "tap_setting"
         }
     ],
     "dynamic_inputs": [

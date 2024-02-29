@@ -54,7 +54,8 @@
                 "start_date": "2017-01-01 00:00:00",
                 "number_of_timesteps": 96,
                 "run_freq_sec": 900,
-                "topology_output": "../../outputs/topology.json"
+                "topology_output": "../../outputs/topology.json",
+                "tap_setting": 1
             }
         },
         {
@@ -69,7 +70,8 @@
                 "start_date": "2017-01-01 00:00:00",
                 "number_of_timesteps": 96,
                 "run_freq_sec": 900,
-                "topology_output": "topology.json"
+                "topology_output": "topology.json",
+                "tap_setting": 1
             }
         },
         {

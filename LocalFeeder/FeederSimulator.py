@@ -62,6 +62,7 @@ class FeederConfig(BaseModel):
     start_time_index: int = 0
     topology_output: str = "topology.json"
     use_sparse_admittance: bool = False
+    tap_setting: Optional[int] = None
 
 
 class FeederMapping(BaseModel):
@@ -118,6 +119,8 @@ class FeederSimulator(object):
         self._simulation_step = config.start_time_index
         self._number_of_timesteps = config.number_of_timesteps
         self._vmult = 0.001
+
+        self.tap_setting = config.tap_setting
 
         self._simulation_time_step = "15m"
         if config.existing_feeder_file is None:
@@ -290,12 +293,14 @@ class FeederSimulator(object):
         self._pvsystems = set()
         for PV in get_pvsystems(dss):
             self._pvsystems.add("PVSystem." + PV["name"])
+
+        if self.tap_setting is not None:
+            dss.Text.Command(f"batchedit transformer..* wdg=2 tap={self.tap_setting}")
         self._state = OpenDSSState.LOADED
 
     def disable_elements(self):
         """Disable most elements. Used in disabled_run."""
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
-        dss.Text.Command("batchedit transformer..* wdg=2 tap=1")
         dss.Text.Command("batchedit regcontrol..* enabled=false")
         dss.Text.Command("batchedit vsource..* enabled=false")
         dss.Text.Command("batchedit isource..* enabled=false")
