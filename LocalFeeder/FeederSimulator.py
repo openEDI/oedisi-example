@@ -295,7 +295,7 @@ class FeederSimulator(object):
     def disable_elements(self):
         """Disable most elements. Used in disabled_run."""
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
-        # dss.Text.Command("batchedit transformer..* wdg=2 tap=1")
+        dss.Text.Command("batchedit transformer..* wdg=2 tap=1")
         dss.Text.Command("batchedit regcontrol..* enabled=false")
         dss.Text.Command("batchedit vsource..* enabled=false")
         dss.Text.Command("batchedit isource..* enabled=false")
