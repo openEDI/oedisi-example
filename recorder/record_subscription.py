@@ -60,8 +60,11 @@ class Recorder:
         start = True
         granted_time = h.helicsFederateRequestTime(self.vfed, h.HELICS_TIME_MAXTIME)
 
-        with pa.OSFile(self.feather_filename, "wb") as sink:
+        with pa.OSFile(self.feather_filename, "wb") as sink, pa.OSFile(
+            self.feather_filename + ".stream", "wb"
+        ) as streamsink:
             writer = None
+            streamwriter = None
             while granted_time < h.HELICS_TIME_MAXTIME:
                 logger.info("start time: " + str(datetime.now()))
                 logger.debug(granted_time)
@@ -83,10 +86,12 @@ class Recorder:
                     schema_elements.append(("time", pa.string()))
                     schema = pa.schema(schema_elements)
                     writer = pa.ipc.new_file(sink, schema)
+                    streamwriter = pa.ipc.new_stream(streamsink, schema)
                     start = False
-                cnt = 0
 
-                writer.write_batch(pa.RecordBatch.from_pylist([measurement_dict]))
+                record_batch = pa.RecordBatch.from_pylist([measurement_dict])
+                writer.write_batch(record_batch)
+                streamwriter.write_batch(record_batch)
 
                 granted_time = h.helicsFederateRequestTime(
                     self.vfed, h.HELICS_TIME_MAXTIME
@@ -95,6 +100,7 @@ class Recorder:
 
             if writer is not None:
                 writer.close()
+                streamwriter.close()
         data = pd.read_feather(self.feather_filename)
         data.to_csv(self.csv_filename, header=True, index=False)
         self.destroy()
