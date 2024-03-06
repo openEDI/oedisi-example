@@ -76,7 +76,6 @@
             "container_port": 5684,
             "parameters": {
                 "additive_noise_stddev": 0.0,
-                "random_percent": 0.0,
                 "measurement_file": "sensors.json"
             }
         },
@@ -87,7 +86,6 @@
             "container_port": 5685,
             "parameters": {
                 "additive_noise_stddev": 0.0,
-                "random_percent": 0.0,
                 "measurement_file": "sensors.json"
             }
         },
@@ -98,7 +96,6 @@
             "container_port": 5686,
             "parameters": {
                 "additive_noise_stddev": 0.0,
-                "random_percent": 0.0,
                 "measurement_file": "sensors.json"
             }
         },
@@ -109,7 +106,6 @@
             "container_port": 5687,
             "parameters": {
                 "additive_noise_stddev": 0.0,
-                "random_percent": 0.0,
                 "measurement_file": "sensors.json"
             }
         },
@@ -120,7 +116,6 @@
             "container_port": 5688,
             "parameters": {
                 "additive_noise_stddev": 0.0,
-                "random_percent": 0.0,
                 "measurement_file": "sensors.json"
             }
         }

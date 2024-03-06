@@ -60,7 +60,6 @@
             "type": "MeasurementComponent",
             "parameters": {
                 "additive_noise_stddev": 0.0,
-                "random_percent": 0.0,
                 "measurement_file": "../feeder/sensors/voltage_ids.json"
             }
         },
@@ -69,7 +68,6 @@
             "type": "MeasurementComponent",
             "parameters": {
                 "additive_noise_stddev": 0.0,
-                "random_percent": 0.0,
                 "measurement_file": "../feeder/sensors/real_ids.json"
             }
         },
@@ -78,7 +76,6 @@
             "type": "MeasurementComponent",
             "parameters": {
                 "additive_noise_stddev": 0.0,
-                "random_percent": 0.0,
                 "measurement_file": "../feeder/sensors/reactive_ids.json"
             }
         }
