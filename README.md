@@ -7,7 +7,7 @@ state estimation, and distributed OPF.
 # Install and Running Locally
 
 1. To run the simulation, you'll need several libraries such as OpenDSSDirect.py and pyarrow.
-```
+```bash
 pip install -r requirements.txt
 ```
 2. Run `oedisi build --system scenarios/docker_system.json` to initialize the system
@@ -112,12 +112,12 @@ for each component with the right configuration.
 
 # Docker Container
 
-```
+```bash
 docker build -t oedisi-example:0.0.0 .
 ```
 
 To get a docker volume pointed at the right place locally, we have to run more commands
-```
+```bash
 mkdir outputs_build
 docker volume create --name oedisi_output --opt type=none --opt device=$(PWD)/outputs_build --opt o=bind
 ```
@@ -126,8 +126,16 @@ If `pwd` is unavailable on your system, then you must specify the exact path. On
 being `/c/Users/.../outputs_builds/`. You must use forward slashes.
 
 Then we can run the docker image:
-```
+```bash
 docker run --rm --mount source=oedisi_output,target=/simulation/outputs oedisi-example:0.0.0
 ```
 
 You can omit the docker volume parts as well as `--mount` if you do not care about the exact outputs.
+
+## Docker Containers on M1 or M2
+
+Since HELICS does not have linux ARM builds, you have to run with
+
+```bash
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
+```
