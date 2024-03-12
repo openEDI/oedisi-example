@@ -102,7 +102,7 @@
             "type": "MeasurementComponent",
             "parameters": {
                 "additive_noise_stddev": 0.0,
-                "multiplicative_noise_stddev": 0.01,
+                "multiplicative_noise_stddev": 0.00,
                 "measurement_file": "../feeder/sensors/sensors.json"
             }
         },
@@ -111,7 +111,7 @@
             "type": "MeasurementComponent",
             "parameters": {
                 "additive_noise_stddev": 0.0,
-                "multiplicative_noise_stddev": 0.01,
+                "multiplicative_noise_stddev": 0.0,
                 "measurement_file": "../feeder/sensors/sensors.json"
             }
         },
@@ -120,7 +120,7 @@
             "type": "MeasurementComponent",
             "parameters": {
                 "additive_noise_stddev": 0.0,
-                "multiplicative_noise_stddev": 0.01,
+                "multiplicative_noise_stddev": 0.0,
                 "measurement_file": "../feeder/sensors/sensors.json"
             }
         }
@@ -182,13 +182,13 @@
         },
         {
             "source": "feeder",
-            "source_port": "voltages_real",
+            "source_port": "powers_real",
             "target": "recorder_power_real",
             "target_port": "subscription"
         },
         {
             "source": "feeder",
-            "source_port": "voltages_imag",
+            "source_port": "powers_imag",
             "target": "recorder_power_imag",
             "target_port": "subscription"
         },
