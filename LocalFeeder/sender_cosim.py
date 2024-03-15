@@ -1,4 +1,5 @@
 """HELICS wrapper for OpenDSS feeder simulation."""
+
 import json
 import logging
 from dataclasses import dataclass
@@ -326,7 +327,7 @@ def go_cosim(
     )
     sub_command_set = vfed.register_subscription(command_set_key, "")
     sub_command_set.set_default("[]")
-    sub_command_set.option["CONNECTION_OPTIONAL"] = 1
+    sub_command_set.option["CONNECTION_OPTIONAL"] = True
 
     inv_control_key = (
         "unused/inv_control"
@@ -335,7 +336,7 @@ def go_cosim(
     )
     sub_invcontrol = vfed.register_subscription(inv_control_key, "")
     sub_invcontrol.set_default("[]")
-    sub_invcontrol.option["CONNECTION_OPTIONAL"] = 1
+    sub_invcontrol.option["CONNECTION_OPTIONAL"] = True
 
     pv_set_key = (
         "unused/pv_set" if "pv_set" not in input_mapping else input_mapping["pv_set"]
@@ -343,7 +344,7 @@ def go_cosim(
 
     sub_pv_set = vfed.register_subscription(pv_set_key, "")
     sub_pv_set.set_default("[]")
-    sub_pv_set.option["CONNECTION_OPTIONAL"] = 1
+    sub_pv_set.option["CONNECTION_OPTIONAL"] = True
 
     h.helicsFederateEnterExecutingMode(vfed)
     initial_data = get_initial_data(sim, config)

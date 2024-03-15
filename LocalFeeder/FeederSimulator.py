@@ -1,4 +1,5 @@
 """Core class to abstract OpenDSS into Feeder class."""
+
 import json
 import logging
 import math
@@ -301,7 +302,7 @@ class FeederSimulator(object):
             self._pvsystems.add("PVSystem." + PV["name"])
 
         if self.tap_setting is not None:
-            dss.Text.Command(f"batchedit transformer..* wdg=2 tap={self.tap_setting}")
+            dss.Text.Command(f"batchedit transformer..* tap={self.tap_setting}")
         self._state = OpenDSSState.LOADED
 
     def disable_elements(self):
@@ -595,9 +596,9 @@ class FeederSimulator(object):
         name_voltage_dict = get_voltages(self._circuit)
         res_feeder_voltages = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
         for voltage_name in name_voltage_dict.keys():
-            res_feeder_voltages[
-                self._name_index_dict[voltage_name]
-            ] = name_voltage_dict[voltage_name]
+            res_feeder_voltages[self._name_index_dict[voltage_name]] = (
+                name_voltage_dict[voltage_name]
+            )
 
         return xr.DataArray(
             res_feeder_voltages, {"ids": list(name_voltage_dict.keys())}
@@ -753,15 +754,14 @@ class FeederSimulator(object):
         self.change_obj(command)
 
     def get_max_pv_available(self, pv_system):
-        dss.PVsystems.First()
         irradiance = None
         pmpp = None
-        while True:
+        flag = dss.PVsystems.First()
+        while flag:
             if dss.PVsystems.Name() == pv_system:
                 irradiance = dss.PVsystems.IrradianceNow()
                 pmpp = dss.PVsystems.Pmpp()
-            if not dss.PVsystems.Next() > 0:
-                break
+            flag = dss.PVsystems.Next()
         if irradiance is None or pmpp is None:
             raise ValueError(f"Irradiance or PMPP not found for {pv_system}")
         return irradiance * pmpp
@@ -769,12 +769,11 @@ class FeederSimulator(object):
     def get_available_pv(self):
         pv_names = []
         powers = []
-        dss.PVsystems.First()
-        while True:
+        flag = dss.PVsystems.First()
+        while flag:
             pv_names.append(f"PVSystem.{dss.PVsystems.Name()}")
             powers.append(dss.PVsystems.Pmpp() * dss.PVsystems.IrradianceNow())
-            if not dss.PVsystems.Next() > 0:
-                break
+            flag = dss.PVsystems.Next()
         return xr.DataArray(powers, coords={"ids": pv_names})
 
     def apply_inverter_control(self, inv_control: InverterControl):

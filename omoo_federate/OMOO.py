@@ -7,6 +7,7 @@ First `call_h` calculates the residual from the voltage magnitude and angle,
 and `call_H` calculates a jacobian. Then `scipy.optimize.least_squares`
 is used to solve.
 """
+
 import cmath
 import warnings
 import logging
@@ -602,7 +603,7 @@ class OMOOFederate:
         voltages = None
         power_P = None
         power_Q = None
-        while granted_time < 1000:
+        while granted_time < h.HELICS_TIME_MAXTIME:
             logger.debug("granted_time")
             logger.debug(granted_time)
             if not self.sub_voltages_real.is_updated():
