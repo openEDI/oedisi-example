@@ -1,7 +1,6 @@
 from fastapi import FastAPI, BackgroundTasks, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.exceptions import HTTPException
-from pathlib import Path
 import helics as h
 import grequests
 import traceback
@@ -18,17 +17,18 @@ import sys
 import os
 
 from oedisi.componentframework.system_configuration import WiringDiagram, ComponentStruct
-from oedisi.types.common import ServerReply, HeathCheck, DefaultFileNames
+from oedisi.types.common import ServerReply, HeathCheck
 
 app = FastAPI()
 
-is_kubernetes_env = os.environ['SERVICE_NAME'] if 'SERVICE_NAME' in os.environ else None
+is_kubernetes_env = os.environ['KUBERNETES_SERVICE_NAME'] if 'KUBERNETES_SERVICE_NAME' in os.environ else None
 
+WIRING_DIAGRAM_FILENAME = "system.json"
 
 def build_url(host:str, port:int, enpoint:list):
     if is_kubernetes_env:
-        SERVICE_NAME = os.environ['SERVICE_NAME']
-        url = f"http://{host}.{SERVICE_NAME}:{port}/"
+        KUBERNETES_SERVICE_NAME = os.environ['KUBERNETES_SERVICE_NAME']
+        url = f"http://{host}.{KUBERNETES_SERVICE_NAME}:{port}/"
     else:
         url = f"http://{host}:{port}/"
     url = url + "/".join(enpoint) + "/" 
@@ -138,10 +138,10 @@ def download_results():
             logging.info(f"making a request to url - {url}")
             
             response = requests.get(url)
+            logging.info(f"Response from {service} has {len(response.content)} bytes")
             with open(f"{service}.feather", "wb") as out_file:
-                shutil.copyfileobj(response.raw, out_file)
-                time.sleep(2)
-
+                out_file.write(response.content)
+                
     file_path = "results.zip"
     with zipfile.ZipFile(file_path, "w") as zipMe:
         for feather_file in find_filenames():
@@ -206,7 +206,7 @@ async def run_feeder(background_tasks: BackgroundTasks):
     
 @app.post("/configure")
 async def configure(wiring_diagram:WiringDiagram): 
-    json.dump(wiring_diagram.dict(), open(DefaultFileNames.WIRING_DIAGRAM.value, "w"))
+    json.dump(wiring_diagram.dict(), open(WIRING_DIAGRAM_FILENAME, "w"))
     for component in wiring_diagram.components:
         component_model  = ComponentStruct(
             component = component,

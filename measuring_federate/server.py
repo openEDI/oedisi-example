@@ -42,7 +42,7 @@ async def run_model(broker_config:BrokerConfig, background_tasks: BackgroundTask
     logging.info(broker_config)
     feeder_host = broker_config.services['oedisi_feeder']['hostname']
     feeder_port = int(broker_config.services['oedisi_feeder']['ports'][0].split(":")[0])
-    url = build_url(feeder_host, feeder_port, 'sensor') 
+    url = build_url(feeder_host, feeder_port, ['sensor']) 
     logging.info(url)
     try:   
         reply = requests.get(url)
