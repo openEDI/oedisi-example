@@ -302,7 +302,8 @@ class FeederSimulator(object):
             self._pvsystems.add("PVSystem." + PV["name"])
 
         if self.tap_setting is not None:
-            dss.Text.Command(f"batchedit transformer..* tap={self.tap_setting}")
+            # Doesn't work with AutoTrans or 3-winding transformers.
+            dss.Text.Command(f"batchedit transformer..* wdg=2 tap={self.tap_setting}")
         self._state = OpenDSSState.LOADED
 
     def disable_elements(self):
