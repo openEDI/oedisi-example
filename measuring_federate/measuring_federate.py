@@ -12,11 +12,12 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
 
+
 class MeasurementConfig(BaseModel):
     name: str
-    gaussian_variance: float
+    additive_noise_stddev: float = 0.0
+    multiplicative_noise_stddev: float = 0.0
     measurement_file: str
-    random_percent: float
     run_freq_time_step: float = 1.0
 
 
@@ -33,7 +34,9 @@ def reindex(measurement_array: MeasurementArray, indices):
             values=[measurement_array.values[inv_map[i]] for i in indices],
             ids=indices,
             units=measurement_array.units,
-            equipment_ids=[measurement_array.equipment_ids[inv_map[i]] for i in indices],
+            equipment_ids=[
+                measurement_array.equipment_ids[inv_map[i]] for i in indices
+            ],
             time=measurement_array.time,
         )
     else:
@@ -64,7 +67,9 @@ def apply(f, measurement_array: MeasurementArray):
 
 
 class MeasurementRelay:
-    def __init__(self, config: MeasurementConfig, input_mapping, broker_config:BrokerConfig):
+    def __init__(
+        self, config: MeasurementConfig, input_mapping, broker_config: BrokerConfig
+    ):
         self.rng = np.random.default_rng(12345)
         # deltat = 60.
 
@@ -95,14 +100,15 @@ class MeasurementRelay:
             "publication", h.HELICS_DATA_TYPE_STRING, ""
         )
 
-        self.gaussian_variance = config.gaussian_variance
+        self.additive_noise_stddev = config.additive_noise_stddev
+        self.multiplicative_noise_stddev = config.multiplicative_noise_stddev
         self.measurement_file = config.measurement_file
-        self.random_percent = config.random_percent
 
     def transform(self, measurement_array: MeasurementArray, unique_ids):
         new_array = reindex(measurement_array, unique_ids)
         return apply(
-            lambda x: x + self.rng.normal(scale=np.sqrt(self.gaussian_variance)),
+            lambda x: (1 + self.rng.normal(scale=self.multiplicative_noise_stddev)) * x
+            + self.rng.normal(scale=self.additive_noise_stddev),
             new_array,
         )
 
@@ -139,7 +145,8 @@ class MeasurementRelay:
         h.helicsFederateFree(self.vfed)
         h.helicsCloseLibrary()
 
-def run_simulator(broker_config:BrokerConfig):
+
+def run_simulator(broker_config: BrokerConfig):
     with open("static_inputs.json") as f:
         config = MeasurementConfig(**json.load(f))
 

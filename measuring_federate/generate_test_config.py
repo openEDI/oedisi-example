@@ -210,7 +210,8 @@ SLACK_BUS = [
 
 class MeasurementConfig(BaseModel):
     name: str
-    gaussian_variance: float
+    additive_noise_stddev: float
+    multiplicative_noise_stddev: float
     voltage_ids: List[str]
     real_power_ids: List[str]
     reactive_power_ids: List[str]
@@ -223,7 +224,8 @@ if __name__ == "__main__":
     print(
         MeasurementConfig(
             name="MeasurementFederate",
-            gaussian_variance=0.1,
+            additive_noise_stddev=0.1,
+            multiplicative_noise_stddev=0.1,
             voltage_ids=sample(BUSES, 3 * len(BUSES) // 4),
             real_power_ids=sample(BUSES, 3 * len(BUSES) // 4),
             reactive_power_ids=sample(BUSES, 3 * len(BUSES) // 4),
