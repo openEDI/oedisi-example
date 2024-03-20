@@ -1,4 +1,5 @@
 """Core class to abstract OpenDSS into Feeder class."""
+
 import json
 import logging
 import math
@@ -590,9 +591,9 @@ class FeederSimulator(object):
         name_voltage_dict = get_voltages(self._circuit)
         res_feeder_voltages = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
         for voltage_name in name_voltage_dict.keys():
-            res_feeder_voltages[
-                self._name_index_dict[voltage_name]
-            ] = name_voltage_dict[voltage_name]
+            res_feeder_voltages[self._name_index_dict[voltage_name]] = (
+                name_voltage_dict[voltage_name]
+            )
 
         return xr.DataArray(
             res_feeder_voltages, {"ids": list(name_voltage_dict.keys())}
@@ -826,14 +827,22 @@ class FeederSimulator(object):
         equipment_types = []
         for line in dss.Lines.AllNames():
             dss.Circuit.SetActiveElement("Line." + line)
-            from_bus, to_bus = dss.CktElement.BusNames()
+            names = dss.CktElement.BusNames()
+            if len(names) != 2:
+                logging.info(f"Line {line} does not have two terminals")
+                continue
+            from_bus, to_bus = names
             from_list.append(from_bus.upper())
             to_list.append(to_bus.upper())
             equipment_ids.append(line)
             equipment_types.append("Line")
         for transformer in dss.Transformers.AllNames():
             dss.Circuit.SetActiveElement("Transformer." + transformer)
-            from_bus, to_bus = dss.CktElement.BusNames()
+            names = dss.CktElement.BusNames()
+            if len(names) != 2:
+                logging.info(f"Transformer {transformer} does not have two terminals")
+                continue
+            from_bus, to_bus = names
             from_list.append(from_bus.upper())
             to_list.append(to_bus.upper())
             equipment_ids.append(transformer)
