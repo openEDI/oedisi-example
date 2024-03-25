@@ -1,12 +1,8 @@
-import logging
 import os
 import sys
 
 import numpy as np
-import pandas as pd
-import plotille
 import scipy.sparse
-from scipy.optimize import least_squares
 import pytest
 import xarray as xr
 from oedisi.types.data_types import (

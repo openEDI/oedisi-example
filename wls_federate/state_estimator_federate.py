@@ -208,7 +208,7 @@ def state_estimator(
     # Weights are ignored since errors are sampled from Gaussian
     # Real dimension of solutions is
     # 2 * num_node - len(knownP) - len(knownV) - len(knownQ)
-    if len(knownP) + len(knownV) + len(knownQ) < num_node * 2 and not isinstance(
+    if len(knownP) + len(knownV) + len(knownQ) < num_node * 2 or not isinstance(
         Y, scipy.sparse.sparray
     ):
         # If not observable, then #residuals < #unknowns and lm works
