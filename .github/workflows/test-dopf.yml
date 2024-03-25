@@ -1,4 +1,4 @@
-name: RunOMOO
+name: TestDOPFOMOO
 
 on: [push]
 jobs:
