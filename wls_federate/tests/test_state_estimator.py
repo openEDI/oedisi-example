@@ -4,7 +4,6 @@ import sys
 import numpy as np
 import scipy.sparse
 import pytest
-import xarray as xr
 from oedisi.types.data_types import (
     Topology,
     PowersReal,
@@ -22,7 +21,6 @@ from state_estimator_federate import (
     calculate_jacobian,
     residual,
     get_y,
-    state_estimator,
     AlgorithmParameters,
     get_indices,
 )
