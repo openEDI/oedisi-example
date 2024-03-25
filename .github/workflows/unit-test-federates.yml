@@ -35,6 +35,11 @@ jobs:
         PYTEST_ADDOPTS: "--color=yes"
         PYTHONIOENCODING: UTF-8
     - name: Run pytest on wls_federate
+      shell: bash -l {0}
+      run: |
         cd wls_federate
         pytest -s .
         cd ..
+      env:
+        PYTEST_ADDOPTS: "--color=yes"
+        PYTHONIOENCODING: UTF-8
