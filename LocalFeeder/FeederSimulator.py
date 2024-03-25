@@ -829,9 +829,11 @@ class FeederSimulator(object):
             dss.Circuit.SetActiveElement("Line." + line)
             names = dss.CktElement.BusNames()
             if len(names) != 2:
-                logging.info(f"Line {line} does not have two terminals")
-                continue
-            from_bus, to_bus = names
+                bus_names = map(lambda x: x.split(".")[0], names)
+                # dicts are insert-ordered in >=3.7
+                from_bus, to_bus = dict.fromkeys(bus_names)
+            else:
+                from_bus, to_bus = names
             from_list.append(from_bus.upper())
             to_list.append(to_bus.upper())
             equipment_ids.append(line)
@@ -840,8 +842,8 @@ class FeederSimulator(object):
             dss.Circuit.SetActiveElement("Transformer." + transformer)
             names = dss.CktElement.BusNames()
             if len(names) != 2:
-                logging.info(f"Transformer {transformer} does not have two terminals")
-                continue
+                bus_names = map(lambda x: x.split(".")[0], names)
+                from_bus, to_bus = dict.fromkeys(bus_names)
             from_bus, to_bus = names
             from_list.append(from_bus.upper())
             to_list.append(to_bus.upper())
