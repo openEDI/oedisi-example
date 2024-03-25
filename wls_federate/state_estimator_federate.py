@@ -208,33 +208,17 @@ def state_estimator(
     # Weights are ignored since errors are sampled from Gaussian
     # Real dimension of solutions is
     # 2 * num_node - len(knownP) - len(knownV) - len(knownQ)
-    if len(knownP) + len(knownV) + len(knownQ) < num_node * 2 or not isinstance(
-        Y, scipy.sparse.sparray
-    ):
-        # If not observable, then #residuals < #unknowns and lm works
-        ls_result = least_squares(
-            residual,
-            X0,
-            jac=calculate_jacobian,
-            method="lm",
-            verbose=2,
-            ftol=tol,
-            xtol=tol,
-            gtol=tol,
-            args=(z, num_node, knownP, knownQ, knownV, Y),
-        )
-    else:
-        ls_result = least_squares(
-            residual,
-            X0,
-            jac=calculate_jacobian,
-            method="trf",
-            verbose=2,
-            ftol=tol,
-            xtol=tol,
-            gtol=tol,
-            args=(z, num_node, knownP, knownQ, knownV, Y),
-        )
+    ls_result = least_squares(
+        residual,
+        X0,
+        jac=calculate_jacobian,
+        method="trf",
+        verbose=2,
+        ftol=tol,
+        xtol=tol,
+        gtol=tol,
+        args=(z, num_node, knownP, knownQ, knownV, Y),
+    )
     solution = ls_result.x
     vmagestDecen, vangestDecen = solution[num_node:], solution[:num_node]
     logging.debug("vangestDecen")
