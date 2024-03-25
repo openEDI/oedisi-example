@@ -831,9 +831,13 @@ class FeederSimulator(object):
             if len(names) != 2:
                 bus_names = map(lambda x: x.split(".")[0], names)
                 # dicts are insert-ordered in >=3.7
-                from_bus, to_bus = dict.fromkeys(bus_names)
-            else:
-                from_bus, to_bus = names
+                names = list(dict.fromkeys(bus_names))
+                if len(names) != 2:
+                    logging.info(
+                        f"Line {line} has {len(names)} terminals, skipping in incidence matrix"
+                    )
+                    continue
+            from_bus, to_bus = names
             from_list.append(from_bus.upper())
             to_list.append(to_bus.upper())
             equipment_ids.append(line)
@@ -842,8 +846,16 @@ class FeederSimulator(object):
             dss.Circuit.SetActiveElement("Transformer." + transformer)
             names = dss.CktElement.BusNames()
             if len(names) != 2:
+                logging.info(
+                    f"Transformer {transformer} has 3-terms, skipping in incidence matrix"
+                )
                 bus_names = map(lambda x: x.split(".")[0], names)
-                from_bus, to_bus = dict.fromkeys(bus_names)
+                names = list(dict.fromkeys(bus_names))
+                if len(names) != 2:
+                    logging.info(
+                        f"Transformer {transformer} has {len(names)} terminals, skipping in incidence matrix"
+                    )
+                    continue
             from_bus, to_bus = names
             from_list.append(from_bus.upper())
             to_list.append(to_bus.upper())
