@@ -831,14 +831,33 @@ class FeederSimulator(object):
         equipment_types = []
         for line in dss.Lines.AllNames():
             dss.Circuit.SetActiveElement("Line." + line)
-            from_bus, to_bus = dss.CktElement.BusNames()
+            names = dss.CktElement.BusNames()
+            if len(names) != 2:
+                bus_names = map(lambda x: x.split(".")[0], names)
+                # dicts are insert-ordered in >=3.7
+                names = list(dict.fromkeys(bus_names))
+                if len(names) != 2:
+                    logging.info(
+                        f"Line {line} has {len(names)} terminals, skipping in incidence matrix"
+                    )
+                    continue
+            from_bus, to_bus = names
             from_list.append(from_bus.upper())
             to_list.append(to_bus.upper())
             equipment_ids.append(line)
             equipment_types.append("Line")
         for transformer in dss.Transformers.AllNames():
             dss.Circuit.SetActiveElement("Transformer." + transformer)
-            from_bus, to_bus = dss.CktElement.BusNames()
+            names = dss.CktElement.BusNames()
+            if len(names) != 2:
+                bus_names = map(lambda x: x.split(".")[0], names)
+                names = list(dict.fromkeys(bus_names))
+                if len(names) != 2:
+                    logging.info(
+                        f"Transformer {transformer} has {len(names)} terminals, skipping in incidence matrix"
+                    )
+                    continue
+            from_bus, to_bus = names
             from_list.append(from_bus.upper())
             to_list.append(to_bus.upper())
             equipment_ids.append(transformer)
