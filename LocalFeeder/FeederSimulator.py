@@ -846,9 +846,6 @@ class FeederSimulator(object):
             dss.Circuit.SetActiveElement("Transformer." + transformer)
             names = dss.CktElement.BusNames()
             if len(names) != 2:
-                logging.info(
-                    f"Transformer {transformer} has 3-terms, skipping in incidence matrix"
-                )
                 bus_names = map(lambda x: x.split(".")[0], names)
                 names = list(dict.fromkeys(bus_names))
                 if len(names) != 2:
