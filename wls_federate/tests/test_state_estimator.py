@@ -51,8 +51,11 @@ def sparse_topology():
 
 
 @pytest.fixture()
-def Y(topology: Topology):
-    return get_y(topology.admittance, topology.admittance.ids)
+def actuals():
+    return (
+        VoltagesReal.parse_file(os.path.join(TEST_DIR, "voltage_real.json")),
+        VoltagesImaginary.parse_file(os.path.join(TEST_DIR, "voltage_imag.json")),
+    )
 
 
 def inner_args(parameters, topology, measurements):
@@ -142,12 +145,17 @@ def test_residual_sparse(parameters, sparse_topology, measurements):
     assert not isinstance(h, np.matrix), f"h has type {type(h)}"
 
 
-@pytest.fixture()
-def actuals():
-    return (
-        VoltagesReal.parse_file(os.path.join(TEST_DIR, "voltage_real.json")),
-        VoltagesImaginary.parse_file(os.path.join(TEST_DIR, "voltage_imag.json")),
+def test_residual_against_actuals(parameters, topology, measurements, actuals):
+    _, z, num_node, knownP, knownQ, knownV, Y = inner_args(
+        parameters, topology, measurements
     )
+    voltage_real, voltage_imag = actuals
+    true_voltages = np.array(voltage_real.values) + 1j * np.array(voltage_imag.values)
+    true_voltages /= np.array(topology.base_voltage_magnitudes.values)
+
+    X0 = np.concatenate((np.angle(true_voltages), np.abs(true_voltages)))
+    h = residual(X0, z, num_node, knownP, knownQ, knownV, Y)
+    assert np.sum(np.abs(h)) < 1e-2, f"Residuals are too high: {h}"
 
 
 def get_mean_relative_error(topology, solution, actuals):
@@ -263,3 +271,36 @@ def test_least_squares_call_sparse(parameters, sparse_topology, measurements, ac
 
     mean_rel_error = get_mean_relative_error(sparse_topology, solution, actuals)
     assert mean_rel_error < 0.1, f"Max relative error too high: {mean_rel_error}"
+
+
+def test_least_squares_with_perfect_initalization(
+    parameters, topology, measurements, actuals
+):
+    _, z, num_node, knownP, knownQ, knownV, Y = inner_args(
+        parameters, topology, measurements
+    )
+    voltage_real, voltage_imag = actuals
+    true_voltages = np.array(voltage_real.values) + 1j * np.array(voltage_imag.values)
+    true_voltages /= np.array(topology.base_voltage_magnitudes.values)
+
+    X0 = np.concatenate((np.angle(true_voltages), np.abs(true_voltages)))
+    ls_result = scipy.optimize.least_squares(
+        residual,
+        X0,
+        jac=calculate_jacobian,
+        # bounds=(low_limit, up_limit),
+        method="trf",
+        # method="lm",
+        verbose=2,
+        ftol=0.000001,
+        xtol=0.000001,
+        gtol=0.000001,
+        max_nfev=1000,
+        args=(z, num_node, knownP, knownQ, knownV, Y),
+    )
+    assert ls_result.success, f"Least squares failed: {ls_result.message}"
+
+    solution = ls_result.x
+
+    mean_rel_error = get_mean_relative_error(topology, solution, actuals)
+    assert mean_rel_error < 1e-4, f"Max relative error too high: {mean_rel_error}"
