@@ -12,4 +12,4 @@ RUN pip install -r requirements.txt
 
 EXPOSE 8766/tcp
 
-CMD ["python", "server.py", "10.5.0.2", "8766"]
+CMD ["python", "server.py"]

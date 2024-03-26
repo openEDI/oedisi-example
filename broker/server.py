@@ -19,6 +19,10 @@ import os
 from oedisi.componentframework.system_configuration import WiringDiagram, ComponentStruct
 from oedisi.types.common import ServerReply, HeathCheck
 
+
+logger = logging.getLogger('uvicorn.error')
+
+
 app = FastAPI()
 
 is_kubernetes_env = os.environ['KUBERNETES_SERVICE_NAME'] if 'KUBERNETES_SERVICE_NAME' in os.environ else None
@@ -86,7 +90,7 @@ async def upload_profiles(file: UploadFile):
                     f.write(data)
                     
                 url = build_url(ip, port, ["profiles"])    
-                logging.info(f"making a request to url - {url}")
+                logger.info(f"making a request to url - {url}")
                 
                 files = {"file": open(file.filename, "rb")}
                 r = requests.post(url, files=files)
@@ -115,7 +119,7 @@ async def upload_model(file: UploadFile):
                     f.write(data)
                     
                 url = build_url(ip, port, ["model"])    
-                logging.info(f"making a request to url - {url}")
+                logger.info(f"making a request to url - {url}")
        
                 files = {"file": open(file.filename, "rb")}
                 r = requests.post(url, files=files)
@@ -135,10 +139,10 @@ def download_results():
             port = int(services[service]["ports"][0].split(":")[0])
             
             url = build_url(host, port, ["download"])    
-            logging.info(f"making a request to url - {url}")
+            logger.info(f"making a request to url - {url}")
             
             response = requests.get(url)
-            logging.info(f"Response from {service} has {len(response.content)} bytes")
+            logger.info(f"Response from {service} has {len(response.content)} bytes")
             with open(f"{service}.feather", "wb") as out_file:
                 out_file.write(response.content)
                 
@@ -164,19 +168,20 @@ def terminate_simulation():
 
 def run_simulation():
     services, component_map, broker_ip, api_port = read_settings()
-    logging.info(f"{broker_ip}, {api_port}")
+    print(services)
+    logger.info(f"{broker_ip}, {api_port}")
     initstring = f"-f {len(component_map)} --name=mainbroker --loglevel=trace --local_interface={broker_ip} --localport=23404"
-    logging.info(f"Broker initaialization string: {initstring}")
+    logger.info(f"Broker initaialization string: {initstring}")
     broker = h.helicsCreateBroker("zmq", "", initstring)
-    logging.info(broker)
+    logger.info(broker)
     isconnected = h.helicsBrokerIsConnected(broker)
-    logging.info(f"Broker connected: {isconnected}")
-    logging.info(str(component_map))
+    logger.info(f"Broker connected: {isconnected}")
+    logger.info(str(component_map))
     replies = []
     for service_ip, service_port in component_map.items():
         
         url = build_url(service_ip, service_port, ["run"])    
-        logging.info(f"making a request to url - {url}")
+        logger.info(f"making a request to url - {url}")
         
         myobj = {
             "broker_port": 23404,
@@ -217,12 +222,11 @@ async def configure(wiring_diagram:WiringDiagram):
                 component_model.links.append(link)
         
         url = build_url(component.host, component.container_port, ["configure"])    
-        logging.info(f"making a request to url - {url}")
+        logger.info(f"making a request to url - {url}")
                 
         r = requests.post(url, json=component_model.dict())
         assert r.status_code==200, f"POST request to update configuration failed for url - {url}"
     return JSONResponse(ServerReply(detail="Sucessfully updated config files for all containers").dict(), 200)
         
 if __name__ == "__main__":
-    port = int(sys.argv[2])
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ['PORT']))
