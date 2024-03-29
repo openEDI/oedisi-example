@@ -175,7 +175,7 @@ def run_simulation():
     component_map, broker_ip, api_port = read_settings()
     feeder_host, feeder_port = _get_feeder_info(component_map)
     logger.info(f"{broker_ip}, {api_port}")
-    initstring = f"-f {len(component_map)} --name=mainbroker --loglevel=trace --local_interface={broker_ip} --localport=23404"
+    initstring = f"-f {len(component_map)-1} --name=mainbroker --loglevel=trace --local_interface={broker_ip} --localport=23404"
     logger.info(f"Broker initaialization string: {initstring}")
     broker = h.helicsCreateBroker("zmq", "", initstring)
     logger.info(broker)
@@ -183,19 +183,22 @@ def run_simulation():
     logger.info(f"Broker connected: {isconnected}")
     logger.info(str(component_map))
     replies = []
+    
+    broker_host = socket.gethostname()
+    
     for service_ip, service_port in component_map.items():
-        
-        url = build_url(service_ip, service_port, ["run"])    
-        logger.info(f"making a request to url - {url}")
-        
-        myobj = {
-            "broker_port": 23404,
-            "broker_ip": broker_ip,
-            "api_port": api_port,
-            "feeder_host": feeder_host,
-            "feeder_port": feeder_port
-        }
-        replies.append(grequests.post(url, json=myobj))
+        if service_ip != broker_host:
+            url = build_url(service_ip, service_port, ["run"])    
+            logger.info(f"making a request to url - {url}")
+            
+            myobj = {
+                "broker_port": 23404,
+                "broker_ip": broker_ip,
+                "api_port": api_port,
+                "feeder_host": feeder_host,
+                "feeder_port": feeder_port
+            }
+            replies.append(grequests.post(url, json=myobj))
     grequests.map(replies)
     while h.helicsBrokerIsConnected(broker):
         time.sleep(1)
