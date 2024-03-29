@@ -40,8 +40,8 @@ async def read_root():
 @app.post("/run")
 async def run_model(broker_config:BrokerConfig, background_tasks: BackgroundTasks):
     logging.info(broker_config)
-    feeder_host = broker_config.services['oedisi_feeder']['hostname']
-    feeder_port = int(broker_config.services['oedisi_feeder']['ports'][0].split(":")[0])
+    feeder_host = broker_config.feeder_host
+    feeder_port = broker_config.feeder_port
     url = build_url(feeder_host, feeder_port, ['sensor']) 
     logging.info(url)
     try:   
