@@ -19,10 +19,8 @@ import json
 from oedisi.componentframework.system_configuration import WiringDiagram, ComponentStruct
 from oedisi.types.common import ServerReply, HeathCheck
 
-
-#logger = logging.getLogger('uvicorn.error')
-logger = logging.getLogger(__name__)
-
+logger = logging.getLogger('uvicorn.error')
+#logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -30,8 +28,6 @@ is_kubernetes_env = os.environ['KUBERNETES_SERVICE_NAME'] if 'KUBERNETES_SERVICE
 
 WIRING_DIAGRAM_FILENAME = "system.json"
 WIRING_DIAGRAM : WiringDiagram | None = None
-
-
 
 # def test_function(json_file = r"C:/Users/alatif/Documents/GitHub/sgidal-example/scenarios/system.json"):
 #     global WIRING_DIAGRAM
@@ -62,8 +58,6 @@ def read_settings():
             broker_host: api_port
         }
     if WIRING_DIAGRAM:
-        print(WIRING_DIAGRAM)
-        print("")
         for component in WIRING_DIAGRAM.components:
             component_map[component.host] = component.container_port
     else:
@@ -221,6 +215,9 @@ async def run_feeder(background_tasks: BackgroundTasks):
   
 @app.post("/configure")
 async def configure(wiring_diagram:WiringDiagram): 
+    global WIRING_DIAGRAM 
+    WIRING_DIAGRAM = wiring_diagram
+    
     json.dump(wiring_diagram.dict(), open(WIRING_DIAGRAM_FILENAME, "w"))
     for component in wiring_diagram.components:
         component_model  = ComponentStruct(
@@ -240,5 +237,5 @@ async def configure(wiring_diagram:WiringDiagram):
         
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ['PORT']))
-    #test_function()
-    #read_settings()
+    # test_function()
+    # read_settings()
