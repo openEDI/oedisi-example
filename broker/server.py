@@ -29,11 +29,6 @@ is_kubernetes_env = os.environ['KUBERNETES_SERVICE_NAME'] if 'KUBERNETES_SERVICE
 WIRING_DIAGRAM_FILENAME = "system.json"
 WIRING_DIAGRAM : WiringDiagram | None = None
 
-# def test_function(json_file = r"C:/Users/alatif/Documents/GitHub/sgidal-example/scenarios/system.json"):
-#     global WIRING_DIAGRAM
-#     data = json.load(open(json_file, "r"))
-#     WIRING_DIAGRAM = WiringDiagram(**data)
-
 def build_url(host:str, port:int, enpoint:list):
     if is_kubernetes_env:
         KUBERNETES_SERVICE_NAME = os.environ['KUBERNETES_SERVICE_NAME']
@@ -80,7 +75,7 @@ async def upload_profiles(file: UploadFile):
     try:
         component_map, _, _ = read_settings()
         for hostname in component_map:
-            if "feeder" in hostname():
+            if "feeder" in hostname:
                 ip = hostname
                 port = component_map[hostname]
                 data = file.file.read()
@@ -108,7 +103,7 @@ async def upload_model(file: UploadFile):
     try:
         component_map, _, _ = read_settings()
         for hostname in component_map:
-            if "feeder" in hostname():
+            if "feeder" in hostname:
                 ip = hostname
                 port = component_map[hostname]
                 data = file.file.read()
@@ -136,7 +131,7 @@ def download_results():
     component_map, _, _ = read_settings()
     
     for hostname in component_map:
-        if "recorder" in hostname():
+        if "recorder" in hostname:
             host = hostname
             port = component_map[hostname]
             
