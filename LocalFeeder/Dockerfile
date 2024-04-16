@@ -4,7 +4,6 @@ RUN apt-get install -y git ssh
 RUN mkdir LocalFeeder
 COPY  . ./LocalFeeder
 WORKDIR ./LocalFeeder
-RUN pip cache purge
 RUN pip install -r requirements.txt
 EXPOSE 5678/tcp
 CMD ["python", "server.py"]

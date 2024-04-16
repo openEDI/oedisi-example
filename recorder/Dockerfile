@@ -4,7 +4,6 @@ RUN apt-get install -y git ssh
 RUN mkdir Recorder
 COPY  . ./Recorder
 WORKDIR ./Recorder
-RUN pip cache purge
 RUN pip install -r requirements.txt
 EXPOSE 5679/tcp
 CMD ["python", "server.py"]

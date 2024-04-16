@@ -4,7 +4,6 @@ RUN apt-get install -y git ssh
 RUN mkdir StateEstimatorComponent
 COPY  . ./StateEstimatorComponent
 WORKDIR ./StateEstimatorComponent
-RUN pip cache purge
 RUN pip install -r requirements.txt
 EXPOSE 5683/tcp
 CMD ["python", "server.py"]
