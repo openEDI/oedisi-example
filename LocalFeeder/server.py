@@ -1,19 +1,21 @@
-import asyncio
-import json
-import logging
-import os
-import socket
-import sys
-import time
-import traceback
-import zipfile
-
-import uvicorn
-from fastapi import BackgroundTasks, FastAPI, Request, UploadFile
+from fastapi import FastAPI, BackgroundTasks, UploadFile, Request
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
-from oedisi.types.common import BrokerConfig, HeathCheck, ServerReply
 from sender_cosim import run_simulator
+import traceback
+import asyncio
+import logging
+import zipfile
+import uvicorn
+import socket
+import json
+import time
+import sys
+import os
+
+from oedisi.componentframework.system_configuration import ComponentStruct
+from oedisi.types.common import ServerReply, HeathCheck, DefaultFileNames
+from oedisi.types.common import BrokerConfig
 
 REQUEST_TIMEOUT_SEC = 1200
 
@@ -49,7 +51,7 @@ def read_root():
     return JSONResponse(response, 200)
 
 
-@app.get("/sensor/")
+@app.get("/sensor")
 async def sensor():
     logging.info(os.getcwd())
     sensor_path = os.path.join(base_path, "sensors", "sensors.json")
@@ -61,7 +63,7 @@ async def sensor():
     return data
 
 
-@app.post("/profiles/")
+@app.post("/profiles")
 async def upload_profiles(file: UploadFile):
     try:
         data = file.file.read()
@@ -94,7 +96,7 @@ async def upload_profiles(file: UploadFile):
         )
 
 
-@app.post("/model/")
+@app.post("/model")
 async def upload_model(file: UploadFile):
     try:
         data = file.file.read()
@@ -123,7 +125,7 @@ async def upload_model(file: UploadFile):
         HTTPException(500, "Unknown error while uploading userdefined opendss model.")
 
 
-@app.post("/run/")
+@app.post("/run")
 async def run_feeder(
     broker_config: BrokerConfig, background_tasks: BackgroundTasks
 ):  # :BrokerConfig
@@ -138,6 +140,20 @@ async def run_feeder(
         HTTPException(500, str(err))
 
 
+@app.post("/configure")
+async def configure(component_struct:ComponentStruct): 
+    component = component_struct.component
+    params = component.parameters
+    params["name"] = component.name
+    links = {}
+    for link in component_struct.links:
+        links[link.target_port] = f"{link.source}/{link.source_port}"
+    json.dump(links , open(DefaultFileNames.INPUT_MAPPING.value, "w"))
+    json.dump(params , open(DefaultFileNames.STATIC_INPUTS.value, "w"))
+    response = ServerReply(
+            detail = f"Sucessfully updated configuration files."
+        ).dict() 
+    return JSONResponse(response, 200)
+
 if __name__ == "__main__":
-    port = int(sys.argv[2])
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ['PORT']))

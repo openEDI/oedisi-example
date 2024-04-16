@@ -5,4 +5,5 @@ scipy
 numpy
 fastapi
 uvicorn
-oedisi==1.2.1
+oedisi
+
