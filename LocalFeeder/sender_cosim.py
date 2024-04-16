@@ -1,4 +1,5 @@
 """HELICS wrapper for OpenDSS feeder simulation."""
+
 import json
 import logging
 from dataclasses import dataclass
@@ -11,13 +12,22 @@ import numpy.typing as npt
 import xarray as xr
 from FeederSimulator import FeederConfig, FeederSimulator
 from oedisi.types.common import BrokerConfig
-from oedisi.types.data_types import (AdmittanceMatrix, AdmittanceSparse,
-                                     CommandList, EquipmentNodeArray,
-                                     Injection, InverterControlList,
-                                     MeasurementArray, PowersImaginary,
-                                     PowersReal, Topology, VoltagesAngle,
-                                     VoltagesImaginary, VoltagesMagnitude,
-                                     VoltagesReal)
+from oedisi.types.data_types import (
+    AdmittanceMatrix,
+    AdmittanceSparse,
+    CommandList,
+    EquipmentNodeArray,
+    Injection,
+    InverterControlList,
+    MeasurementArray,
+    PowersImaginary,
+    PowersReal,
+    Topology,
+    VoltagesAngle,
+    VoltagesImaginary,
+    VoltagesMagnitude,
+    VoltagesReal,
+)
 from scipy.sparse import coo_matrix
 
 logger = logging.getLogger(__name__)
@@ -135,6 +145,7 @@ class InitialData:
 
 def get_initial_data(sim: FeederSimulator, config: FeederConfig):
     """Get and calculate InitialData from simulation."""
+    incidences = sim.get_incidences()
     Y = sim.get_y_matrix()
     unique_ids = sim._AllNodeNames
 
@@ -178,6 +189,7 @@ def get_initial_data(sim: FeederSimulator, config: FeederConfig):
         injections=injections,
         base_voltage_magnitudes=base_voltagemagnitude,
         slack_bus=slack_ids,
+        incidences=incidences,
     )
     return InitialData(Y=Y, topology=topology)
 
@@ -215,7 +227,12 @@ def get_current_data(sim: FeederSimulator, Y):
     power_real, power_imaginary = get_powers(-PQ_load, -PQ_PV, -PQ_gen, -PQ_cap)
     injections = Injection(power_real=power_real, power_imaginary=power_imaginary)
 
-    ids = xr.DataArray(sim._AllNodeNames, coords={"ids": sim._AllNodeNames})
+    ids = xr.DataArray(
+        sim._AllNodeNames,
+        coords={
+            "ids": sim._AllNodeNames,
+        },
+    )
     PQ_injections_all = (
         agg_to_ids(PQ_load, ids)
         + agg_to_ids(PQ_PV, ids)
@@ -296,6 +313,9 @@ def go_cosim(
     pub_injections = h.helicsFederateRegisterPublication(
         vfed, "injections", h.HELICS_DATA_TYPE_STRING, ""
     )
+    pub_available_power = h.helicsFederateRegisterPublication(
+        vfed, "available_power", h.HELICS_DATA_TYPE_STRING, ""
+    )
     pub_load_y_matrix = h.helicsFederateRegisterPublication(
         vfed, "load_y_matrix", h.HELICS_DATA_TYPE_STRING, ""
     )
@@ -307,7 +327,7 @@ def go_cosim(
     )
     sub_command_set = vfed.register_subscription(command_set_key, "")
     sub_command_set.set_default("[]")
-    sub_command_set.option["CONNECTION_OPTIONAL"] = 1
+    sub_command_set.option["CONNECTION_OPTIONAL"] = True
 
     inv_control_key = (
         "unused/inv_control"
@@ -316,7 +336,15 @@ def go_cosim(
     )
     sub_invcontrol = vfed.register_subscription(inv_control_key, "")
     sub_invcontrol.set_default("[]")
-    sub_invcontrol.option["CONNECTION_OPTIONAL"] = 1
+    sub_invcontrol.option["CONNECTION_OPTIONAL"] = True
+
+    pv_set_key = (
+        "unused/pv_set" if "pv_set" not in input_mapping else input_mapping["pv_set"]
+    )
+
+    sub_pv_set = vfed.register_subscription(pv_set_key, "")
+    sub_pv_set.set_default("[]")
+    sub_pv_set.option["CONNECTION_OPTIONAL"] = True
 
     h.helicsFederateEnterExecutingMode(vfed)
     initial_data = get_initial_data(sim, config)
@@ -327,8 +355,15 @@ def go_cosim(
     pub_topology.publish(initial_data.topology.json())
 
     granted_time = -1
-    for request_time in range(0, int(config.number_of_timesteps)):
+    request_time = 0
+
+    while request_time < int(config.number_of_timesteps):
         granted_time = h.helicsFederateRequestTime(vfed, request_time)
+        assert (
+            granted_time <= request_time + deltat
+        ), f"granted_time: {granted_time} past {request_time}"
+        if granted_time >= request_time - deltat:
+            request_time += 1
 
         current_index = int(granted_time)  # floors
         current_timestamp = datetime.strptime(
@@ -344,6 +379,10 @@ def go_cosim(
         inverter_controls = InverterControlList.parse_obj(sub_invcontrol.json)
         for inv_control in inverter_controls.__root__:
             sim.apply_inverter_control(inv_control)
+
+        pv_sets = sub_pv_set.json
+        for pv_set in pv_sets:
+            sim.set_pv_output(pv_set[0].split(".")[1], pv_set[1], pv_set[2])
 
         logger.info(
             f"Solve at hour {floored_timestamp.hour} second "
@@ -381,7 +420,8 @@ def go_cosim(
         voltage_magnitudes = np.abs(current_data.feeder_voltages)
         pub_voltages_magnitude.publish(
             VoltagesMagnitude(
-                **xarray_to_dict(voltage_magnitudes), time=current_timestamp,
+                **xarray_to_dict(voltage_magnitudes),
+                time=current_timestamp,
             ).json()
         )
         pub_voltages_real.publish(
@@ -409,6 +449,13 @@ def go_cosim(
             ).json()
         )
         pub_injections.publish(current_data.injections.json())
+        pub_available_power.publish(
+            MeasurementArray(
+                **xarray_to_dict(sim.get_available_pv()),
+                time=current_timestamp,
+                units="kWA",
+            ).json()
+        )
 
         if config.use_sparse_admittance:
             pub_load_y_matrix.publish(

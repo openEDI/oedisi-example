@@ -3,16 +3,47 @@
     "execute_function": "python OMOO.py",
     "static_inputs": [],
     "dynamic_inputs": [
-        {"type": "VoltagesReal", "port_id": "voltages_real"},
-        {"type": "VoltagesImaginary", "port_id": "voltages_imag"},
-        {"type": "PowersReal", "port_id": "powers_real"},
-        {"type": "PowersImaginary", "port_id": "powers_imag"},
-        {"type": "Topology", "port_id": "topology"},
-        {"type": "Injections", "port_id": "injections"}
+        {
+            "type": "VoltagesReal",
+            "port_id": "voltages_real"
+        },
+        {
+            "type": "VoltagesImaginary",
+            "port_id": "voltages_imag"
+        },
+        {
+            "type": "PowersReal",
+            "port_id": "powers_real"
+        },
+        {
+            "type": "PowersImaginary",
+            "port_id": "powers_imag"
+        },
+        {
+            "type": "Topology",
+            "port_id": "topology"
+        },
+        {
+            "type": "Injections",
+            "port_id": "injections"
+        },
+        {
+            "type": "MeasurementArray",
+            "port_id": "available_power"
+        }
     ],
     "dynamic_outputs": [
-        {"type": "VoltagesMagnitude", "port_id": "voltage_mag"},
-        {"type": "VoltagesAngle", "port_id": "voltage_angle"},
-        {"type": "CommandList", "port_id": "P_set"}
+        {
+            "type": "VoltagesMagnitude",
+            "port_id": "voltage_mag"
+        },
+        {
+            "type": "VoltagesAngle",
+            "port_id": "voltage_angle"
+        },
+        {
+            "type": "CommandList",
+            "port_id": "P_set"
+        }
     ]
 }

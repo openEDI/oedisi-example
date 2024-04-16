@@ -6,3 +6,4 @@ numpy
 fastapi
 uvicorn
 oedisi
+

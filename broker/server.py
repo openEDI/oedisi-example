@@ -13,14 +13,13 @@ import time
 import yaml
 import json
 import os
-
 import json
 
 from oedisi.componentframework.system_configuration import WiringDiagram, ComponentStruct
 from oedisi.types.common import ServerReply, HeathCheck
+from oedisi.tools.broker_utils import get_time_data
 
 logger = logging.getLogger('uvicorn.error')
-#logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -173,7 +172,10 @@ def run_simulation():
     initstring = f"-f {len(component_map)-1} --name=mainbroker --loglevel=trace --local_interface={broker_ip} --localport=23404"
     logger.info(f"Broker initaialization string: {initstring}")
     broker = h.helicsCreateBroker("zmq", "", initstring)
-    logger.info(broker)
+
+    app.state.broker = broker
+    logging.info(broker)
+
     isconnected = h.helicsBrokerIsConnected(broker)
     logger.info(f"Broker connected: {isconnected}")
     logger.info(str(component_map))
@@ -210,7 +212,7 @@ async def run_feeder(background_tasks: BackgroundTasks):
     except Exception as e:
         err = traceback.format_exc()
         raise HTTPException(status_code=404, detail=str(err))
-  
+
 @app.post("/configure")
 async def configure(wiring_diagram:WiringDiagram): 
     global WIRING_DIAGRAM 
@@ -233,6 +235,21 @@ async def configure(wiring_diagram:WiringDiagram):
         assert r.status_code==200, f"POST request to update configuration failed for url - {url}"
     return JSONResponse(ServerReply(detail="Sucessfully updated config files for all containers").dict(), 200)
         
+@app.get("/status/")
+async def status():
+    try:
+        name_2_timedata = {}
+        connected = h.helicsBrokerIsConnected(app.state.broker)
+        if connected:
+            for time_data in get_time_data(app.state.broker):
+                if (time_data.name not in name_2_timedata) or (
+                    name_2_timedata[time_data.name] != time_data
+                ):
+                    name_2_timedata[time_data.name] = time_data
+        return {"connected": connected, "timedata": name_2_timedata, "error": False}
+    except AttributeError as e:
+        return {"reply": str(e), "error": True}
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ['PORT']))
     # test_function()
