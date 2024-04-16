@@ -11,5 +11,5 @@ boto3
 xarray
 fastapi
 uvicorn
-git+https://github.com/openEDI/oedisi@al/config
+oedisi
 python-multipart
