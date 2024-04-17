@@ -5,5 +5,4 @@ scipy
 numpy
 fastapi
 uvicorn
-oedisi
-
+oedisi>=2.0.1,<3
