@@ -6,4 +6,4 @@ numpy
 pandas
 fastapi
 uvicorn
-oedisi>=2.0.1,<3
+oedisi>=2.0.2,<3
