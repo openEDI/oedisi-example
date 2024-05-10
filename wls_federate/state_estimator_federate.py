@@ -7,37 +7,36 @@ First `call_h` calculates the residual from the voltage magnitude and angle,
 and `call_H` calculates a jacobian. Then `scipy.optimize.least_squares`
 is used to solve.
 """
-import logging
-import helics as h
+
 import json
-import numpy as np
-from pydantic import BaseModel
-from enum import Enum
-from typing import List, Optional, Union
-from scipy.optimize import least_squares
+import logging
 from datetime import datetime
+from typing import List, Optional, Union
+
+import helics as h
+import numpy as np
+import scipy.sparse
 from oedisi.types.common import BrokerConfig
 from oedisi.types.data_types import (
-    AdmittanceSparse,
-    MeasurementArray,
     AdmittanceMatrix,
-    Topology,
+    AdmittanceSparse,
     Complex,
-    VoltagesMagnitude,
-    VoltagesAngle,
-    VoltagesReal,
-    VoltagesImaginary,
-    PowersReal,
     PowersImaginary,
+    PowersReal,
+    Topology,
+    VoltagesAngle,
+    VoltagesMagnitude,
 )
-import scipy.sparse
+from pydantic import BaseModel
+from scipy.optimize import least_squares
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
 
 
-def cal_h(knownP, knownQ, knownV, Y, deltaK, VabsK, num_node):
+def estimated_pqv(knownP, knownQ, knownV, Y, deltaK, VabsK, num_node):
+    """Calculate estimated P, Q, and V."""
     h1 = (VabsK[knownV]).reshape(-1, 1)
     Vp = VabsK * np.exp(1j * deltaK)
     S = Vp * (Y.conjugate() @ Vp.conjugate())
@@ -47,7 +46,10 @@ def cal_h(knownP, knownQ, knownV, Y, deltaK, VabsK, num_node):
     return h.reshape(-1)
 
 
-def cal_H(X0, z, num_node, knownP, knownQ, knownV, Y):
+def calculate_jacobian(X0, z, num_node, knownP, knownQ, knownV, Y):
+    """Calculate the Jacobian matrix for the weighted least squares algorithm.
+
+    Called H in literature."""
     deltaK, VabsK = X0[:num_node], X0[num_node:]
     num_knownV = len(knownV)
     # Calculate original H1
@@ -57,28 +59,35 @@ def cal_H(X0, z, num_node, knownP, knownQ, knownV, Y):
     Vp = VabsK * np.exp(1j * deltaK)
     ##### S = np.diag(Vp) @ Y.conjugate() @ Vp.conjugate()
     ######  Take gradient with respect to V
-    H_pow2 = Vp.reshape(-1, 1) * Y.conjugate() * np.exp(-1j * deltaK).reshape(
-        1, -1
-    ) + np.exp(1j * deltaK) * np.diag(Y.conjugate() @ Vp.conjugate())
+    H_pow2 = scipy.sparse.diags_array(Vp) @ Y.conjugate() @ scipy.sparse.diags_array(
+        np.exp(-1j * deltaK)
+    ) + scipy.sparse.diags_array(np.exp(1j * deltaK) * (Y.conjugate() @ Vp.conjugate()))
     # Take gradient with respect to delta
     H_pow1 = (
         1j
-        * Vp.reshape(-1, 1)
-        * (
-            np.diag(Y.conjugate() @ Vp.conjugate())
-            - Y.conjugate() * Vp.conjugate().reshape(1, -1)
+        * scipy.sparse.diags_array(Vp)
+        @ (
+            scipy.sparse.diags_array(Y.conjugate() @ Vp.conjugate())
+            - Y.conjugate() @ scipy.sparse.diags_array(Vp.conjugate())
         )
     )
 
-    H2 = np.concatenate((H_pow1.real, H_pow2.real), axis=1)[knownP, :]
-    H3 = np.concatenate((H_pow1.imag, H_pow2.imag), axis=1)[knownQ, :]
-    H = np.concatenate((H1, H2, H3), axis=0)
+    if isinstance(Y, scipy.sparse.sparray):
+        H2 = scipy.sparse.hstack((H_pow1.real, H_pow2.real))[knownP, :]
+        H3 = scipy.sparse.hstack((H_pow1.imag, H_pow2.imag))[knownQ, :]
+        assert isinstance(H2, scipy.sparse.sparray), f"H2 has type {type(H2)}"
+        assert isinstance(H3, scipy.sparse.sparray), f"H3 has type {type(H3)}"
+        H = scipy.sparse.vstack((H1, H2, H3))
+    else:
+        H2 = np.concatenate((H_pow1.real, H_pow2.real), axis=1)[knownP, :]
+        H3 = np.concatenate((H_pow1.imag, H_pow2.imag), axis=1)[knownQ, :]
+        H = np.concatenate((H1, H2, H3), axis=0)
     return -H
 
 
 def residual(X0, z, num_node, knownP, knownQ, knownV, Y):
     delta, Vabs = X0[:num_node], X0[num_node:]
-    h = cal_h(knownP, knownQ, knownV, Y, delta, Vabs, num_node)
+    h = estimated_pqv(knownP, knownQ, knownV, Y, delta, Vabs, num_node)
     logger.debug("X0")
     logger.debug(X0)
     logger.debug("z")
@@ -94,7 +103,7 @@ def get_y(admittance: Union[AdmittanceMatrix, AdmittanceSparse], ids: List[str])
         return matrix_to_numpy(admittance.admittance_matrix)
     elif type(admittance) == AdmittanceSparse:
         node_map = {name: i for (i, name) in enumerate(ids)}
-        return scipy.sparse.coo_matrix(
+        return scipy.sparse.coo_array(
             (
                 [v[0] + 1j * v[1] for v in admittance.admittance_list],
                 (
@@ -102,7 +111,7 @@ def get_y(admittance: Union[AdmittanceMatrix, AdmittanceSparse], ids: List[str])
                     [node_map[c] for c in admittance.to_equipment],
                 ),
             )
-        ).toarray()
+        )
 
 
 def matrix_to_numpy(admittance: List[List[Complex]]):
@@ -116,14 +125,8 @@ def get_indices(topology, measurement):
     return [inv_map[v] for v in measurement.ids]
 
 
-class UnitSystem(str, Enum):
-    SI = "SI"
-    PER_UNIT = "PER_UNIT"
-
-
 class AlgorithmParameters(BaseModel):
     tol: float = 5e-7
-    units: UnitSystem = UnitSystem.PER_UNIT
     base_power: Optional[float] = 100.0
 
     class Config:
@@ -157,107 +160,73 @@ def state_estimator(
         Voltage magnitude with unique ids
     """
     base_voltages = np.array(topology.base_voltage_magnitudes.values)
-    ids = topology.base_voltage_magnitudes.ids
-    num_node = len(ids)
+    num_node = len(base_voltages)
     logging.debug("Number of Nodes")
     logging.debug(num_node)
+
     knownP = get_indices(topology, P)
     knownQ = get_indices(topology, Q)
     knownV = get_indices(topology, V)
 
-    if parameters.units == UnitSystem.SI:
-        z = np.concatenate(
-            (V.array, -1000 * np.array(P.array), -1000 * np.array(Q.array)), axis=0
-        )
-        Y = get_y(topology.admittance, ids)
-    elif parameters.units == UnitSystem.PER_UNIT:
-        base_power = 100
-        if parameters.base_power != None:
-            base_power = parameters.base_power
-        z = np.concatenate(
-            (
-                V.values / base_voltages[knownV],
-                -np.array(P.values) / base_power,
-                -np.array(Q.values) / base_power,
-            ),
-            axis=0,
-        )
-        Y = get_y(topology.admittance, ids)
-        # Hand-crafted unit conversion (check it, it works)
-        Y = (
-            base_voltages.reshape(1, -1)
-            * Y
-            * base_voltages.reshape(-1, 1)
-            / (base_power * 1000)
-        )
-    else:
-        raise Exception(f"Unit system {parameters.units} not supported")
+    z = np.concatenate(
+        (
+            V.values / base_voltages[knownV],
+            -np.array(P.values) / parameters.base_power,
+            -np.array(Q.values) / parameters.base_power,
+        ),
+        axis=0,
+    )
+
+    Y = get_y(topology.admittance, topology.base_voltage_magnitudes.ids)
+    # Hand-crafted unit conversion (check it, it works)
+    Y = (
+        scipy.sparse.diags_array(base_voltages)
+        @ Y
+        @ scipy.sparse.diags_array(base_voltages)
+    ) / (parameters.base_power * 1000)
     tol = parameters.tol
 
     if type(initial_ang) != np.ndarray:
         delta = np.full(num_node, initial_ang)
     else:
         delta = initial_ang
-    logger.debug(delta.shape)
-    logger.debug(num_node)
-    assert delta.shape == (num_node,)
+    assert delta.shape == (
+        num_node,
+    ), f"Initial angles shape {delta.shape} does not match {num_node}"
 
     if type(initial_V) != np.ndarray:
         Vabs = np.full(num_node, initial_V)
     else:
         Vabs = initial_V
-    assert Vabs.shape == (num_node,)
-    logging.debug("delta")
-    logging.debug(delta)
+    assert Vabs.shape == (
+        num_node,
+    ), f"Initial Vabs shape {Vabs.shape} does not match {num_node}"
+
     X0 = np.concatenate((delta, Vabs))
     logging.debug(X0)
-    ang_low = np.concatenate(([-1e-5], np.ones(num_node - 1) * (-np.inf)))
-    ang_up = np.concatenate(([1e-5], np.ones(num_node - 1) * (np.inf)))
-    mag_low = np.ones(num_node) * (-np.inf)
-    mag_up = np.ones(num_node) * (np.inf)
-    low_limit = np.concatenate((ang_low, mag_low))
-    up_limit = np.concatenate((ang_up, mag_up))
+
     # Weights are ignored since errors are sampled from Gaussian
     # Real dimension of solutions is
     # 2 * num_node - len(knownP) - len(knownV) - len(knownQ)
-    if len(knownP) + len(knownV) + len(knownQ) < num_node * 2:
-        # If not observable
-        res_1 = least_squares(
-            residual,
-            X0,
-            jac=cal_H,
-            # bounds = (low_limit, up_limit),
-            # method = 'lm',
-            verbose=2,
-            ftol=tol,
-            xtol=tol,
-            gtol=tol,
-            args=(z, num_node, knownP, knownQ, knownV, Y),
-        )
-    else:
-        res_1 = least_squares(
-            residual,
-            X0,
-            jac=cal_H,
-            bounds=(low_limit, up_limit),
-            # method = 'lm',
-            verbose=2,
-            ftol=tol,
-            xtol=tol,
-            gtol=tol,
-            args=(z, num_node, knownP, knownQ, knownV, Y),
-        )
-    result = res_1.x
-    vmagestDecen, vangestDecen = result[num_node:], result[:num_node]
+    ls_result = least_squares(
+        residual,
+        X0,
+        jac=calculate_jacobian,
+        method="trf",
+        verbose=2,
+        ftol=tol,
+        xtol=tol,
+        gtol=tol,
+        args=(z, num_node, knownP, knownQ, knownV, Y),
+    )
+    solution = ls_result.x
+    vmagestDecen, vangestDecen = solution[num_node:], solution[:num_node]
     logging.debug("vangestDecen")
     logging.debug(vangestDecen)
     logging.debug("vmagestDecen")
     logging.debug(vmagestDecen)
     vangestDecen = vangestDecen - vangestDecen[slack_index]
-    if parameters.units == UnitSystem.SI:
-        return vmagestDecen, vangestDecen
-    elif parameters.units == UnitSystem.PER_UNIT:
-        return vmagestDecen * (base_voltages), vangestDecen
+    return vmagestDecen * base_voltages, vangestDecen
 
 
 class StateEstimatorFederate:
@@ -335,7 +304,6 @@ class StateEstimatorFederate:
                 slack_index = i
 
         while granted_time < h.HELICS_TIME_MAXTIME:
-
             if not self.sub_voltages_magnitude.is_updated():
                 granted_time = h.helicsFederateRequestTime(
                     self.vfed, h.HELICS_TIME_MAXTIME
@@ -347,13 +315,14 @@ class StateEstimatorFederate:
             voltages = VoltagesMagnitude.parse_obj(self.sub_voltages_magnitude.json)
             power_P = PowersReal.parse_obj(self.sub_power_P.json)
             power_Q = PowersImaginary.parse_obj(self.sub_power_Q.json)
-            knownP = get_indices(topology, power_P)
-            knownQ = get_indices(topology, power_Q)
             knownV = get_indices(topology, voltages)
 
             if self.initial_V is None:
                 # Flat start or using average measurements
-                if len(knownP) + len(knownV) + len(knownQ) > len(ids) * 2:
+                if (
+                    len(power_P.ids) + len(voltages.ids) + len(power_Q.ids)
+                    > len(ids) * 2
+                ):
                     self.initial_V = 1.0
                 else:
                     self.initial_V = np.mean(
