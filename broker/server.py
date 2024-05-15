@@ -24,14 +24,14 @@ logger = logging.getLogger('uvicorn.error')
 
 app = FastAPI()
 
-is_kubernetes_env = os.environ['KUBERNETES_SERVICE_NAME'] if 'KUBERNETES_SERVICE_NAME' in os.environ else None
+is_kubernetes_env = os.environ['SERVICE_NAME'] if 'SERVICE_NAME' in os.environ else None
 
 WIRING_DIAGRAM_FILENAME = "system.json"
 WIRING_DIAGRAM : WiringDiagram | None = None
 
 def build_url(host:str, port:int, enpoint:list):
     if is_kubernetes_env:
-        KUBERNETES_SERVICE_NAME = os.environ['KUBERNETES_SERVICE_NAME']
+        KUBERNETES_SERVICE_NAME = os.environ['SERVICE_NAME']
         url = f"http://{host}.{KUBERNETES_SERVICE_NAME}:{port}/"
     else:
         url = f"http://{host}:{port}/"
