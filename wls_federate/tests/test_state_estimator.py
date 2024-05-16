@@ -605,6 +605,9 @@ def test_improved_initialization(parameters: AlgorithmParameters, input_data: st
     assert np.all(np.min(X0[len(X0) // 2 :]) > 0.90)
     assert np.all(np.max(X0[len(X0) // 2 :]) < 1.15)
 
+    baseline_residual = np.sum(
+        residual(X0, z, num_node, knownP, knownQ, knownV, Y) ** 2
+    )
     ls_result = scipy.optimize.least_squares(
         residual,
         X0,
@@ -621,6 +624,9 @@ def test_improved_initialization(parameters: AlgorithmParameters, input_data: st
     assert ls_result.success, f"Least squares failed: {ls_result.message}"
 
     solution = ls_result.x
+    solution_residual = np.sum(
+        residual(solution, z, num_node, knownP, knownQ, knownV, Y) ** 2
+    )
 
     fig = plt.Figure(figsize=(10, 8))
     ax = fig.add_subplot(111)
@@ -652,6 +658,8 @@ def test_improved_initialization(parameters: AlgorithmParameters, input_data: st
     print(f"Baseline mean relative error: {baseline_error}")
     print(f"Baseline mean angle error: {baseline_angle_error * 180 / np.pi} degrees")
 
+    print(f"Residual: {solution_residual}")
+    print(f"Baseline Residual: {baseline_residual}")
     assert mean_rel_error < 0.015, f"Max relative error too high: {mean_rel_error}"
     assert (
         mean_angle_error < 0.04
