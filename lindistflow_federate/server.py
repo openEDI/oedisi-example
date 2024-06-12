@@ -1,10 +1,15 @@
 from oedisi.types.common import BrokerConfig
 from opf_federate import EchoFederate
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.responses import JSONResponse
 import uvicorn
 import socket
-import sys
+import traceback
+import json
+import os
+
+from oedisi.componentframework.system_configuration import ComponentStruct
+from oedisi.types.common import ServerReply, HeathCheck, DefaultFileNames
 
 app = FastAPI()
 
@@ -20,19 +25,36 @@ def read_root():
             host_ip = socket.gethostbyname(socket.gethostname() + ".local")
         except socket.gaierror:
             pass
-    return JSONResponse({"hostname": hostname, "host_ip": host_ip}, 200)
+    response = HeathCheck(hostname=hostname, host_ip=host_ip).dict()
+    return JSONResponse(response, 200)
 
 
-@app.post("/run/")
+@app.post("/run")
 async def run_model(broker_config: BrokerConfig, background_tasks: BackgroundTasks):
+    print(broker_config)
     federate = EchoFederate(broker_config)
     try:
-        background_tasks.add_task(federate.run)
-        return {"reply": "success", "error": False}
+        background_tasks.add_task(federate.run, broker_config)
+        response = ServerReply(detail="Task sucessfully added.").dict()
+        return JSONResponse(response, 200)
     except Exception as e:
-        return {"reply": str(e), "error": True}
+        err = traceback.format_exc()
+        HTTPException(500, str(err))
+
+
+@app.post("/configure")
+async def configure(component_struct: ComponentStruct):
+    component = component_struct.component
+    params = component.parameters
+    params["name"] = component.name
+    links = {}
+    for link in component_struct.links:
+        links[link.target_port] = f"{link.source}/{link.source_port}"
+    json.dump(links, open(DefaultFileNames.INPUT_MAPPING.value, "w"))
+    json.dump(params, open(DefaultFileNames.STATIC_INPUTS.value, "w"))
+    response = ServerReply(detail=f"Sucessfully updated configuration files.").dict()
+    return JSONResponse(response, 200)
 
 
 if __name__ == "__main__":
-    port = int(sys.argv[2])
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ["PORT"]))
