@@ -3,5 +3,7 @@
     "LocalFeeder": "LocalFeeder/component_definition.json",
     "MeasurementComponent": "measuring_federate/component_definition.json",
     "StateEstimatorComponent": "wls_federate/component_definition.json",
-    "OMOOComponent": "omoo_federate/component_definition.json"
+    "OMOOComponent": "omoo_federate/component_definition.json",
+    "Feeder": "LocalFeeder/component_definition.json",
+    "OptimalPowerFlow": "lindistflow_federate/component_definition.json"
 }
