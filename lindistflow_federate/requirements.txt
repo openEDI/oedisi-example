@@ -3,6 +3,6 @@ pydantic>=1.7,<2
 cvxpy
 numpy
 networkx
-oedisi==1.1.1
+oedisi>=2,<3
 fastapi
 uvicorn
