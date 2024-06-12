@@ -4,7 +4,7 @@
         {
             "name": "recorder_power_real",
             "type": "Recorder",
-            "host": "10.5.0.4",
+            "host": "recorder-power-real",
             "container_port": 5679,
             "parameters": {
                 "feather_filename": "power_real.feather",
@@ -14,7 +14,7 @@
         {
             "name": "recorder_power_imag",
             "type": "Recorder",
-            "host": "10.5.0.5",
+            "host": "recorder-power-imag",
             "container_port": 5680,
             "parameters": {
                 "feather_filename": "power_imag.feather",
@@ -24,7 +24,7 @@
         {
             "name": "recorder_voltage_real",
             "type": "Recorder",
-            "host": "10.5.0.6",
+            "host": "recorder-voltage-real",
             "container_port": 5681,
             "parameters": {
                 "feather_filename": "voltage_real.feather",
@@ -34,7 +34,7 @@
         {
             "name": "recorder_voltage_imag",
             "type": "Recorder",
-            "host": "10.5.0.7",
+            "host": "recorder-voltage-imag",
             "container_port": 5682,
             "parameters": {
                 "feather_filename": "voltage_imag.feather",
@@ -44,7 +44,7 @@
         {
             "name": "recorder_voltage_magnitude",
             "type": "Recorder",
-            "host": "10.5.0.8",
+            "host": "recorder-voltage-magnitude",
             "container_port": 5683,
             "parameters": {
                 "feather_filename": "voltage_mag.feather",
@@ -54,7 +54,7 @@
         {
             "name": "recorder_opf_voltage_magnitude",
             "type": "Recorder",
-            "host": "10.5.0.9",
+            "host": "recorder-opf-voltage-magnitude",
             "container_port": 5684,
             "parameters": {
                 "feather_filename": "opf_voltage_mag.feather",
@@ -64,7 +64,7 @@
         {
             "name": "feeder",
             "type": "Feeder",
-            "host": "10.5.0.10",
+            "host": "feeder",
             "container_port": 5678,
             "parameters": {
                 "use_smartds": false,
@@ -80,7 +80,7 @@
         {
             "name": "lindistflow",
             "type": "OptimalPowerFlow",
-            "host": "10.5.0.11",
+            "host": "lindistflow",
             "container_port": 5685,
             "parameters": {
                 "deltat": 0.1,

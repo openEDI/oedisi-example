@@ -34,7 +34,7 @@ async def run_model(broker_config: BrokerConfig, background_tasks: BackgroundTas
     print(broker_config)
     federate = EchoFederate(broker_config)
     try:
-        background_tasks.add_task(federate.run, broker_config)
+        background_tasks.add_task(federate.run)
         response = ServerReply(detail="Task sucessfully added.").dict()
         return JSONResponse(response, 200)
     except Exception as _:
