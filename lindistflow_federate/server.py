@@ -37,7 +37,7 @@ async def run_model(broker_config: BrokerConfig, background_tasks: BackgroundTas
         background_tasks.add_task(federate.run, broker_config)
         response = ServerReply(detail="Task sucessfully added.").dict()
         return JSONResponse(response, 200)
-    except Exception as e:
+    except Exception as _:
         err = traceback.format_exc()
         HTTPException(500, str(err))
 
@@ -52,7 +52,7 @@ async def configure(component_struct: ComponentStruct):
         links[link.target_port] = f"{link.source}/{link.source_port}"
     json.dump(links, open(DefaultFileNames.INPUT_MAPPING.value, "w"))
     json.dump(params, open(DefaultFileNames.STATIC_INPUTS.value, "w"))
-    response = ServerReply(detail=f"Sucessfully updated configuration files.").dict()
+    response = ServerReply(detail="Sucessfully updated configuration files.").dict()
     return JSONResponse(response, 200)
 
 
