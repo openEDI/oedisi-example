@@ -868,3 +868,42 @@ class FeederSimulator(object):
             ids=equipment_ids,
             equipment_types=equipment_types,
         )
+
+
+def test_voltages(federate_config):
+    logging.info("Loading sim")
+    sim = FeederSimulator(federate_config)
+
+    # Get Voltages
+    base = sim.get_base_voltages()
+    sim.disabled_run()
+    sim.initial_disabled_solve()
+    disabled_solve = sim.get_disabled_solve_voltages()
+    sim.snapshot_run()
+    snapshot = sim.get_voltages_snapshot()
+    sim.solve(0, 0)
+    actuals = sim.get_voltages_actual()
+
+    print(np.abs(actuals / base).data)
+    print(np.abs(snapshot / base).data)
+
+
+if __name__ == "__main__":
+    federate_config = FeederConfig(
+        **{
+            "use_smartds": False,
+            "existing_feeder_file":"../4Bus-YY-Bal/4Bus-YY-Bal.DSS",
+            "profile_location": "",
+            "opendss_location": "",
+            "start_date": "2017-01-01 00:00:00",
+            "number_of_timesteps": 1,
+            "run_freq_sec": 900,
+            "topology_output": "../../outputs/topology.json",
+            "name": "feeder",
+            "use_sparse_admittance": True
+        }
+    )
+    logging.info("Initializating simulation data")
+    _ = FeederSimulator(federate_config)
+    
+    test_voltages(federate_config)

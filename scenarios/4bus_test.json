@@ -1,0 +1,36 @@
+{
+    "name": "test_4bus",
+    "components": [
+        {
+            "name": "local_feeder",
+            "type": "LocalFeeder",
+            "parameters": {
+                "use_smartds": false,
+                "existing_feeder_file":"../../4Bus-YY-Bal/4Bus-YY-Bal.DSS",
+                "profile_location": "",
+                "opendss_location": "",
+                "start_date": "2017-01-01 00:00:00",
+                "number_of_timesteps": 1,
+                "run_freq_sec": 900,
+                "topology_output": "../../outputs/topology.json",
+                "use_sparse_admittance": true
+            }
+        },
+        {
+            "name": "recorder_check_vmag",
+            "type": "Recorder",
+            "parameters": {"feather_filename": "../../outputs/check_vmag.feather",
+                           "csv_filename": "../../outputs/check_vmag.csv"
+                          }
+        }
+
+    ],
+    "links": [
+        {
+            "source": "local_feeder",
+            "source_port": "voltages_magnitude",
+            "target": "recorder_check_vmag",
+            "target_port": "subscription"
+        }
+    ]
+}
