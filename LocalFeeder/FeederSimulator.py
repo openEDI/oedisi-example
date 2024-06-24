@@ -129,8 +129,9 @@ class FeederSimulator(object):
 
         self.tap_setting = config.tap_setting
 
-        self._simulation_time_step = "15m"
-        if config.existing_feeder_file is None:
+        if config.existing_feeder_file is None or not os.path.exists(
+            config.existing_feeder_file
+        ):
             if self._use_smartds:
                 self._feeder_file = os.path.join("opendss", "Master.dss")
                 self.download_data("oedi-data-lake", update_loadshape_location=True)
