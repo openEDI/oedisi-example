@@ -71,6 +71,15 @@ class FeederConfig(BaseModel):
     topology_output: str = "topology.json"
     use_sparse_admittance: bool = False
     tap_setting: Optional[int] = None
+    open_lines: Optional[List[str]] = None
+
+
+# Open Lines:
+
+# "Line.padswitch(r:p9udt496-p9udt527)p9u_166790",
+# "Line.padswitch(r:p9udt527-p9udt528)p9u_166794" is better for large SMART-DS.
+
+# "Line.goab_disswitch(r:p1udt1425-p1udt881)p1u_12301",  # SMALL
 
 
 class FeederMapping(BaseModel):
@@ -151,6 +160,7 @@ class FeederSimulator(object):
 
         self.snapshot_run()
         assert self._state == OpenDSSState.SNAPSHOT_RUN, f"{self._state}"
+        self.open_lines = config.open_lines
 
     def forcast_pv(self, steps: int) -> list:
         """
@@ -351,6 +361,10 @@ class FeederSimulator(object):
         if self.tap_setting is not None:
             # Doesn't work with AutoTrans or 3-winding transformers.
             dss.Text.Command(f"batchedit transformer..* wdg=2 tap={self.tap_setting}")
+
+        if self.open_lines is not None:
+            for l in self.open_lines:
+                self.open_line(l)
         self._state = OpenDSSState.LOADED
 
     def disable_elements(self):
@@ -581,6 +595,11 @@ class FeederSimulator(object):
             },
         )
         return pq_xr.sortby(pq_xr.ids)
+
+    def open_line(self, line_name: str):
+        """Open a line in the circuit."""
+        dss.Circuit.SetActiveElement("Line." + line_name)
+        dss.CktElement.Open(2, 0)
 
     def get_PQs_cap(self, static=False):
         """Get active and reactive power of Capacitors as xarray."""
