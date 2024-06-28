@@ -349,10 +349,12 @@ def go_cosim(
     h.helicsFederateEnterExecutingMode(vfed)
     initial_data = get_initial_data(sim, config)
 
+    topology_json = initial_data.topology.json()
+    topology_json["bus_coords"] = sim.get_bus_coords()
     logger.info("Sending topology and saving to topology.json")
     with open(config.topology_output, "w") as f:
-        f.write(initial_data.topology.json())
-    pub_topology.publish(initial_data.topology.json())
+        f.write(topology_json)
+    pub_topology.publish(topology_json)
 
     granted_time = -1
     request_time = 0
