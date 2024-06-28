@@ -1,5 +1,6 @@
 """Core class to abstract OpenDSS into Feeder class."""
 
+import csv
 import json
 import logging
 import math
@@ -8,7 +9,7 @@ import random
 import time
 from enum import Enum
 from time import strptime
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 import boto3
 import numpy as np
@@ -301,6 +302,19 @@ class FeederSimulator(object):
     def get_node_names(self):
         """Get node names in order."""
         return self._AllNodeNames
+
+    def get_bus_coords(self) -> Dict[str, Tuple[float, float]]:
+        """Load bus coordinates from OpenDSS."""
+        bus_path = os.path.join(os.path.dirname(self._feeder_file), "Buscoords.dss")
+        if not os.path.exists(bus_path):
+            self.bus_coords = None
+        with open(bus_path, "r") as f:
+            bus_coord_csv = csv.reader(f, delimiter=" ")
+            bus_coords = {}
+            for row in bus_coord_csv:
+                identifier, x, y = row
+                bus_coords[identifier] = (float(x), float(y))
+            return bus_coords
 
     def load_feeder(self):
         """Load feeder once downloaded. Relies on legacy mode."""
