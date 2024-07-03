@@ -319,6 +319,9 @@ def go_cosim(
     pub_load_y_matrix = h.helicsFederateRegisterPublication(
         vfed, "load_y_matrix", h.HELICS_DATA_TYPE_STRING, ""
     )
+    pub_pv_forecast = h.helicsFederateRegisterPublication(
+        vfed, "pv_forecast", h.HELICS_DATA_TYPE_STRING, ""
+    )
 
     command_set_key = (
         "unused/change_commands"
@@ -353,6 +356,13 @@ def go_cosim(
     with open(config.topology_output, "w") as f:
         f.write(initial_data.topology.json())
     pub_topology.publish(initial_data.topology.json())
+
+    # Publish the forecasted PV outputs as a list of MeasurementArray
+    logger.info("Evaluating the forecasted PV")
+    forecast_data = sim.forcast_pv(int(config.number_of_timesteps))
+    PVforecast = [MeasurementArray(**xarray_to_dict(forecast), 
+                    units="kW").json() for forecast in forecast_data]
+    pub_pv_forecast.publish(json.dumps(PVforecast))
 
     granted_time = -1
     request_time = 0
