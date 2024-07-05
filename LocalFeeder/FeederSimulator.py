@@ -407,7 +407,7 @@ class FeederSimulator(object):
 
     def setup_vbase(self):
         """Load base voltages into feeder."""
-        self._Vbase_allnode = np.zeros((self._node_number), dtype=np.complex_)
+        self._Vbase_allnode = np.zeros((self._node_number), dtype=np.complex128)
         self._Vbase_allnode_dict = {}
         for ii, node in enumerate(self._AllNodeNames):
             self._circuit.SetActiveBus(node)
@@ -463,7 +463,7 @@ class FeederSimulator(object):
         PQs: List[complex] = []
         node_names: List[str] = []
         pq_names: List[str] = []
-        # PQ_load = np.zeros((num_nodes), dtype=np.complex_)
+        # PQ_load = np.zeros((num_nodes), dtype=np.complex128)
         for ld in get_loads(dss, self._circuit):
             self._circuit.SetActiveElement("Load." + ld["name"])
             current_pq_name = dss.CktElement.Name()
@@ -628,7 +628,7 @@ class FeederSimulator(object):
             and self._state != OpenDSSState.UNLOADED
         ), f"{self._state}"
         name_voltage_dict = get_voltages(self._circuit)
-        res_feeder_voltages = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
+        res_feeder_voltages = np.zeros((len(self._AllNodeNames)), dtype=np.complex128)
         for voltage_name in name_voltage_dict.keys():
             res_feeder_voltages[self._name_index_dict[voltage_name]] = (
                 name_voltage_dict[voltage_name]
