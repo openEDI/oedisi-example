@@ -64,11 +64,12 @@ class FeederConfig(BaseModel):
     existing_feeder_file: Optional[str] = None
     sensor_location: Optional[str] = None
     start_date: str
-    number_of_timesteps: float
+    number_of_timesteps: int
     run_freq_sec: float = 15 * 60
     start_time_index: int = 0
     topology_output: str = "topology.json"
     use_sparse_admittance: bool = False
+    tap_setting: Optional[int] = None
 
 
 class FeederMapping(BaseModel):
@@ -126,6 +127,8 @@ class FeederSimulator(object):
         self._number_of_timesteps = config.number_of_timesteps
         self._vmult = 0.001
 
+        self.tap_setting = config.tap_setting
+
         self._simulation_time_step = "15m"
         if config.existing_feeder_file is None:
             if self._use_smartds:
@@ -147,6 +150,39 @@ class FeederSimulator(object):
 
         self.snapshot_run()
         assert self._state == OpenDSSState.SNAPSHOT_RUN, f"{self._state}"
+
+    def forcast_pv(self, steps: int) -> list:
+        """
+        Forecasts day ahead PV generation for the OpenDSS feeder. The OpenDSS file is run and the 
+        average irradiance is computed over all PV systems for each time step. This average irradiance
+        is used to compute the individual PV system power output
+        """
+        cmd = f'Set stepsize={self._simulation_time_step} Number=1'
+        dss.Text.Command(cmd)
+        forecast = []
+        for k in range(steps):
+            dss.Solution.Solve()
+            
+            # names of PV systems and forecasted power output
+            pv_names = []
+            powers = []
+
+            # compute average irradiance for the current timestep
+            flag = dss.PVsystems.First()
+            avg_irradiance = dss.PVsystems.IrradianceNow()
+            while flag:
+                avg_irradiance = (avg_irradiance + dss.PVsystems.IrradianceNow())/2
+                flag = dss.PVsystems.Next()
+
+            # now compute the power output from the evaluated average irradiance
+            flag = dss.PVsystems.First()
+            while flag:
+                pv_names.append(f"PVSystem.{dss.PVsystems.Name()}")
+                powers.append(dss.PVsystems.Pmpp() * avg_irradiance)
+                flag = dss.PVsystems.Next()
+            
+            forecast.append(xr.DataArray(powers, coords={"ids": pv_names}))
+        return forecast
 
     def snapshot_run(self):
         """Run snapshot of simuation without specifying a time.
@@ -297,12 +333,15 @@ class FeederSimulator(object):
         self._pvsystems = set()
         for PV in get_pvsystems(dss):
             self._pvsystems.add("PVSystem." + PV["name"])
+
+        if self.tap_setting is not None:
+            # Doesn't work with AutoTrans or 3-winding transformers.
+            dss.Text.Command(f"batchedit transformer..* wdg=2 tap={self.tap_setting}")
         self._state = OpenDSSState.LOADED
 
     def disable_elements(self):
         """Disable most elements. Used in disabled_run."""
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
-        dss.Text.Command("batchedit transformer..* wdg=2 tap=1")
         dss.Text.Command("batchedit regcontrol..* enabled=false")
         dss.Text.Command("batchedit vsource..* enabled=false")
         dss.Text.Command("batchedit isource..* enabled=false")
@@ -368,7 +407,7 @@ class FeederSimulator(object):
 
     def setup_vbase(self):
         """Load base voltages into feeder."""
-        self._Vbase_allnode = np.zeros((self._node_number), dtype=np.complex_)
+        self._Vbase_allnode = np.zeros((self._node_number), dtype=np.complex128)
         self._Vbase_allnode_dict = {}
         for ii, node in enumerate(self._AllNodeNames):
             self._circuit.SetActiveBus(node)
@@ -424,7 +463,7 @@ class FeederSimulator(object):
         PQs: List[complex] = []
         node_names: List[str] = []
         pq_names: List[str] = []
-        # PQ_load = np.zeros((num_nodes), dtype=np.complex_)
+        # PQ_load = np.zeros((num_nodes), dtype=np.complex128)
         for ld in get_loads(dss, self._circuit):
             self._circuit.SetActiveElement("Load." + ld["name"])
             current_pq_name = dss.CktElement.Name()
@@ -589,7 +628,7 @@ class FeederSimulator(object):
             and self._state != OpenDSSState.UNLOADED
         ), f"{self._state}"
         name_voltage_dict = get_voltages(self._circuit)
-        res_feeder_voltages = np.zeros((len(self._AllNodeNames)), dtype=np.complex_)
+        res_feeder_voltages = np.zeros((len(self._AllNodeNames)), dtype=np.complex128)
         for voltage_name in name_voltage_dict.keys():
             res_feeder_voltages[self._name_index_dict[voltage_name]] = (
                 name_voltage_dict[voltage_name]
@@ -726,7 +765,6 @@ class FeederSimulator(object):
 
     def set_pv_output(self, pv_system, p, q):
         """Sets the P and Q values for a PV system in OpenDSS"""
-
         max_pv = self.get_max_pv_available(pv_system)
         # pf = q / ((p**2 + q **2)**0.5)
 
@@ -749,29 +787,28 @@ class FeederSimulator(object):
         ]
         self.change_obj(command)
 
-    def get_pv_output(self, pv_system):
-        dss.PVsystems.First()
-        while True:
-            if dss.PVsystems.Name() == pv_system:
-                kw = dss.PVsystems.kW()
-                kvar = dss.PVsystems.kvar()
-            if not dss.PVsystems.Next() > 0:
-                break
-        return kw, kvar
-
     def get_max_pv_available(self, pv_system):
-        dss.PVsystems.First()
         irradiance = None
         pmpp = None
-        while True:
+        flag = dss.PVsystems.First()
+        while flag:
             if dss.PVsystems.Name() == pv_system:
-                irradiance = dss.PVsystems.Irradiance()
+                irradiance = dss.PVsystems.IrradianceNow()
                 pmpp = dss.PVsystems.Pmpp()
-            if not dss.PVsystems.Next() > 0:
-                break
+            flag = dss.PVsystems.Next()
         if irradiance is None or pmpp is None:
             raise ValueError(f"Irradiance or PMPP not found for {pv_system}")
         return irradiance * pmpp
+
+    def get_available_pv(self):
+        pv_names = []
+        powers = []
+        flag = dss.PVsystems.First()
+        while flag:
+            pv_names.append(f"PVSystem.{dss.PVsystems.Name()}")
+            powers.append(dss.PVsystems.Pmpp() * dss.PVsystems.IrradianceNow())
+            flag = dss.PVsystems.Next()
+        return xr.DataArray(powers, coords={"ids": pv_names})
 
     def apply_inverter_control(self, inv_control: InverterControl):
         """Apply inverter control to OpenDSS.
@@ -827,14 +864,33 @@ class FeederSimulator(object):
         equipment_types = []
         for line in dss.Lines.AllNames():
             dss.Circuit.SetActiveElement("Line." + line)
-            from_bus, to_bus = dss.CktElement.BusNames()
+            names = dss.CktElement.BusNames()
+            if len(names) != 2:
+                bus_names = map(lambda x: x.split(".")[0], names)
+                # dicts are insert-ordered in >=3.7
+                names = list(dict.fromkeys(bus_names))
+                if len(names) != 2:
+                    logging.info(
+                        f"Line {line} has {len(names)} terminals, skipping in incidence matrix"
+                    )
+                    continue
+            from_bus, to_bus = names
             from_list.append(from_bus.upper())
             to_list.append(to_bus.upper())
             equipment_ids.append(line)
             equipment_types.append("Line")
         for transformer in dss.Transformers.AllNames():
             dss.Circuit.SetActiveElement("Transformer." + transformer)
-            from_bus, to_bus = dss.CktElement.BusNames()
+            names = dss.CktElement.BusNames()
+            if len(names) != 2:
+                bus_names = map(lambda x: x.split(".")[0], names)
+                names = list(dict.fromkeys(bus_names))
+                if len(names) != 2:
+                    logging.info(
+                        f"Transformer {transformer} has {len(names)} terminals, skipping in incidence matrix"
+                    )
+                    continue
+            from_bus, to_bus = names
             from_list.append(from_bus.upper())
             to_list.append(to_bus.upper())
             equipment_ids.append(transformer)

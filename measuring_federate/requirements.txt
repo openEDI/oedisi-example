@@ -8,4 +8,5 @@ fastapi
 uvicorn
 requests
 grequests
-oedisi==1.2.1
+oedisi>=2.0.2,<3
+

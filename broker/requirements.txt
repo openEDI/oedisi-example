@@ -3,6 +3,6 @@ helics-apps==3.4.0
 pyyaml
 fastapi
 uvicorn
-oedisi==1.2.1
+oedisi>=2.0.2,<3
 grequests
 python-multipart

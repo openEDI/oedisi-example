@@ -1,0 +1,46 @@
+name: TestDOPFOMOO
+
+on: [push]
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ['3.10']
+        #include:
+          #- os: ubuntu-latest
+            #python-version: 3.10
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: ${{ matrix.python-version }}
+    - name: Install python dependencies
+      shell: bash -l {0}
+      run: |
+        pip install -r requirements.txt
+        pip install plotille
+        pip install click
+    - name: Run example
+      shell: bash -l {0}
+      run: |
+        git clone https://github.com/openEDI/oedisi-ieee123
+        mv oedisi-ieee123/profiles LocalFeeder/profiles
+        mv oedisi-ieee123/qsts LocalFeeder/opendss
+        # Change every kVA=50 and Pmpp=50 to kVA=200 and Pmpp=200 in LocalFeeder/opendss/IEEE123Pv.dss
+        sed -i 's/kVA=50/kVA=200/g; s/Pmpp=50/Pmpp=200/g' LocalFeeder/opendss/IEEE123Pv.dss
+        oedisi build --system scenarios/omoo_system.json
+        oedisi run
+        python opf_analysis.py
+    - name: Archive logs
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: test_logs
+        path: |
+          build/*.log
