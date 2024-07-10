@@ -4,36 +4,42 @@
         {
             "name": "recorder_voltage_real",
             "type": "Recorder",
-            "parameters": {"feather_filename": "../../outputs/voltage_real.feather",
-                           "csv_filename": "../../outputs/voltage_real.csv"
-                          }
+            "parameters": {
+                "feather_filename": "../../outputs/voltage_real.feather",
+                "csv_filename": "../../outputs/voltage_real.csv"
+            }
         },
         {
             "name": "recorder_voltage_imag",
             "type": "Recorder",
-            "parameters": {"feather_filename": "../../outputs/voltage_imag.feather",
-                           "csv_filename": "../../outputs/voltage_imag.csv"
-                          }
+            "parameters": {
+                "feather_filename": "../../outputs/voltage_imag.feather",
+                "csv_filename": "../../outputs/voltage_imag.csv"
+            }
         },
         {
             "name": "recorder_voltage_mag",
             "type": "Recorder",
-            "parameters": {"feather_filename": "../../outputs/voltage_mag.feather",
-                           "csv_filename": "../../outputs/voltage_mag.csv"
-                          }
+            "parameters": {
+                "feather_filename": "../../outputs/voltage_mag.feather",
+                "csv_filename": "../../outputs/voltage_mag.csv"
+            }
         },
         {
             "name": "recorder_voltage_angle",
             "type": "Recorder",
-            "parameters": {"feather_filename": "../../outputs/voltage_angle.feather",
-                           "csv_filename": "../../outputs/voltage_angle.csv"
-                          }
+            "parameters": {
+                "feather_filename": "../../outputs/voltage_angle.feather",
+                "csv_filename": "../../outputs/voltage_angle.csv"
+            }
         },
         {
             "name": "state_estimator",
             "type": "StateEstimatorComponent",
             "parameters": {
-                "algorithm_parameters": {"tol": 1e-5}
+                "algorithm_parameters": {
+                    "tol": 1e-5
+                }
             }
         },
         {
@@ -54,8 +60,7 @@
             "name": "sensor_voltage_magnitude",
             "type": "MeasurementComponent",
             "parameters": {
-                "gaussian_variance": 0.0,
-                "random_percent": 0.0,
+                "additive_noise_stddev": 0.0,
                 "measurement_file": "../feeder/sensors/voltage_ids.json"
             }
         },
@@ -63,8 +68,7 @@
             "name": "sensor_power_real",
             "type": "MeasurementComponent",
             "parameters": {
-                "gaussian_variance": 0.0,
-                "random_percent": 0.0,
+                "additive_noise_stddev": 0.0,
                 "measurement_file": "../feeder/sensors/real_ids.json"
             }
         },
@@ -72,12 +76,10 @@
             "name": "sensor_power_imaginary",
             "type": "MeasurementComponent",
             "parameters": {
-                "gaussian_variance": 0.0,
-                "random_percent": 0.0,
+                "additive_noise_stddev": 0.0,
                 "measurement_file": "../feeder/sensors/reactive_ids.json"
             }
         }
-
     ],
     "links": [
         {

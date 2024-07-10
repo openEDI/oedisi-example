@@ -4,36 +4,82 @@
         {
             "name": "recorder_voltage_real",
             "type": "Recorder",
-            "parameters": {"feather_filename": "../../outputs/voltage_real.feather",
-                           "csv_filename": "../../outputs/voltage_real.csv"
-                          }
+            "parameters": {
+                "feather_filename": "../../outputs/voltage_real.feather",
+                "csv_filename": "../../outputs/voltage_real.csv"
+            }
         },
         {
             "name": "recorder_voltage_imag",
             "type": "Recorder",
-            "parameters": {"feather_filename": "../../outputs/voltage_imag.feather",
-                           "csv_filename": "../../outputs/voltage_imag.csv"
-                          }
+            "parameters": {
+                "feather_filename": "../../outputs/voltage_imag.feather",
+                "csv_filename": "../../outputs/voltage_imag.csv"
+            }
+        },
+        {
+            "name": "recorder_power_real",
+            "type": "Recorder",
+            "parameters": {
+                "feather_filename": "../../outputs/power_real.feather",
+                "csv_filename": "../../outputs/power_real.csv"
+            }
+        },
+        {
+            "name": "recorder_power_imag",
+            "type": "Recorder",
+            "parameters": {
+                "feather_filename": "../../outputs/power_imag.feather",
+                "csv_filename": "../../outputs/power_imag.csv"
+            }
         },
         {
             "name": "recorder_voltage_mag",
             "type": "Recorder",
-            "parameters": {"feather_filename": "../../outputs/voltage_mag.feather",
-                           "csv_filename": "../../outputs/voltage_mag.csv"
-                          }
+            "parameters": {
+                "feather_filename": "../../outputs/voltage_mag.feather",
+                "csv_filename": "../../outputs/voltage_mag.csv"
+            }
         },
         {
             "name": "recorder_voltage_angle",
             "type": "Recorder",
-            "parameters": {"feather_filename": "../../outputs/voltage_angle.feather",
-                           "csv_filename": "../../outputs/voltage_angle.csv"
-                          }
+            "parameters": {
+                "feather_filename": "../../outputs/voltage_angle.feather",
+                "csv_filename": "../../outputs/voltage_angle.csv"
+            }
+        },
+        {
+            "name": "recorder_measured_voltage_magnitude",
+            "type": "Recorder",
+            "parameters": {
+                "feather_filename": "../../outputs/measured_voltage_magnitude.feather",
+                "csv_filename": "../../outputs/measured_voltage_magnitude.csv"
+            }
+        },
+        {
+            "name": "recorder_measured_power_real",
+            "type": "Recorder",
+            "parameters": {
+                "feather_filename": "../../outputs/measured_power_real.feather",
+                "csv_filename": "../../outputs/measured_power_real.csv"
+            }
+        },
+        {
+            "name": "recorder_measured_power_imag",
+            "type": "Recorder",
+            "parameters": {
+                "feather_filename": "../../outputs/measured_power_imag.feather",
+                "csv_filename": "../../outputs/measured_power_imag.csv"
+            }
         },
         {
             "name": "state_estimator",
             "type": "StateEstimatorComponent",
             "parameters": {
-                "algorithm_parameters": {"tol": 1e-5}
+                "algorithm_parameters": {
+                    "tol": 1e-5
+                }
             }
         },
         {
@@ -52,29 +98,11 @@
             }
         },
         {
-            "name": "sensor_voltage_real",
-            "type": "MeasurementComponent",
-            "parameters": {
-                "gaussian_variance": 0.0,
-                "random_percent": 0.0,
-                "measurement_file": "../feeder/sensors/sensors.json"
-            }
-        },
-        {
             "name": "sensor_voltage_magnitude",
             "type": "MeasurementComponent",
             "parameters": {
-                "gaussian_variance": 0.0,
-                "random_percent": 0.0,
-                "measurement_file": "../feeder/sensors/sensors.json"
-            }
-        },
-        {
-            "name": "sensor_voltage_imaginary",
-            "type": "MeasurementComponent",
-            "parameters": {
-                "gaussian_variance": 0.0,
-                "random_percent": 0.0,
+                "additive_noise_stddev": 0.0,
+                "multiplicative_noise_stddev": 0.00,
                 "measurement_file": "../feeder/sensors/sensors.json"
             }
         },
@@ -82,8 +110,8 @@
             "name": "sensor_power_real",
             "type": "MeasurementComponent",
             "parameters": {
-                "gaussian_variance": 0.0,
-                "random_percent": 0.0,
+                "additive_noise_stddev": 0.0,
+                "multiplicative_noise_stddev": 0.0,
                 "measurement_file": "../feeder/sensors/sensors.json"
             }
         },
@@ -91,30 +119,17 @@
             "name": "sensor_power_imaginary",
             "type": "MeasurementComponent",
             "parameters": {
-                "gaussian_variance": 0.0,
-                "random_percent": 0.0,
+                "additive_noise_stddev": 0.0,
+                "multiplicative_noise_stddev": 0.0,
                 "measurement_file": "../feeder/sensors/sensors.json"
             }
         }
-
     ],
     "links": [
         {
             "source": "feeder",
             "source_port": "voltages_magnitude",
             "target": "sensor_voltage_magnitude",
-            "target_port": "subscription"
-        },
-        {
-            "source": "feeder",
-            "source_port": "voltages_real",
-            "target": "sensor_voltage_real",
-            "target_port": "subscription"
-        },
-        {
-            "source": "feeder",
-            "source_port": "voltages_imag",
-            "target": "sensor_voltage_imaginary",
             "target_port": "subscription"
         },
         {
@@ -166,6 +181,18 @@
             "target_port": "subscription"
         },
         {
+            "source": "feeder",
+            "source_port": "powers_real",
+            "target": "recorder_power_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "feeder",
+            "source_port": "powers_imag",
+            "target": "recorder_power_imag",
+            "target_port": "subscription"
+        },
+        {
             "source": "state_estimator",
             "source_port": "voltage_angle",
             "target": "recorder_voltage_angle",
@@ -175,6 +202,24 @@
             "source": "state_estimator",
             "source_port": "voltage_mag",
             "target": "recorder_voltage_mag",
+            "target_port": "subscription"
+        },
+        {
+            "source": "sensor_voltage_magnitude",
+            "source_port": "publication",
+            "target": "recorder_measured_voltage_magnitude",
+            "target_port": "subscription"
+        },
+        {
+            "source": "sensor_power_real",
+            "source_port": "publication",
+            "target": "recorder_measured_power_real",
+            "target_port": "subscription"
+        },
+        {
+            "source": "sensor_power_imaginary",
+            "source_port": "publication",
+            "target": "recorder_measured_power_imag",
             "target_port": "subscription"
         }
     ]
