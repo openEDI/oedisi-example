@@ -352,8 +352,9 @@ def go_cosim(
     h.helicsFederateEnterExecutingMode(vfed)
     initial_data = get_initial_data(sim, config)
 
-    topology_json = initial_data.topology.json()
-    topology_json["bus_coords"] = sim.get_bus_coords()
+    topology_dict = initial_data.topology.dict()
+    topology_dict["bus_coords"] = sim.get_bus_coords()
+    topology_json = json.dumps(topology_dict)
     logger.info("Sending topology and saving to topology.json")
     with open(config.topology_output, "w") as f:
         f.write(topology_json)
@@ -368,6 +369,9 @@ def go_cosim(
 
     granted_time = -1
     request_time = 0
+    initial_timestamp = datetime.strptime(
+        config.start_date, "%Y-%m-%d %H:%M:%S"
+    )
 
     while request_time < int(config.number_of_timesteps):
         granted_time = h.helicsFederateRequestTime(vfed, request_time)
@@ -396,14 +400,15 @@ def go_cosim(
         for pv_set in pv_sets:
             sim.set_pv_output(pv_set[0].split(".")[1], pv_set[1], pv_set[2])
 
+        current_hour = 24*(floored_timestamp.date() - initial_timestamp.date()).days + floored_timestamp.hour
         logger.info(
-            f"Solve at hour {floored_timestamp.hour} second "
+            f"Solve at hour {current_hour} second "
             f"{60*floored_timestamp.minute + floored_timestamp.second}"
         )
 
         sim.snapshot_run()
         sim.solve(
-            floored_timestamp.hour,
+            current_hour,
             60 * floored_timestamp.minute + floored_timestamp.second,
         )
 

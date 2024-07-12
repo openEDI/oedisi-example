@@ -153,6 +153,7 @@ class FeederSimulator(object):
         else:
             self._feeder_file = config.existing_feeder_file
 
+        self.open_lines = config.open_lines
         self.load_feeder()
 
         if self._sensor_location is None:
@@ -160,7 +161,6 @@ class FeederSimulator(object):
 
         self.snapshot_run()
         assert self._state == OpenDSSState.SNAPSHOT_RUN, f"{self._state}"
-        self.open_lines = config.open_lines
 
     def forcast_pv(self, steps: int) -> list:
         """
@@ -203,7 +203,7 @@ class FeederSimulator(object):
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
         self.reenable()
         dss.Text.Command("CalcVoltageBases")
-        dss.Text.Command("solve mode=snapshot")
+        dss.Text.Command("solve mode=snapshot number=1")
         self._state = OpenDSSState.SNAPSHOT_RUN
 
     def reenable(self):
@@ -387,7 +387,7 @@ class FeederSimulator(object):
         dss.Text.Command("CalcVoltageBases")
         dss.Text.Command("set maxiterations=20")
         # solve
-        dss.Text.Command("solve")
+        dss.Text.Command("solve number=1")
         self._state = OpenDSSState.DISABLED_RUN
 
     def get_y_matrix(self):
@@ -412,7 +412,7 @@ class FeederSimulator(object):
         dss.Text.Command("CalcVoltageBases")
         dss.Text.Command("set maxiterations=20")
         # solve
-        dss.Text.Command("solve")
+        dss.Text.Command("solve number=1")
 
         Ysparse = csc_matrix(dss.YMatrix.getYsparse())
         Ymatrix = Ysparse.tocoo()
@@ -425,7 +425,7 @@ class FeederSimulator(object):
 
         dss.Text.Command("CalcVoltageBases")
         dss.Text.Command("set maxiterations=20")
-        dss.Text.Command("solve")
+        dss.Text.Command("solve number=1")
         self._state = OpenDSSState.SOLVE_AT_TIME
 
         return coo_matrix(
@@ -460,7 +460,7 @@ class FeederSimulator(object):
             self._state != OpenDSSState.UNLOADED
             and self._state != OpenDSSState.DISABLED_RUN
         ), f"{self._state}"
-        dss.Text.Command("solve")
+        dss.Text.Command("solve number=1")
 
     def solve(self, hour, second):
         """Solve at specified time. Must not be unloaded or disabled."""
@@ -473,7 +473,7 @@ class FeederSimulator(object):
             f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second} "
             f"stepsize=0"
         )
-        dss.Text.Command("solve")
+        dss.Text.Command("solve number=1")
         self._state = OpenDSSState.SOLVE_AT_TIME
 
     def _ready_to_load_power(self, static):
