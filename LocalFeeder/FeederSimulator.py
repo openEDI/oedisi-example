@@ -154,16 +154,16 @@ class FeederSimulator(object):
 
     def forcast_pv(self, steps: int) -> list:
         """
-        Forecasts day ahead PV generation for the OpenDSS feeder. The OpenDSS file is run and the 
+        Forecasts day ahead PV generation for the OpenDSS feeder. The OpenDSS file is run and the
         average irradiance is computed over all PV systems for each time step. This average irradiance
         is used to compute the individual PV system power output
         """
-        cmd = f'Set stepsize={self._simulation_time_step} Number=1'
+        cmd = f'Set stepsize={self._run_freq_sec} Number=1'
         dss.Text.Command(cmd)
         forecast = []
         for k in range(steps):
             dss.Solution.Solve()
-            
+
             # names of PV systems and forecasted power output
             pv_names = []
             powers = []
@@ -181,7 +181,7 @@ class FeederSimulator(object):
                 pv_names.append(f"PVSystem.{dss.PVsystems.Name()}")
                 powers.append(dss.PVsystems.Pmpp() * avg_irradiance)
                 flag = dss.PVsystems.Next()
-            
+
             forecast.append(xr.DataArray(powers, coords={"ids": pv_names}))
         return forecast
 
