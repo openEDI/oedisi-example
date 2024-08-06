@@ -313,11 +313,12 @@ class FeederSimulator(object):
         """Get node names in order."""
         return self._AllNodeNames
 
-    def get_bus_coords(self) -> Dict[str, Tuple[float, float]]:
+    def get_bus_coords(self) -> Dict[str, Tuple[float, float]] | None:
         """Load bus coordinates from OpenDSS."""
         bus_path = os.path.join(os.path.dirname(self._feeder_file), "Buscoords.dss")
         if not os.path.exists(bus_path):
             self.bus_coords = None
+            return bus_coords
         with open(bus_path, "r") as f:
             bus_coord_csv = csv.reader(f, delimiter=" ")
             bus_coords = {}

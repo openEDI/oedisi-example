@@ -102,7 +102,6 @@ class Recorder:
             if writer is not None:
                 writer.close()
                 streamwriter.close()
-        time.sleep(0.1)
         data = pd.read_feather(self.feather_filename)
         data.to_csv(self.csv_filename, header=True, index=False)
         self.destroy()
