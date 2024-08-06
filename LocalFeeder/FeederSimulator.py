@@ -319,13 +319,17 @@ class FeederSimulator(object):
         if not os.path.exists(bus_path):
             self.bus_coords = None
             return self.bus_coords
-        with open(bus_path, "r") as f:
-            bus_coord_csv = csv.reader(f, delimiter=" ")
-            bus_coords = {}
-            for row in bus_coord_csv:
-                identifier, x, y = row
-                bus_coords[identifier] = (float(x), float(y))
-            return bus_coords
+        try:
+            with open(bus_path, "r") as f:
+                bus_coord_csv = csv.reader(f, delimiter=" ")
+                bus_coords = {}
+                for row in bus_coord_csv:
+                    identifier, x, y = row
+                    bus_coords[identifier] = (float(x), float(y))
+                return bus_coords
+        except Exception as e:
+            logging.warning(f"Unable to parse bus coords: {e}")
+        return None
 
     def load_feeder(self):
         """Load feeder once downloaded. Relies on legacy mode."""
