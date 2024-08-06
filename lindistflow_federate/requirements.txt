@@ -1,0 +1,8 @@
+helics==3.4.0
+pydantic>=1.7,<2
+cvxpy
+numpy
+networkx
+oedisi>=2,<3
+fastapi
+uvicorn

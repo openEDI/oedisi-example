@@ -1,12 +1,11 @@
-helics==3.4.0
-helics-apps==3.4.0
-pydantic>=1.7,<2
 pyarrow
 scipy
 matplotlib
 numpy
 pandas
-OpenDSSDirect.py[extras]==0.7.0
-boto3
-xarray
 oedisi>=2.0.2,<3
+-r recorder/requirements.txt
+-r LocalFeeder/requirements.txt
+-r measuring_federate/requirements.txt
+-r wls_federate/requirements.txt
+-r lindistflow_federate/requirements.txt
