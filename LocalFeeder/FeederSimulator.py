@@ -153,16 +153,16 @@ class FeederSimulator(object):
 
     def forcast_pv(self, steps: int) -> list:
         """
-        Forecasts day ahead PV generation for the OpenDSS feeder. The OpenDSS file is run and the 
+        Forecasts day ahead PV generation for the OpenDSS feeder. The OpenDSS file is run and the
         average irradiance is computed over all PV systems for each time step. This average irradiance
         is used to compute the individual PV system power output
         """
-        cmd = f'Set stepsize={self._simulation_time_step} Number=1'
+        cmd = f"Set stepsize={self._simulation_time_step} Number=1"
         dss.Text.Command(cmd)
         forecast = []
         for k in range(steps):
             dss.Solution.Solve()
-            
+
             # names of PV systems and forecasted power output
             pv_names = []
             powers = []
@@ -171,7 +171,7 @@ class FeederSimulator(object):
             flag = dss.PVsystems.First()
             avg_irradiance = dss.PVsystems.IrradianceNow()
             while flag:
-                avg_irradiance = (avg_irradiance + dss.PVsystems.IrradianceNow())/2
+                avg_irradiance = (avg_irradiance + dss.PVsystems.IrradianceNow()) / 2
                 flag = dss.PVsystems.Next()
 
             # now compute the power output from the evaluated average irradiance
@@ -180,7 +180,7 @@ class FeederSimulator(object):
                 pv_names.append(f"PVSystem.{dss.PVsystems.Name()}")
                 powers.append(dss.PVsystems.Pmpp() * avg_irradiance)
                 flag = dss.PVsystems.Next()
-            
+
             forecast.append(xr.DataArray(powers, coords={"ids": pv_names}))
         return forecast
 
@@ -467,17 +467,16 @@ class FeederSimulator(object):
         for ld in get_loads(dss, self._circuit):
             self._circuit.SetActiveElement("Load." + ld["name"])
             current_pq_name = dss.CktElement.Name()
-            for ii in range(len(ld["phases"])):
-                node_name = ld["bus1"].upper() + "." + ld["phases"][ii]
+            for i, node_name in enumerate(ld["node_names"]):
                 assert (
                     node_name in all_node_names
                 ), f"{node_name} for {current_pq_name} not found"
                 if static:
                     power = complex(ld["kW"], ld["kVar"])
-                    PQs.append(power / len(ld["phases"]))
+                    PQs.append(power / ld["numPhases"])
                 else:
                     power = dss.CktElement.Powers()
-                    PQs.append(complex(power[2 * ii], power[2 * ii + 1]))
+                    PQs.append(complex(power[2 * i], power[2 * i + 1]))
                 pq_names.append(current_pq_name)
                 node_names.append(node_name)
         pq_xr = xr.DataArray(
@@ -499,13 +498,9 @@ class FeederSimulator(object):
         node_names: List[str] = []
         pq_names: List[str] = []
         for PV in get_pvsystems(dss):
-            bus = PV["bus"].split(".")
-            if len(bus) == 1:
-                bus = bus + ["1", "2", "3"]
             self._circuit.SetActiveElement("PVSystem." + PV["name"])
             current_pq_name = dss.CktElement.Name()
-            for ii in range(len(bus) - 1):
-                node_name = bus[0].upper() + "." + bus[ii + 1]
+            for i, node_name in enumerate(PV["node_names"]):
                 assert (
                     node_name in all_node_names
                 ), f"{node_name} for {current_pq_name} not found"
@@ -513,10 +508,10 @@ class FeederSimulator(object):
                     power = complex(
                         -1 * PV["kW"], -1 * PV["kVar"]
                     )  # -1 because injecting
-                    PQs.append(power / (len(bus) - 1))
+                    PQs.append(power / PV["numPhases"])
                 else:
                     power = dss.CktElement.Powers()
-                    PQs.append(complex(power[2 * ii], power[2 * ii + 1]))
+                    PQs.append(complex(power[2 * i], power[2 * i + 1]))
                 pq_names.append(current_pq_name)
                 node_names.append(node_name)
         pq_xr = xr.DataArray(
@@ -538,13 +533,10 @@ class FeederSimulator(object):
         node_names: List[str] = []
         pq_names: List[str] = []
         for gen in get_generators(dss):
-            bus = gen["bus"].split(".")
-            if len(bus) == 1:
-                bus = bus + ["1", "2", "3"]
             self._circuit.SetActiveElement("Generator." + gen["name"])
             current_pq_name = dss.CktElement.Name()
-            for ii in range(len(bus) - 1):
-                node_name = bus[0].upper() + "." + bus[ii + 1]
+
+            for i, node_name in enumerate(gen["node_names"]):
                 assert (
                     node_name in all_node_names
                 ), f"{node_name} for {current_pq_name} not found"
@@ -552,10 +544,10 @@ class FeederSimulator(object):
                     power = complex(
                         -1 * gen["kW"], -1 * gen["kVar"]
                     )  # -1 because injecting
-                    PQs.append(power / (len(bus) - 1))
+                    PQs.append(power / gen["numPhases"])
                 else:
                     power = dss.CktElement.Powers()
-                    PQs.append(complex(power[2 * ii], power[2 * ii + 1]))
+                    PQs.append(complex(power[2 * i], power[2 * i + 1]))
                 pq_names.append(current_pq_name)
                 node_names.append(node_name)
         pq_xr = xr.DataArray(
@@ -578,8 +570,7 @@ class FeederSimulator(object):
         pq_names: List[str] = []
         for cap in get_capacitors(dss):
             current_pq_name = cap["name"]
-            for ii in range(cap["numPhases"]):
-                node_name = cap["busname"].upper() + "." + cap["busphase"][ii]
+            for i, node_name in enumerate(cap["node_names"]):
                 assert (
                     node_name in all_node_names
                 ), f"{node_name} for {current_pq_name} not found"
@@ -589,7 +580,7 @@ class FeederSimulator(object):
                     )  # -1 because it's injected into the grid
                     PQs.append(power / cap["numPhases"])
                 else:
-                    PQs.append(complex(0, cap["power"][2 * ii + 1]))
+                    PQs.append(complex(0, cap["power"][2 * i + 1]))
                 pq_names.append(current_pq_name)
                 node_names.append(node_name)
         pq_xr = xr.DataArray(
