@@ -168,11 +168,16 @@ class FeederSimulator(object):
             sensor_location = os.path.join(
                 "sensors", os.path.basename(self._sensor_location)
             )
-            with open(sensor_location, "r") as fp:
-                sensor_config = json.load(fp)
-                self.voltage_sensors = sensor_config
-                self.active_sensors = sensor_config
-                self.reactive_sensors = sensor_config
+            if os.path.exists(sensor_location):
+                with open(sensor_location, "r") as fp:
+                    sensor_config = json.load(fp)
+                    self.voltage_sensors = sensor_config
+                    self.active_sensors = sensor_config
+                    self.reactive_sensors = sensor_config
+            else:
+                self.voltage_sensors = []
+                self.active_sensors = []
+                self.reactive_sensors = []
 
         self.snapshot_run()
         assert self._state == OpenDSSState.SNAPSHOT_RUN, f"{self._state}"
