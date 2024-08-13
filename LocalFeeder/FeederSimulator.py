@@ -99,6 +99,12 @@ class OpenDSSState(Enum):
     DISABLED = 7
 
 
+class SensorLocations(BaseModel):
+    voltage_sensors: List[str]
+    active_sensors: List[str]
+    reactive_sensors: List[str]
+
+
 class FeederSimulator(object):
     """A simple class that handles publishing the solar forecast."""
 
@@ -158,6 +164,15 @@ class FeederSimulator(object):
 
         if self._sensor_location is None:
             self.create_measurement_lists()
+        else:
+            sensor_location = os.path.join(
+                "sensors", os.path.basename(self._sensor_location)
+            )
+            with open(sensor_location, "r") as fp:
+                sensor_config = json.load(fp)
+                self.voltage_sensors = sensor_config
+                self.active_sensors = sensor_config
+                self.reactive_sensors = sensor_config
 
         self.snapshot_run()
         assert self._state == OpenDSSState.SNAPSHOT_RUN, f"{self._state}"
@@ -282,6 +297,7 @@ class FeederSimulator(object):
             self._AllNodeNames,
             math.floor(len(self._AllNodeNames) * float(percent_voltage) / 100),
         )
+        self.voltage_sensors = voltage_subset
         with open(os.path.join("sensors", "voltage_ids.json"), "w") as fp:
             json.dump(voltage_subset, fp, indent=4)
 
@@ -290,6 +306,7 @@ class FeederSimulator(object):
             self._AllNodeNames,
             math.floor(len(self._AllNodeNames) * float(percent_real) / 100),
         )
+        self.active_sensors = real_subset
         with open(os.path.join("sensors", "real_ids.json"), "w") as fp:
             json.dump(real_subset, fp, indent=4)
 
@@ -298,8 +315,17 @@ class FeederSimulator(object):
             self._AllNodeNames,
             math.floor(len(self._AllNodeNames) * float(percent_voltage) / 100),
         )
+        self.reactive_sensors = reactive_subset
         with open(os.path.join("sensors", "reactive_ids.json"), "w") as fp:
             json.dump(reactive_subset, fp, indent=4)
+
+    def get_sensors(self):
+        """Get sensor locations."""
+        return SensorLocations(
+            voltage_sensors=self.voltage_sensors,
+            active_sensors=self.active_sensors,
+            reactive_sensors=self.reactive_sensors,
+        )
 
     def get_circuit_name(self):
         """Get name of current opendss circuit."""

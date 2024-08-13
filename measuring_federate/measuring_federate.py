@@ -17,7 +17,7 @@ class MeasurementConfig(BaseModel):
     name: str
     additive_noise_stddev: float = 0.0
     multiplicative_noise_stddev: float = 0.0
-    measurement_file: str
+    measurement_type: str
     run_freq_time_step: float = 1.0
 
 
@@ -94,6 +94,7 @@ class MeasurementRelay:
         self.sub_measurement = self.vfed.register_subscription(
             input_mapping["subscription"], ""
         )
+        self.sub_sensors = self.vfed.register_subscription(input_mapping["sensors"], "")
 
         # TODO: find better way to determine what the name of this federate instance is than looking at the subscription
         self.pub_measurement = self.vfed.register_publication(
@@ -102,7 +103,7 @@ class MeasurementRelay:
 
         self.additive_noise_stddev = config.additive_noise_stddev
         self.multiplicative_noise_stddev = config.multiplicative_noise_stddev
-        self.measurement_file = config.measurement_file
+        self.measurement_type = config.measurement_type
 
     def transform(self, measurement_array: MeasurementArray, unique_ids):
         new_array = reindex(measurement_array, unique_ids)
@@ -126,9 +127,11 @@ class MeasurementRelay:
             else:
                 measurement = MeasurementArray.parse_obj(json_data)
 
-            with open(self.measurement_file, "r") as fp:
-                self.measurement = json.load(fp)
-            measurement_transformed = self.transform(measurement, self.measurement)
+            self.sensors = self.sub_sensors.json
+            assert self.measurement_type in self.sensors
+            measurement_transformed = self.transform(
+                measurement, self.sensors[self.measurement_type]
+            )
             logger.debug("measured transformed")
             logger.debug(measurement_transformed)
 

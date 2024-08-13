@@ -4,8 +4,8 @@
         {
             "name": "feeder",
             "type": "LocalFeeder",
-			"host": "feeder",
-			"container_port": 5678,
+            "host": "feeder",
+            "container_port": 5678,
             "parameters": {
                 "use_smartds": false,
                 "user_uploads_model": false,
@@ -18,107 +18,112 @@
                 "topology_output": "topology.json"
             }
         },
-		{
+        {
             "name": "recorder_voltage_real",
             "type": "Recorder",
-			"host": "recorder-voltage-real",
-			"container_port": 5679,
-            "parameters": {"feather_filename": "voltage_real.feather",
-                           "csv_filename": "voltage_real.csv"
-                          }
+            "host": "recorder-voltage-real",
+            "container_port": 5679,
+            "parameters": {
+                "feather_filename": "voltage_real.feather",
+                "csv_filename": "voltage_real.csv"
+            }
         },
         {
             "name": "recorder_voltage_imag",
             "type": "Recorder",
-			"host": "recorder-voltage-imag",
-			"container_port": 5680,
-            "parameters": {"feather_filename": "voltage_imag.feather",
-                           "csv_filename": "voltage_imag.csv"
-                          }
+            "host": "recorder-voltage-imag",
+            "container_port": 5680,
+            "parameters": {
+                "feather_filename": "voltage_imag.feather",
+                "csv_filename": "voltage_imag.csv"
+            }
         },
         {
             "name": "recorder_voltage_mag",
             "type": "Recorder",
-			"host": "recorder-voltage-mag",
-			"container_port": 5681,
-            "parameters": {"feather_filename": "voltage_mag.feather",
-                           "csv_filename": "voltage_mag.csv"
-                          }
+            "host": "recorder-voltage-mag",
+            "container_port": 5681,
+            "parameters": {
+                "feather_filename": "voltage_mag.feather",
+                "csv_filename": "voltage_mag.csv"
+            }
         },
         {
             "name": "recorder_voltage_angle",
             "type": "Recorder",
-			"host": "recorder-voltage-angle",
-			"container_port": 5682,
-            "parameters": {"feather_filename": "voltage_angle.feather",
-                           "csv_filename": "voltage_angle.csv"
-                          }
+            "host": "recorder-voltage-angle",
+            "container_port": 5682,
+            "parameters": {
+                "feather_filename": "voltage_angle.feather",
+                "csv_filename": "voltage_angle.csv"
+            }
         },
         {
             "name": "state_estimator",
             "type": "StateEstimatorComponent",
-			"host": "state-estimator",
-			"container_port": 5683,
+            "host": "state-estimator",
+            "container_port": 5683,
             "parameters": {
-                "algorithm_parameters": {"tol": 1e-5}
+                "algorithm_parameters": {
+                    "tol": 1e-5
+                }
             }
         },
         {
             "name": "sensor_voltage_real",
             "type": "MeasurementComponent",
-			"host": "sensor-voltage-real",
-			"container_port": 5684,
+            "host": "sensor-voltage-real",
+            "container_port": 5684,
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "sensors.json"
+                "measurement_type": "voltage_sensors"
             }
         },
         {
             "name": "sensor_voltage_magnitude",
             "type": "MeasurementComponent",
-			"host": "sensor-voltage-magnitude",
-			"container_port": 5685,
+            "host": "sensor-voltage-magnitude",
+            "container_port": 5685,
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "sensors.json"
+                "measurement_type": "voltage_sensors"
             }
         },
         {
             "name": "sensor_voltage_imaginary",
             "type": "MeasurementComponent",
-			"host": "sensor-voltage-imaginary",
-			"container_port": 5686,
+            "host": "sensor-voltage-imaginary",
+            "container_port": 5686,
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "sensors.json"
+                "measurement_type": "voltage_sensors"
             }
         },
         {
             "name": "sensor_power_real",
             "type": "MeasurementComponent",
-			"host": "sensor-power-real",
-			"container_port": 5687,
+            "host": "sensor-power-real",
+            "container_port": 5687,
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "sensors.json"
+                "measurement_type": "active_sensors"
             }
         },
         {
             "name": "sensor_power_imaginary",
             "type": "MeasurementComponent",
-			"host": "sensor-power-imaginary",
-			"container_port": 5688,
+            "host": "sensor-power-imaginary",
+            "container_port": 5688,
             "parameters": {
                 "gaussian_variance": 0.0,
                 "random_percent": 0.0,
-                "measurement_file": "sensors.json"
+                "measurement_type": "reactive_sensors"
             }
         }
-
     ],
     "links": [
         {
@@ -198,6 +203,36 @@
             "source_port": "voltage_mag",
             "target": "recorder_voltage_mag",
             "target_port": "subscription"
+        },
+        {
+            "source": "feeder",
+            "source_port": "sensors",
+            "target": "sensor_voltage_real",
+            "target_port": "sensors"
+        },
+        {
+            "source": "feeder",
+            "source_port": "sensors",
+            "target": "sensor_voltage_imaginary",
+            "target_port": "sensors"
+        },
+        {
+            "source": "feeder",
+            "source_port": "sensors",
+            "target": "sensor_voltage_magnitude",
+            "target_port": "sensors"
+        },
+        {
+            "source": "feeder",
+            "source_port": "sensors",
+            "target": "sensor_power_real",
+            "target_port": "sensors"
+        },
+        {
+            "source": "feeder",
+            "source_port": "sensors",
+            "target": "sensor_power_imaginary",
+            "target_port": "sensors"
         }
     ]
 }

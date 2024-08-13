@@ -80,6 +80,10 @@
         {
             "type": "",
             "port_id": "pv_forecast"
+        },
+        {
+            "type": "",
+            "port_id": "sensors"
         }
     ]
 }

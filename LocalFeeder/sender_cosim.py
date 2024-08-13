@@ -322,6 +322,9 @@ def go_cosim(
     pub_pv_forecast = h.helicsFederateRegisterPublication(
         vfed, "pv_forecast", h.HELICS_DATA_TYPE_STRING, ""
     )
+    pub_sensors = h.helicsFederateRegisterPublication(
+        vfed, "sensors", h.HELICS_DATA_TYPE_STRING, ""
+    )
 
     command_set_key = (
         "unused/change_commands"
@@ -363,15 +366,17 @@ def go_cosim(
     # Publish the forecasted PV outputs as a list of MeasurementArray
     logger.info("Evaluating the forecasted PV")
     forecast_data = sim.forcast_pv(int(config.number_of_timesteps))
-    PVforecast = [MeasurementArray(**xarray_to_dict(forecast), 
-                    units="kW").json() for forecast in forecast_data]
+    PVforecast = [
+        MeasurementArray(**xarray_to_dict(forecast), units="kW").json()
+        for forecast in forecast_data
+    ]
     pub_pv_forecast.publish(json.dumps(PVforecast))
+
+    pub_sensors.publish(sim.get_sensors().json())
 
     granted_time = -1
     request_time = 0
-    initial_timestamp = datetime.strptime(
-        config.start_date, "%Y-%m-%d %H:%M:%S"
-    )
+    initial_timestamp = datetime.strptime(config.start_date, "%Y-%m-%d %H:%M:%S")
 
     while request_time < int(config.number_of_timesteps):
         granted_time = h.helicsFederateRequestTime(vfed, request_time)
@@ -400,7 +405,10 @@ def go_cosim(
         for pv_set in pv_sets:
             sim.set_pv_output(pv_set[0].split(".")[1], pv_set[1], pv_set[2])
 
-        current_hour = 24*(floored_timestamp.date() - initial_timestamp.date()).days + floored_timestamp.hour
+        current_hour = (
+            24 * (floored_timestamp.date() - initial_timestamp.date()).days
+            + floored_timestamp.hour
+        )
         logger.info(
             f"Solve at hour {current_hour} second "
             f"{60*floored_timestamp.minute + floored_timestamp.second}"
