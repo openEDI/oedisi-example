@@ -168,7 +168,7 @@ class FeederSimulator(object):
         average irradiance is computed over all PV systems for each time step. This average irradiance
         is used to compute the individual PV system power output
         """
-        cmd = f'Set stepsize={self._simulation_time_step} Number=1'
+        cmd = f"Set stepsize={self._simulation_time_step} Number=1"
         dss.Text.Command(cmd)
         forecast = []
         for k in range(steps):
@@ -182,7 +182,7 @@ class FeederSimulator(object):
             flag = dss.PVsystems.First()
             avg_irradiance = dss.PVsystems.IrradianceNow()
             while flag:
-                avg_irradiance = (avg_irradiance + dss.PVsystems.IrradianceNow())/2
+                avg_irradiance = (avg_irradiance + dss.PVsystems.IrradianceNow()) / 2
                 flag = dss.PVsystems.Next()
 
             # now compute the power output from the evaluated average irradiance
@@ -319,17 +319,17 @@ class FeederSimulator(object):
         if not os.path.exists(bus_path):
             self.bus_coords = None
             return self.bus_coords
-        try:
-            with open(bus_path, "r") as f:
-                bus_coord_csv = csv.reader(f, delimiter=" ")
-                bus_coords = {}
-                for row in bus_coord_csv:
+        with open(bus_path, "r") as f:
+            bus_coord_csv = csv.reader(f, delimiter=" ")
+            bus_coords = {}
+            for row in bus_coord_csv:
+                try:
                     identifier, x, y = row
                     bus_coords[identifier] = (float(x), float(y))
-                return bus_coords
-        except Exception as e:
-            logging.warning(f"Unable to parse bus coords: {e}")
-        return None
+                except ValueError as e:
+                    logging.warning(f"Unable to parse row in bus coords: {row}, {e}")
+                    return None
+            return bus_coords
 
     def load_feeder(self):
         """Load feeder once downloaded. Relies on legacy mode."""
