@@ -12,6 +12,10 @@
         },
         {
             "type": "",
+            "port_id": "measurement_type"
+        },
+        {
+            "type": "",
             "port_id": "measurement_file"
         }
     ],
@@ -19,6 +23,10 @@
         {
             "type": "MeasurementArray",
             "port_id": "subscription"
+        },
+        {
+            "type": "SensorDescription",
+            "port_id": "sensors"
         }
     ],
     "dynamic_outputs": [

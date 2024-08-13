@@ -17,7 +17,8 @@ class MeasurementConfig(BaseModel):
     name: str
     additive_noise_stddev: float = 0.0
     multiplicative_noise_stddev: float = 0.0
-    measurement_file: str
+    measurement_type: str | None = None
+    measurement_file: str | None = None
     run_freq_time_step: float = 1.0
 
 
@@ -94,6 +95,10 @@ class MeasurementRelay:
         self.sub_measurement = self.vfed.register_subscription(
             input_mapping["subscription"], ""
         )
+        if "sensors" in input_mapping:
+            self.sub_sensors = self.vfed.register_subscription(
+                input_mapping["sensors"], ""
+            )
 
         # TODO: find better way to determine what the name of this federate instance is than looking at the subscription
         self.pub_measurement = self.vfed.register_publication(
@@ -102,6 +107,7 @@ class MeasurementRelay:
 
         self.additive_noise_stddev = config.additive_noise_stddev
         self.multiplicative_noise_stddev = config.multiplicative_noise_stddev
+        self.measurement_type = config.measurement_type
         self.measurement_file = config.measurement_file
 
     def transform(self, measurement_array: MeasurementArray, unique_ids):
@@ -126,9 +132,16 @@ class MeasurementRelay:
             else:
                 measurement = MeasurementArray.parse_obj(json_data)
 
-            with open(self.measurement_file, "r") as fp:
-                self.measurement = json.load(fp)
-            measurement_transformed = self.transform(measurement, self.measurement)
+            if self.measurement_type is not None:
+                self.sensors = self.sub_sensors.json
+                assert self.measurement_type in self.sensors
+                measurement_transformed = self.transform(
+                    measurement, self.sensors[self.measurement_type]
+                )
+            else:
+                with open(self.measurement_file, "r") as fp:
+                    self.measurement = json.load(fp)
+                measurement_transformed = self.transform(measurement, self.measurement)
             logger.debug("measured transformed")
             logger.debug(measurement_transformed)
 
