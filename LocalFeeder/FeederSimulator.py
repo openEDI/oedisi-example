@@ -1,5 +1,6 @@
 """Core class to abstract OpenDSS into Feeder class."""
 
+import csv
 import json
 import logging
 import math
@@ -8,7 +9,7 @@ import random
 import time
 from enum import Enum
 from time import strptime
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 import boto3
 import numpy as np
@@ -70,6 +71,15 @@ class FeederConfig(BaseModel):
     topology_output: str = "topology.json"
     use_sparse_admittance: bool = False
     tap_setting: Optional[int] = None
+    open_lines: Optional[List[str]] = None
+
+
+# Open Lines:
+
+# "Line.padswitch(r:p9udt496-p9udt527)p9u_166790",
+# "Line.padswitch(r:p9udt527-p9udt528)p9u_166794" is better for large SMART-DS.
+
+# "Line.goab_disswitch(r:p1udt1425-p1udt881)p1u_12301",  # SMALL
 
 
 class FeederMapping(BaseModel):
@@ -143,6 +153,7 @@ class FeederSimulator(object):
         else:
             self._feeder_file = config.existing_feeder_file
 
+        self.open_lines = config.open_lines
         self.load_feeder()
 
         if self._sensor_location is None:
@@ -153,16 +164,16 @@ class FeederSimulator(object):
 
     def forcast_pv(self, steps: int) -> list:
         """
-        Forecasts day ahead PV generation for the OpenDSS feeder. The OpenDSS file is run and the 
+        Forecasts day ahead PV generation for the OpenDSS feeder. The OpenDSS file is run and the
         average irradiance is computed over all PV systems for each time step. This average irradiance
         is used to compute the individual PV system power output
         """
-        cmd = f'Set stepsize={self._simulation_time_step} Number=1'
+        cmd = f"Set stepsize={self._simulation_time_step} Number=1"
         dss.Text.Command(cmd)
         forecast = []
         for k in range(steps):
             dss.Solution.Solve()
-            
+
             # names of PV systems and forecasted power output
             pv_names = []
             powers = []
@@ -171,7 +182,7 @@ class FeederSimulator(object):
             flag = dss.PVsystems.First()
             avg_irradiance = dss.PVsystems.IrradianceNow()
             while flag:
-                avg_irradiance = (avg_irradiance + dss.PVsystems.IrradianceNow())/2
+                avg_irradiance = (avg_irradiance + dss.PVsystems.IrradianceNow()) / 2
                 flag = dss.PVsystems.Next()
 
             # now compute the power output from the evaluated average irradiance
@@ -180,7 +191,7 @@ class FeederSimulator(object):
                 pv_names.append(f"PVSystem.{dss.PVsystems.Name()}")
                 powers.append(dss.PVsystems.Pmpp() * avg_irradiance)
                 flag = dss.PVsystems.Next()
-            
+
             forecast.append(xr.DataArray(powers, coords={"ids": pv_names}))
         return forecast
 
@@ -192,7 +203,7 @@ class FeederSimulator(object):
         assert self._state != OpenDSSState.UNLOADED, f"{self._state}"
         self.reenable()
         dss.Text.Command("CalcVoltageBases")
-        dss.Text.Command("solve mode=snapshot")
+        dss.Text.Command("solve mode=snapshot number=1")
         self._state = OpenDSSState.SNAPSHOT_RUN
 
     def reenable(self):
@@ -302,6 +313,24 @@ class FeederSimulator(object):
         """Get node names in order."""
         return self._AllNodeNames
 
+    def get_bus_coords(self) -> Dict[str, Tuple[float, float]] | None:
+        """Load bus coordinates from OpenDSS."""
+        bus_path = os.path.join(os.path.dirname(self._feeder_file), "Buscoords.dss")
+        if not os.path.exists(bus_path):
+            self.bus_coords = None
+            return self.bus_coords
+        with open(bus_path, "r") as f:
+            bus_coord_csv = csv.reader(f, delimiter=" ")
+            bus_coords = {}
+            for row in bus_coord_csv:
+                try:
+                    identifier, x, y = row
+                    bus_coords[identifier] = (float(x), float(y))
+                except ValueError as e:
+                    logging.warning(f"Unable to parse row in bus coords: {row}, {e}")
+                    return None
+            return bus_coords
+
     def load_feeder(self):
         """Load feeder once downloaded. Relies on legacy mode."""
         # Real solution is kvarlimit with kvarmax
@@ -337,6 +366,10 @@ class FeederSimulator(object):
         if self.tap_setting is not None:
             # Doesn't work with AutoTrans or 3-winding transformers.
             dss.Text.Command(f"batchedit transformer..* wdg=2 tap={self.tap_setting}")
+
+        if self.open_lines is not None:
+            for l in self.open_lines:
+                self.open_line(l)
         self._state = OpenDSSState.LOADED
 
     def disable_elements(self):
@@ -359,7 +392,7 @@ class FeederSimulator(object):
         dss.Text.Command("CalcVoltageBases")
         dss.Text.Command("set maxiterations=20")
         # solve
-        dss.Text.Command("solve")
+        dss.Text.Command("solve number=1")
         self._state = OpenDSSState.DISABLED_RUN
 
     def get_y_matrix(self):
@@ -384,7 +417,7 @@ class FeederSimulator(object):
         dss.Text.Command("CalcVoltageBases")
         dss.Text.Command("set maxiterations=20")
         # solve
-        dss.Text.Command("solve")
+        dss.Text.Command("solve number=1")
 
         Ysparse = csc_matrix(dss.YMatrix.getYsparse())
         Ymatrix = Ysparse.tocoo()
@@ -397,7 +430,7 @@ class FeederSimulator(object):
 
         dss.Text.Command("CalcVoltageBases")
         dss.Text.Command("set maxiterations=20")
-        dss.Text.Command("solve")
+        dss.Text.Command("solve number=1")
         self._state = OpenDSSState.SOLVE_AT_TIME
 
         return coo_matrix(
@@ -432,7 +465,7 @@ class FeederSimulator(object):
             self._state != OpenDSSState.UNLOADED
             and self._state != OpenDSSState.DISABLED_RUN
         ), f"{self._state}"
-        dss.Text.Command("solve")
+        dss.Text.Command("solve number=1")
 
     def solve(self, hour, second):
         """Solve at specified time. Must not be unloaded or disabled."""
@@ -445,7 +478,7 @@ class FeederSimulator(object):
             f"set mode=yearly loadmult=1 number=1 hour={hour} sec={second} "
             f"stepsize=0"
         )
-        dss.Text.Command("solve")
+        dss.Text.Command("solve number=1")
         self._state = OpenDSSState.SOLVE_AT_TIME
 
     def _ready_to_load_power(self, static):
@@ -567,6 +600,11 @@ class FeederSimulator(object):
             },
         )
         return pq_xr.sortby(pq_xr.ids)
+
+    def open_line(self, line_name: str):
+        """Open a line in the circuit."""
+        dss.Circuit.SetActiveElement(line_name)
+        dss.CktElement.Open(2, 0)
 
     def get_PQs_cap(self, static=False):
         """Get active and reactive power of Capacitors as xarray."""
