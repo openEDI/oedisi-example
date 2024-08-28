@@ -51,22 +51,10 @@ def sparse_to_admittance_sparse(array: coo_matrix, unique_ids: List[str]):
 
 def get_true_phases(angle):
     """Round complex angles to predefined set of phases."""
-    if np.abs(angle - 0) < 0.2:
-        return 0
-    elif np.abs(angle - np.pi / 3) < 0.2:
-        return np.pi / 3
-    elif np.abs(angle - 2 * np.pi / 3) < 0.2:
-        return 2 * np.pi / 3
-    elif np.abs(angle - 3 * np.pi / 3) < 0.2:
-        return 3 * np.pi / 3
-    elif np.abs(angle - (-np.pi / 3)) < 0.2:
-        return -np.pi / 3
-    elif np.abs(angle - (-2 * np.pi / 3)) < 0.2:
-        return -2 * np.pi / 3
-    elif np.abs(angle - (-3 * np.pi / 3)) < 0.2:
-        return -3 * np.pi / 3
-    else:
-        logger.debug("error")
+    for test_angle in map(lambda x: x * np.pi / 3, range(-3,4)):
+        if np.abs(angle - test_angle) <= np.pi / 6:
+            return angle
+    raise ValueError(f"angle {angle} not close to -pi to pi")
 
 
 def xarray_to_dict(data):
@@ -363,7 +351,7 @@ def go_cosim(
     # Publish the forecasted PV outputs as a list of MeasurementArray
     logger.info("Evaluating the forecasted PV")
     forecast_data = sim.forcast_pv(int(config.number_of_timesteps))
-    PVforecast = [MeasurementArray(**xarray_to_dict(forecast), 
+    PVforecast = [MeasurementArray(**xarray_to_dict(forecast),
                     units="kW").json() for forecast in forecast_data]
     pub_pv_forecast.publish(json.dumps(PVforecast))
 
