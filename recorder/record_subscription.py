@@ -2,6 +2,7 @@ import csv
 import json
 import logging
 from datetime import datetime
+import time
 
 import helics as h
 import numpy as np
