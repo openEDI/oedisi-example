@@ -51,22 +51,10 @@ def sparse_to_admittance_sparse(array: coo_matrix, unique_ids: List[str]):
 
 def get_true_phases(angle):
     """Round complex angles to predefined set of phases."""
-    if np.abs(angle - 0) < 0.2:
-        return 0
-    elif np.abs(angle - np.pi / 3) < 0.2:
-        return np.pi / 3
-    elif np.abs(angle - 2 * np.pi / 3) < 0.2:
-        return 2 * np.pi / 3
-    elif np.abs(angle - 3 * np.pi / 3) < 0.2:
-        return 3 * np.pi / 3
-    elif np.abs(angle - (-np.pi / 3)) < 0.2:
-        return -np.pi / 3
-    elif np.abs(angle - (-2 * np.pi / 3)) < 0.2:
-        return -2 * np.pi / 3
-    elif np.abs(angle - (-3 * np.pi / 3)) < 0.2:
-        return -3 * np.pi / 3
-    else:
-        logger.debug("error")
+    for test_angle in map(lambda x: x * np.pi / 3, range(-3,4)):
+        if np.abs(angle - test_angle) <= np.pi / 6:
+            return angle
+    raise ValueError(f"angle {angle} not close to -pi to pi")
 
 
 def xarray_to_dict(data):
@@ -352,20 +340,26 @@ def go_cosim(
     h.helicsFederateEnterExecutingMode(vfed)
     initial_data = get_initial_data(sim, config)
 
+    topology_dict = initial_data.topology.dict()
+    topology_dict["bus_coords"] = sim.get_bus_coords()
+    topology_json = json.dumps(topology_dict)
     logger.info("Sending topology and saving to topology.json")
     with open(config.topology_output, "w") as f:
-        f.write(initial_data.topology.json())
-    pub_topology.publish(initial_data.topology.json())
+        f.write(topology_json)
+    pub_topology.publish(topology_json)
 
     # Publish the forecasted PV outputs as a list of MeasurementArray
     logger.info("Evaluating the forecasted PV")
     forecast_data = sim.forcast_pv(int(config.number_of_timesteps))
-    PVforecast = [MeasurementArray(**xarray_to_dict(forecast), 
+    PVforecast = [MeasurementArray(**xarray_to_dict(forecast),
                     units="kW").json() for forecast in forecast_data]
     pub_pv_forecast.publish(json.dumps(PVforecast))
 
     granted_time = -1
     request_time = 0
+    initial_timestamp = datetime.strptime(
+        config.start_date, "%Y-%m-%d %H:%M:%S"
+    )
 
     while request_time < int(config.number_of_timesteps):
         granted_time = h.helicsFederateRequestTime(vfed, request_time)
@@ -394,14 +388,15 @@ def go_cosim(
         for pv_set in pv_sets:
             sim.set_pv_output(pv_set[0].split(".")[1], pv_set[1], pv_set[2])
 
+        current_hour = 24*(floored_timestamp.date() - initial_timestamp.date()).days + floored_timestamp.hour
         logger.info(
-            f"Solve at hour {floored_timestamp.hour} second "
+            f"Solve at hour {current_hour} second "
             f"{60*floored_timestamp.minute + floored_timestamp.second}"
         )
 
         sim.snapshot_run()
         sim.solve(
-            floored_timestamp.hour,
+            current_hour,
             60 * floored_timestamp.minute + floored_timestamp.second,
         )
 
