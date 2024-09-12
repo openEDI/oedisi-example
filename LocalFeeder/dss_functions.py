@@ -90,8 +90,10 @@ def get_all_nodes(buses: list[str]):
         phases = sub_bus[1:]
         if len(phases) == 0:
             all_nodes += [core_name + ".1", core_name + ".2", core_name + ".3"]
-        else:
-            all_nodes += [core_name + "." + phase for phase in phases]
+            continue
+        phases = filter(lambda x: x != "0", phases)
+        all_nodes += [core_name + "." + phase for phase in phases]
+
     return all_nodes
 
 
@@ -147,7 +149,7 @@ def get_capacitors(dss):
         datum["kVar"] = kvar
         datum["numPhases"] = NumPhase
         datum["power"] = dss.CktElement.Powers()[: 2 * NumPhase]
-        datum["node_names"] = get_all_nodes(buses[:1])  # second is 0
+        datum["node_names"] = get_all_nodes(buses)  # second is 0
         data.append(datum)
         cap_flag = dss.Capacitors.Next()
     return data

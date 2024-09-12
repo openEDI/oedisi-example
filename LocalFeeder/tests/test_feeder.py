@@ -683,4 +683,5 @@ def test_edge_case(edge_cases_config):
     sim.snapshot_run()
     sim.get_PQs_gen(static=True)
     sim.solve(0, 0)
-    sim.get_PQs_gen()
+    pq = sim.get_PQs_gen()
+    assert len(pq) == 4

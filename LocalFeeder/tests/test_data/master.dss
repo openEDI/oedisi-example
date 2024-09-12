@@ -6,6 +6,9 @@ new generator.HRSST_PV_PMU  Phases=3   Bus1=HRSST_PV   kV = 0.48 conn=wye Model=
 
 New PVSystem.3P_ExistingSite4 phases=3 bus1=B51854_sec2     kV=0.416 kVA=523 irradiance=1 Pmpp=475 pf=1 %cutin=0.1 %cutout=0.1
 
+new generator.HRSST_PV_PMU_2 Phases=1   Bus1=HRSST_PV.0.1 kV = 0.48 conn=wye Model=1  kW=3049.66   kVAr=-109.69
+New PVSystem.3P_ExistingSite4_2 phases=1 bus1=B51854_sec2.0.1     kV=0.416 kVA=523 irradiance=1 Pmpp=475 pf=1 %cutin=0.1 %cutout=0.1
+
 Set Voltagebases=[0.12, 0.208, 0.24, 0.48, 7.2, 12.47]
 
 Calcvoltagebases
