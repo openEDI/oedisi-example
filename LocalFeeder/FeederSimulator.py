@@ -139,8 +139,9 @@ class FeederSimulator(object):
 
         self.tap_setting = config.tap_setting
 
-        self._simulation_time_step = "15m"
-        if config.existing_feeder_file is None:
+        if config.existing_feeder_file is None or not os.path.exists(
+            config.existing_feeder_file
+        ):
             if self._use_smartds:
                 self._feeder_file = os.path.join("opendss", "Master.dss")
                 self.download_data("oedi-data-lake", update_loadshape_location=True)
@@ -168,7 +169,7 @@ class FeederSimulator(object):
         average irradiance is computed over all PV systems for each time step. This average irradiance
         is used to compute the individual PV system power output
         """
-        cmd = f"Set stepsize={self._simulation_time_step} Number=1"
+        cmd = f'Set stepsize={self._run_freq_sec} Number=1'
         dss.Text.Command(cmd)
         forecast = []
         for k in range(steps):
@@ -460,7 +461,7 @@ class FeederSimulator(object):
         self._state = OpenDSSState.DISABLED_SOLVE
 
     def just_solve(self):
-        """Solve without setting time or anything. Useful for commands."""
+        """Solvesolve without setting time or anything. Useful for commands."""
         assert (
             self._state != OpenDSSState.UNLOADED
             and self._state != OpenDSSState.DISABLED_RUN
