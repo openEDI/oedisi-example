@@ -1,0 +1,18 @@
+Clear
+
+New Circuit.test_feeder bus1=head_bus pu=1.03 basekV=12.47 R1=1e-05 X1=1e-05 R0=1e-05 X0=1e-05
+
+new generator.HRSST_PV_PMU  Phases=3   Bus1=HRSST_PV   kV = 0.48 conn=wye Model=1  kW=3049.66   kVAr=-109.69
+
+New PVSystem.3P_ExistingSite4 phases=3 bus1=B51854_sec2     kV=0.416 kVA=523 irradiance=1 Pmpp=475 pf=1 %cutin=0.1 %cutout=0.1
+
+new generator.HRSST_PV_PMU_2 Phases=1   Bus1=HRSST_PV.0.1 kV = 0.48 conn=wye Model=1  kW=3049.66   kVAr=-109.69
+New PVSystem.3P_ExistingSite4_2 phases=1 bus1=B51854_sec2.0.1     kV=0.416 kVA=523 irradiance=1 Pmpp=475 pf=1 %cutin=0.1 %cutout=0.1
+
+Set Voltagebases=[0.12, 0.208, 0.24, 0.48, 7.2, 12.47]
+
+Calcvoltagebases
+
+set maxcontroliter=50
+
+Solve mode=yearly stepsize=15m number=1
