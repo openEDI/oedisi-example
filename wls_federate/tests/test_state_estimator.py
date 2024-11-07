@@ -24,6 +24,7 @@ from state_estimator_federate import (
     AlgorithmParameters,
     get_indices,
     estimated_pqv,
+    get_zero_injection_indices,
 )
 
 
@@ -99,17 +100,24 @@ def get_actuals(directory):
 
 def inner_args(parameters, topology, measurements):
     P, Q, V = measurements
-    knownP = get_indices(topology, P)
-    knownQ = get_indices(topology, Q)
+    zero_power_nodes = get_zero_injection_indices(topology)
+    knownP = get_indices(topology, P, extra_nodes=zero_power_nodes)
+    knownQ = get_indices(topology, Q, extra_nodes=zero_power_nodes)
     knownV = get_indices(topology, V)
+
     base_voltages = np.array(topology.base_voltage_magnitudes.values)
     num_node = len(topology.base_voltage_magnitudes.ids)
     base_power = parameters.base_power
+    # Concat enough zeros to P_array from P.values to make it len(knownP)
+    P_array = np.zeros(len(knownP))
+    P_array[: len(P.values)] = P.values
+    Q_array = np.zeros(len(knownQ))
+    Q_array[: len(Q.values)] = Q.values
     z = np.concatenate(
         (
             V.values / base_voltages[knownV],
-            -np.array(P.values) / base_power,
-            -np.array(Q.values) / base_power,
+            -P_array / base_power,
+            -Q_array / base_power,
         ),
         axis=0,
     )
@@ -124,6 +132,67 @@ def inner_args(parameters, topology, measurements):
     initial_ang = np.array(topology.base_voltage_angles.values)
     X0 = np.concatenate((initial_ang, np.full(num_node, 1)))
     return X0, z, num_node, knownP, knownQ, knownV, Y
+
+
+def test_get_indices(ieee123data):
+    topology = get_topology(ieee123data)
+    measurements = get_measurements(ieee123data)
+    P, Q, V = measurements
+    zero_power_nodes = get_zero_injection_indices(topology)
+    knownP = get_indices(topology, P, extra_nodes=zero_power_nodes)
+    knownQ = get_indices(topology, Q, extra_nodes=zero_power_nodes)
+    assert len(knownP) >= len(P.values)
+    assert len(knownQ) >= len(Q.values)
+
+    alternate_P = get_indices(topology, P)
+    assert all(
+        [knownP[i] == alternate_P[i] for i in range(len(P.values))]
+    ), "Measurement indices are different"
+
+
+def test_zero_power_nodes(ieee123data):
+    topology = get_topology(ieee123data)
+    measurements = get_measurements(ieee123data)
+    zero_power_nodes = get_zero_injection_indices(topology)
+    P, Q, V = measurements
+    assert all(
+        [
+            np.abs(P.values[i]) < 0.001
+            for i in range(len(P.values))
+            if P.ids[i] in zero_power_nodes
+        ]
+    )
+    assert all(
+        [
+            np.abs(Q.values[i]) < 0.001
+            for i in range(len(Q.values))
+            if Q.ids[i] in zero_power_nodes
+        ]
+    )
+
+    Y = get_y(topology.admittance, topology.base_voltage_magnitudes.ids)
+    Y = (
+        scipy.sparse.diags_array(np.array(topology.base_voltage_magnitudes.values))
+        @ Y
+        @ scipy.sparse.diags_array(np.array(topology.base_voltage_magnitudes.values))
+    ) / (100 * 1000)
+
+    # Get true voltages
+    voltage_real, voltage_imag = get_actuals(ieee123data)
+    true_voltages = np.array(voltage_real.values) + 1j * np.array(voltage_imag.values)
+    true_voltages /= np.array(topology.base_voltage_magnitudes.values)
+
+    S = true_voltages * (Y.conjugate() @ true_voltages.conjugate())
+    zero_power_nodes = sorted(list(zero_power_nodes))
+    inv_map = {v: i for i, v in enumerate(topology.base_voltage_magnitudes.ids)}
+    zero_power_node_idx = [inv_map[node] for node in zero_power_nodes]
+    max_calculated_S = np.abs(S[zero_power_node_idx])
+    # Get ids with nonzero power from max_calculated_S using np.nonzero
+    (nonzero_power_nodes,) = np.nonzero(max_calculated_S > 1e-6)
+    nonzero_power_node_ids = [zero_power_nodes[idx] for idx in nonzero_power_nodes]
+    assert (
+        len(nonzero_power_node_ids) <= 3
+    ), f"Nonzero power nodes: {nonzero_power_node_ids} with power {max_calculated_S[nonzero_power_nodes]}"
 
 
 def test_calculate_jacobian(parameters, ieee123data):
@@ -205,8 +274,18 @@ def test_residuals_against_actuals(parameters, input_data):
     X0 = np.concatenate((np.angle(true_voltages), np.abs(true_voltages)))
     h = residual(X0, z, num_node, knownP, knownQ, knownV, Y)
     voltage_ids = list(map(lambda x: "voltage_" + x, measurements[2].ids))
-    power_real_ids = list(map(lambda x: "P_" + x, measurements[0].ids))
-    power_imag_ids = list(map(lambda x: "Q_" + x, measurements[1].ids))
+    power_real_ids = list(
+        map(
+            lambda x: "P_" + x,
+            set(measurements[0].ids).union(get_zero_injection_indices(topology)),
+        )
+    )
+    power_imag_ids = list(
+        map(
+            lambda x: "Q_" + x,
+            set(measurements[1].ids).union(get_zero_injection_indices(topology)),
+        )
+    )
     ids = voltage_ids + power_real_ids + power_imag_ids
     assert len(ids) == len(
         h

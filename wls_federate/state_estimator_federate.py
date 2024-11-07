@@ -119,10 +119,23 @@ def matrix_to_numpy(admittance: List[List[Complex]]):
     return np.array([[x[0] + 1j * x[1] for x in row] for row in admittance])
 
 
-def get_indices(topology, measurement):
+def get_indices(topology, measurement, extra_nodes=set()):
     "Get list of indices in the topology for each index of the input measurement"
     inv_map = {v: i for i, v in enumerate(topology.base_voltage_magnitudes.ids)}
-    return [inv_map[v] for v in measurement.ids]
+    ordinary_indices = [inv_map[v] for v in measurement.ids]
+    extra_indices = [inv_map[v] for v in extra_nodes.difference(measurement.ids)]
+    return ordinary_indices + extra_indices
+
+
+def get_zero_injection_indices(topology):
+    zero_nodes = set(topology.base_voltage_magnitudes.ids)
+    zero_nodes = zero_nodes.difference(topology.injections.power_real.ids)
+    zero_nodes = zero_nodes.difference(topology.injections.power_imaginary.ids)
+    zero_nodes = zero_nodes.difference(topology.injections.current_real.ids)
+    zero_nodes = zero_nodes.difference(topology.injections.current_imaginary.ids)
+    zero_nodes = zero_nodes.difference(topology.injections.impedance_real.ids)
+    zero_nodes = zero_nodes.difference(topology.injections.impedance_imaginary.ids)
+    return zero_nodes
 
 
 class AlgorithmParameters(BaseModel):
