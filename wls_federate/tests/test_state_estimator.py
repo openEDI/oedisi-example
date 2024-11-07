@@ -191,7 +191,7 @@ def test_zero_power_nodes(ieee123data):
     (nonzero_power_nodes,) = np.nonzero(max_calculated_S > 1e-6)
     nonzero_power_node_ids = [zero_power_nodes[idx] for idx in nonzero_power_nodes]
     assert (
-        len(nonzero_power_node_ids) <= 3
+        len(nonzero_power_node_ids) == 0
     ), f"Nonzero power nodes: {nonzero_power_node_ids} with power {max_calculated_S[nonzero_power_nodes]}"
 
 
