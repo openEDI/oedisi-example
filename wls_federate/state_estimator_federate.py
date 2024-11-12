@@ -340,7 +340,7 @@ class StateEstimatorFederate:
                 topology_inv_map = {
                     v: i for i, v in enumerate(topology.base_voltage_magnitudes.ids)
                 }
-                if all(map(lambda x: x in topology_inv_map, topology.slack_bus)):
+                if all(map(lambda x: x in voltage_inv_map, topology.slack_bus)):
                     self.initial_V = np.mean(
                         [
                             voltages.values[voltage_inv_map[slack_bus]]
