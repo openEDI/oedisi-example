@@ -410,7 +410,7 @@ def test_least_squares_call(parameters: AlgorithmParameters, input_data: str):
     solution = ls_result.x
 
     mean_rel_error = get_mean_relative_error(topology, solution, actuals)
-    assert mean_rel_error < 0.1, f"Max relative error too high: {mean_rel_error}"
+    assert mean_rel_error < 0.05, f"Mean relative error too high: {mean_rel_error}"
 
     mean_angle_error = get_mean_angle_error(topology, solution, actuals)
     assert (
@@ -676,9 +676,22 @@ def test_improved_initialization(parameters: AlgorithmParameters, input_data: st
     )
     assert z.shape == (len(knownV) + len(knownP) + len(knownQ),)
     assert np.all(np.array(knownV) < num_node)
+
+    _, _, measured_voltage = measurements
+    measured_inv_map = {v: i for i, v in enumerate(measured_voltage.ids)}
+    topology_inv_map = {
+        v: i for i, v in enumerate(topology.base_voltage_magnitudes.ids)
+    }
+    assert all(map(lambda x: x in measured_inv_map, topology.slack_bus))
+    v0 = np.mean(
+        [
+            measured_voltage.values[measured_inv_map[slack_bus]]
+            / topology.base_voltage_magnitudes.values[topology_inv_map[slack_bus]]
+            for slack_bus in topology.slack_bus
+        ]
+    )
+    X0[(len(X0) // 2) :] = v0  # np.mean(z[: len(knownV)])
     # X0[(len(X0) // 2) :][knownV] = z[: len(knownV)]
-    X0[(len(X0) // 2) :] = np.mean(z[: len(knownV)])
-    X0[(len(X0) // 2) :][knownV] = z[: len(knownV)]
     # X0[(len(X0) // 2) :] = np.abs(true_voltages)
 
     # X0[: (len(X0) // 2)] = np.angle(true_voltages)
