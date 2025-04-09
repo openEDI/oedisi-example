@@ -1,8 +1,4 @@
-FROM python:3.10.6-slim-bullseye
-#USER root
-RUN apt-get update && apt-get install -y git ssh
-
-RUN mkdir -p /root/.ssh
+FROM python:3.11.10
 
 WORKDIR /simulation
 

@@ -1,5 +1,4 @@
-helics==3.4.0
-helics-apps==3.4.0
+helics>=3.4.0
 pydantic
 pyarrow
 numpy
@@ -9,4 +8,3 @@ uvicorn
 requests
 grequests
 oedisi>=2.0.2,<3
-

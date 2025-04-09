@@ -1,4 +1,4 @@
-helics==3.4.0
+helics>=3.4.0
 pydantic>=1.7,<2
 cvxpy
 numpy

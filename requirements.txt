@@ -4,6 +4,7 @@ matplotlib
 numpy
 pandas
 oedisi>=2.0.2,<3
+helics>=3.6.1
 -r recorder/requirements.txt
 -r LocalFeeder/requirements.txt
 -r measuring_federate/requirements.txt
