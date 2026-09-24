@@ -43,3 +43,6 @@
 [submodule "Components/pnnl-anon-dp"]
 	path = Components/pnnl-anon-dp
 	url = https://github.com/openEDI/pnnl-anon-dp
+[submodule "Components/tsapp"]
+	path = Components/tsapp
+	url = https://github.com/openEDI/tsapp
