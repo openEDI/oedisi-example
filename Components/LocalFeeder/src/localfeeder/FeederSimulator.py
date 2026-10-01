@@ -170,6 +170,12 @@ class FeederSimulator:
         PV systems for each time step. This average irradiance is used to
         compute the individual PV system power output.
         """
+        if not dss.PVsystems.AllNames():
+            # A distribution model may legitimately contain no PV systems.
+            # Publish an empty forecast instead of calling IrradianceNow with
+            # no active PVSystem object.
+            return []
+
         cmd = f"Set stepsize={self._run_freq_sec} Number=1"
         dss.Text.Command(cmd)
         forecast = []
