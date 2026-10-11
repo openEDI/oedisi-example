@@ -29,6 +29,7 @@ dependencies = [
     "uvicorn",
     "oedisi~=3.0",
     "python-multipart",
+    "nrel-ditto==0.1.0"
 ]
 
 [project.optional-dependencies]
